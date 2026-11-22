@@ -1,0 +1,6 @@
+frames 2520
+837-1749 accel=0xe0
+1750-1939 accel=0xe0
+1940-2519 accel=0xe0
+1500-1749 steer=0x70
+1750-1939 steer=0x88

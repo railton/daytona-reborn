@@ -1,0 +1,5 @@
+frames 3
+0-1 accel=0xe0
+0-1 steer=0x20
+1 steer=0x70 # Override one tick.
+1 in0=0xfe

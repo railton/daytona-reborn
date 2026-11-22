@@ -1,0 +1,7 @@
+# Advanced solo. Use --pc-solo 2 --transmission manual with m2run.
+# The native session reaches Racing at tick 1156 in the validation run.
+# Hold the accelerator, select first, then select second after the launch.
+frames 1700
+1157-1699 accel=0xe0
+1157-1399 gear1=1
+1400-1699 gear2=1

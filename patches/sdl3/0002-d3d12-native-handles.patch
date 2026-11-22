@@ -1,0 +1,31 @@
+diff --git a/src/gpu/d3d12/SDL_gpu_d3d12.c b/src/gpu/d3d12/SDL_gpu_d3d12.c
+index 43015c820..aa4874648 100644
+--- a/src/gpu/d3d12/SDL_gpu_d3d12.c
++++ b/src/gpu/d3d12/SDL_gpu_d3d12.c
+@@ -3758,6 +3758,13 @@ static SDL_GPUTexture *D3D12_CreateTexture(
+     }
+ 
+     container->textures[0] = texture;
++    /* daytona-arcade-recomp: SDL_GPU has no texture property getter, so the
++       first resource of the container is written back into the caller's
++       creation properties, for the DXR interop (those targets are never
++       cycled). */
++    if (createinfo->props) {
++        SDL_SetPointerProperty(createinfo->props, "SDL.gpu.texture.d3d12.resource", texture->resource);
++    }
+     container->activeTexture = texture;
+ 
+     texture->container = container;
+@@ -9350,6 +9357,12 @@ static SDL_GPUDevice *D3D12_CreateDevice(bool debugMode, bool preferLowPower, SD
+     }
+ #endif
+ 
++    /* daytona-arcade-recomp: publish the native device and direct queue so the
++       optional DXR shadow pass works on the same device and queue order as
++       SDL_GPU (no copy through the CPU). Read-only; SDL keeps ownership. */
++    SDL_SetPointerProperty(renderer->props, "SDL.gpu.device.d3d12.device", renderer->device);
++    SDL_SetPointerProperty(renderer->props, "SDL.gpu.device.d3d12.command_queue", renderer->commandQueue);
++
+     // Create indirect command signatures
+ 
+     D3D12_COMMAND_SIGNATURE_DESC commandSignatureDesc;
