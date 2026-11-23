@@ -37,6 +37,17 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
   italic figures, a chequered strip, places in lime as the HUD's POSITION;
   each name in its car's paint (measured on the eight linked cars). Shown for the race's first 10 s and while Tab (or the
   gamepad's left stick button) is held.
+- **Name tags over the cars.** In an online race each other player's car
+  carries a small tag with their car number and name in their car's colour,
+  in the list's arcade style, all race long. It follows the car as drawn
+  (widescreen, the "4:3" mode, super sampling and the four camera views
+  alike), shrinks and fades with distance (gone beyond about 160 units,
+  where a car is a few pixels wide), fades out while the scenery or another
+  car hides it, and is not drawn for a car off the screen or behind the
+  camera. Each linked car's number comes from the game's own car records:
+  in a linked race the byte at +0x94 of each opponent record (0x505480 +
+  n x 0x300) is the CAR NUMBER - 1 of the cabinet driving it, 8 for a
+  computer car (found on 3 and 4 linked cabinets, `runtime/car_tags.h`).
 - **Version check.** Each game sends its online version; a room only takes
   games of the version that created it.
 - **Clear errors** in the player's language: server not found, wrong
@@ -138,7 +149,10 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
   settings.
 - `--capture-home` waits three frames, so auto-sized windows are captured;
   `M2_CAPTURE_ONLINE_NAMES=1` (or `=2`, as standings) draws the players list
-  with sample names in a capture.
+  with sample names in a capture, `=3` the name tags over three cars.
+- `tests/test_car_tags.cpp`: the tags' place from synthetic polygons (the
+  car records' number byte, projection, widescreen origin, what hides a
+  car) and the game's picture in the window.
 
 ### Known limits
 
@@ -154,3 +168,8 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
 - The relay is not encrypted: the server password travels in clear, is in
   the invite code and is stored in `launcher.ini`.
 - A brief network drop restarts the room's race.
+- Name tags: whether a car is hidden is judged from the centres of its 8
+  largest faces against the opaque polygons drawn before them, so trees and
+  fences (cut-out textures) never hide one, and a car seen only by an edge
+  can lose its tag. Checked on headless frames (m2run, 3 and 4 cabinets,
+  widescreen too), not yet in a race between players.

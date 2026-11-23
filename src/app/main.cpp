@@ -1036,6 +1036,8 @@ int main(int argc, char **argv) {
     rt::online::Standings online_standings; // the race's standings, for the players list
     uint64_t online_race_since = 0;       // when this online race began (its first race frame), 0: not racing
     float online_names = 0.f;             // the players list's opacity over the race (app/online_overlay.h)
+    app::CarTagOverlay online_tags;       // the other players' name tags over their cars, all race long
+    uint64_t online_tags_at = 0;          // the last presented frame they were placed for
     std::unique_ptr<rt::GameLoop> game;
     bool pose_session = false, last_render_was_pose = false;
     uint64_t pose_interval_ns = 0;
@@ -1906,6 +1908,21 @@ int main(int argc, char **argv) {
             new_frame = false;
         }
 
+#ifndef M2_MOBILE
+        { // online: the other players' name tags, where this picture draws their cars
+            std::vector<rt::online::CarTag> tags;
+            if (online_game && game && !in_launcher && online_link &&
+                game->board().read_byte(rt::online::AutoEntry::mode_address) == rt::online::CourseSync::race) {
+                const auto &video = game->board().video();
+                tags = rt::online::car_tags(pose_polys ? *pose_polys : video.gpu_polys(),
+                                            video.crtc_x() + (screen_w - rt::Video::W) / 2, video.crtc_y(),
+                                            [&](unsigned slot) { return rt::online::linked_car(game->board(), slot); });
+            }
+            const float seconds = online_tags_at ? std::min(float(now - online_tags_at) / 1e9f, 0.1f) : 0.f;
+            online_tags_at = now;
+            online_tags.update(tags, seconds);
+        }
+#endif
         ImDrawData *draw = nullptr;
 #ifndef M2_MOBILE
         if (pc_home && solo && native_fault) {
@@ -1919,7 +1936,7 @@ int main(int argc, char **argv) {
 #ifdef M2_MOBILE
             || game != nullptr
 #else
-            || draw_home || reveal < 1.f || online_names > 0.f
+            || draw_home || reveal < 1.f || online_names > 0.f || !online_tags.empty()
 #endif
         ) {
             ImGui_ImplSDLGPU3_NewFrame();
@@ -1985,6 +2002,12 @@ int main(int argc, char **argv) {
                     {view->Pos.x + view->Size.x, view->Pos.y + view->Size.y},
                     IM_COL32(0, 0, 0, int(255 * (1 - reveal))));
             }
+            if (!online_tags.empty() && online_link && !in_launcher) {
+                const auto *view = ImGui::GetMainViewport();
+                online_tags.draw(online_link->status(),
+                                 app::game_picture(view->Size.x, view->Size.y, screen_w, H, cfg.arcade_43()),
+                                 screen_w, H, reveal);
+            }
             if (online_names > 0.f && online_link && !in_launcher) {
                 std::array<int, 9> ranks;
                 for (int car = 0; car < 9; ++car) ranks[car] = online_standings.rank(car);
@@ -1995,9 +2018,21 @@ int main(int argc, char **argv) {
                 demo.size = demo.joined = 8;
                 demo.position = 2;
                 demo.names = {"Railton", "Jo\xc3\xa3o", "Ana", "Pedro", "", "Marina", "Luiz", "Bia"};
-                const bool standings = std::getenv("M2_CAPTURE_ONLINE_NAMES")[0] == '2'; // =2: as standings
-                app::draw_online_players(demo, 1.f, standings ? std::array<int, 9>{-1, 3, 0, 5, 1, 7, 2, 6, 4}
-                                                              : std::array<int, 9>{-1, -1, -1, -1, -1, -1, -1, -1, -1});
+                const char mode = std::getenv("M2_CAPTURE_ONLINE_NAMES")[0];
+                if (mode == '3') { // =3: the name tags, over three cars of a 496x384 picture
+                    app::CarTagOverlay tags;
+                    std::vector<rt::online::CarTag> cars(3);
+                    cars[0] = {1, 160.f, 230.f, 290.f, 90.f, 8.f, 1.f};
+                    cars[1] = {3, 320.f, 190.f, 215.f, 40.f, 35.f, 1.f};
+                    cars[2] = {6, 250.f, 176.f, 186.f, 16.f, 120.f, 1.f};
+                    tags.update(cars, 1.f);
+                    const auto *view = ImGui::GetMainViewport();
+                    tags.draw(demo, app::game_picture(view->Size.x, view->Size.y, rt::Video::W, H, false), rt::Video::W, H);
+                } else {
+                    const bool standings = mode == '2'; // =2: as standings
+                    app::draw_online_players(demo, 1.f, standings ? std::array<int, 9>{-1, 3, 0, 5, 1, 7, 2, 6, 4}
+                                                                  : std::array<int, 9>{-1, -1, -1, -1, -1, -1, -1, -1, -1});
+                }
             }
 #endif
             sync_native_audio();

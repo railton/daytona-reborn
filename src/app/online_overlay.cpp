@@ -134,4 +134,79 @@ void draw_online_players(const online::Status &room, float alpha, const std::arr
     }
 }
 
+void CarTagOverlay::update(const std::vector<rt::online::CarTag> &tags, float seconds) {
+    std::array<bool, 9> drawn{};
+    for (const auto &tag : tags) {
+        if (tag.car < 1 || tag.car > 8) continue;
+        tags_[tag.car] = tag;
+        drawn[tag.car] = true;
+    }
+    for (int car = 1; car <= 8; ++car) {
+        float &a = shown_[car];
+        if (!drawn[car]) a = 0.f; // off the screen, behind the camera, too far: nowhere to put it
+        else if (tags_[car].visible > 0.f) a = std::min(1.f, a + seconds * 6.f);
+        else a = std::max(0.f, a - seconds * 4.f); // hidden by the scenery: fades where it is
+    }
+}
+
+void CarTagOverlay::draw(const online::Status &room, Picture picture, int screen_w, int screen_h, float alpha) const {
+    if (alpha <= 0.f || screen_w <= 0 || screen_h <= 0 || picture.w <= 0.f) return;
+    const auto *view = ImGui::GetMainViewport();
+    auto *draw = ImGui::GetForegroundDrawList();
+    ImFont *font = ImGui::GetFont();
+    constexpr float kLean = 0.22f; // the HUD's italic, as the list
+    constexpr uint32_t kWhite = 0xffffff, kBlack = 0x000000;
+    const float left = view->Pos.x + picture.x, top = view->Pos.y + picture.y;
+    const float sx = picture.w / float(screen_w), sy = picture.h / float(screen_h);
+
+    std::vector<int> cars; // far first, so a nearer tag is drawn over a farther one
+    for (int car = 1; car <= 8; ++car)
+        if (shown_[car] > 0.f && car != room.position) cars.push_back(car);
+    std::sort(cars.begin(), cars.end(), [&](int a, int b) { return tags_[a].depth > tags_[b].depth; });
+
+    for (int car : cars) {
+        const auto &tag = tags_[car];
+        const float a = alpha * shown_[car] * distance_alpha(tag.depth);
+        if (a < 0.01f) continue;
+        const auto rgba = [a](uint32_t rgb, float k = 1.f) {
+            return IM_COL32((rgb >> 16) & 0xff, (rgb >> 8) & 0xff, rgb & 0xff, int(255 * a * k));
+        };
+        const float x = left + tag.x * sx, y = top + tag.top * sy;
+        if (x < left || x > left + picture.w || tag.bottom * sy < 0.f || y > top + picture.h) continue;
+        const float s = std::max(0.4f, picture.h / 768.f) * distance_scale(tag.depth);
+        const uint32_t colour = online_car_colour(car);
+
+        char unnamed[64];
+        std::snprintf(unnamed, sizeof unnamed, TX("Player %d"), car);
+        const char *name = size_t(car) <= room.names.size() && !room.names[car - 1].empty()
+                               ? room.names[car - 1].c_str() : unnamed;
+        char figure[4];
+        std::snprintf(figure, sizeof figure, "%d", car);
+        const float name_size = 19.f * s, figure_size = 19.f * s;
+        const float h = 25.f * s, tab_w = 24.f * s, pad = 8.f * s, point = 8.f * s;
+        const float name_w = font->CalcTextSizeA(name_size, FLT_MAX, 0.f, name).x;
+        const float bar_w = tab_w + pad + name_w + pad;
+        // the pointer's tip just over the roof; the bar over it, kept inside the picture
+        const float tip = std::max(y - 3.f * s, top + h + point);
+        const float bottom = tip - point;
+        const float bar_x = std::clamp(x - bar_w * 0.5f, left, std::max(left, left + picture.w - bar_w));
+
+        draw->AddTriangleFilled({x - point * 0.75f, bottom - 1.f}, {x + point * 0.75f, bottom - 1.f}, {x, tip},
+                                rgba(colour));
+        draw->AddTriangle({x - point * 0.75f, bottom - 1.f}, {x + point * 0.75f, bottom - 1.f}, {x, tip},
+                          rgba(kBlack, 0.8f), 1.5f * s);
+        const int from = draw->VtxBuffer.Size;
+        draw->AddRectFilledMultiColor({bar_x, bottom - h}, {bar_x + bar_w, bottom}, rgba(kBlack, 0.85f),
+                                      rgba(kBlack, 0.6f), rgba(kBlack, 0.6f), rgba(kBlack, 0.85f));
+        draw->AddRectFilled({bar_x, bottom - h}, {bar_x + tab_w, bottom}, rgba(colour));
+        draw->AddRectFilled({bar_x, bottom - 2.f * s}, {bar_x + bar_w, bottom}, rgba(colour));
+        const ImVec2 fs = font->CalcTextSizeA(figure_size, FLT_MAX, 0.f, figure);
+        outlined(draw, font, figure_size, {bar_x + (tab_w - fs.x) * 0.5f, bottom - h + (h - fs.y) * 0.5f - 1.f * s},
+                 rgba(light(colour) ? kBlack : kWhite), rgba(light(colour) ? kWhite : kBlack, 0.6f), 1.f * s, figure);
+        const float ny = bottom - h + (h - name_size) * 0.5f - 1.f * s;
+        outlined(draw, font, name_size, {bar_x + tab_w + pad, ny}, rgba(kWhite), rgba(kBlack), 1.5f * s, name);
+        lean(draw, from, bottom, kLean);
+    }
+}
+
 } // namespace app

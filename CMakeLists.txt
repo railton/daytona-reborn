@@ -526,6 +526,10 @@ add_test(NAME comm_board COMMAND test_comm_board)
 add_executable(test_online tests/test_online.cpp src/app/online.cpp)
 target_include_directories(test_online PRIVATE src)
 add_test(NAME online COMMAND test_online)
+# Online play: the name tags' place over the linked cars, and the picture in the window
+add_executable(test_car_tags tests/test_car_tags.cpp)
+target_include_directories(test_car_tags PRIVATE src)
+add_test(NAME car_tags COMMAND test_car_tags)
 
 # Wheel and pedal bindings against SDL virtual joysticks.
 if(TARGET SDL3::SDL3-static)
