@@ -84,6 +84,17 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
   buttons, create and join side by side; long labels wrap.
 - `lang/` is copied next to the game on every build, so a changed
   translation reaches it without relinking.
+- **New home screen.** The 3D backdrop is now a low-sun speedway seen from
+  the first turn: sky with sun and clouds, far hills, a grandstand with its
+  crowd, start gantry and lights, pit road, scoring pylon, infield lake and
+  palms; ten stock cars run as a pack, two wide, at an even speed through
+  the turns, and the camera drifts round the turn with the focus following
+  them. The menu leans like racing type: italic title, slanted buttons, a
+  yellow Play with running chevrons, course tiles with their difficulty, an
+  arcade cursor on the keyboard/gamepad choice, start lights while a race
+  loads. On Linux it uses the desktop's bold sans (Noto, Liberation or
+  DejaVu) when there is one. Same shaders; the scene is 84k vertices
+  (3.4 MB, uploaded once), drawn in two calls plus one per car.
 
 ### Building
 

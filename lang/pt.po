@@ -96,6 +96,15 @@ msgstr "nenhum"
 msgid "M O D E L   2    /    P C   E D I T I O N"
 msgstr "M O D E L   2    /    E D I Ç Ã O   P C"
 
+msgid "Beginner"
+msgstr "Iniciante"
+
+msgid "Advanced"
+msgstr "Avançado"
+
+msgid "Expert"
+msgstr "Especialista"
+
 msgid "Preparing the race..."
 msgstr "Preparando a corrida..."
 

@@ -97,6 +97,15 @@ msgstr ""
 msgid "M O D E L   2    /    P C   E D I T I O N"
 msgstr ""
 
+msgid "Beginner"
+msgstr ""
+
+msgid "Advanced"
+msgstr ""
+
+msgid "Expert"
+msgstr ""
+
 msgid "Preparing the race..."
 msgstr ""
 

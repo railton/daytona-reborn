@@ -21,7 +21,7 @@ private:
     SDL_GPUTexture *color_ = nullptr, *depth_ = nullptr;
     SDL_GPUSampler *sampler_ = nullptr;
     SDL_GPUBuffer *vertices_ = nullptr;
-    Uint32 w_ = 0, h_ = 0, track_vertices_ = 0, car_vertices_ = 0;
+    Uint32 w_ = 0, h_ = 0, track_vertices_ = 0, sky_vertices_ = 0, car_vertices_ = 0;
 };
 
 } // namespace app
