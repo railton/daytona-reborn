@@ -66,6 +66,24 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
   limited in all and per address.
 - `daytona-link`: a helper (Linux and Windows) bridging the unmodified game's
   LAN link play to the server.
+- **Web interface** on its own port (`DAYTONA_WEB_PORT`, default 8080, 0
+  turns it off): one page, in the home screen's sunset-speedway style, that
+  lists the open rooms (code for public rooms only, players, waiting or
+  racing, settings, age; refreshed every 3 s) and creates rooms with their
+  own race settings (2 to 8 players, every option above, who may start,
+  public or private). It shows the new room's invite code with a Copy
+  button; the code needs `DAYTONA_PUBLIC_ADDRESS` (the relay's host:port as
+  players reach it). Creating asks a password when the server has one
+  (`DAYTONA_WEB_PASSWORD`, or else `DAYTONA_PASSWORD`, which travels in the
+  invite). JSON API behind it: `GET /api/config`, `GET /api/rooms`,
+  `POST /api/rooms`. Standard library only, the page embedded (20 KB); the
+  image grows from about 2.5 MB to 6 MB.
+- **Per-room race settings.** A room created on the web keeps its own
+  settings and start rule, sent to its players instead of the environment's;
+  it exists before anyone joins and is removed after 10 minutes empty. Rooms
+  created by a game keep the environment's settings and close with their
+  last player. `DAYTONA_MAX_ROOMS` counts both. The wire protocol is
+  unchanged.
 
 ### Interface and languages
 

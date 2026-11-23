@@ -10,14 +10,21 @@ services:
     restart: unless-stopped
     ports:
       - "${DAYTONA_PORT:-7777}:${DAYTONA_PORT:-7777}/tcp"
+      # The web interface (rooms list, create a room). Turned off with DAYTONA_WEB_PORT=0: remove this line then.
+      - "${DAYTONA_WEB_PORT:-8080}:${DAYTONA_WEB_PORT:-8080}/tcp"
     environment:
       DAYTONA_PORT: "${DAYTONA_PORT:-7777}"
+      DAYTONA_WEB_PORT: "${DAYTONA_WEB_PORT:-8080}"
+      # host:port the players reach the relay at (e.g. vps.example.com:7777): the web page's invite codes need it.
+      DAYTONA_PUBLIC_ADDRESS: "${DAYTONA_PUBLIC_ADDRESS:-}"
+      # Password to create rooms on the web page; empty: DAYTONA_PASSWORD (asked only when one is set).
+      DAYTONA_WEB_PASSWORD: "${DAYTONA_WEB_PASSWORD:-}"
       # Optional password: only who knows it can use the server (it travels in the invite code).
       DAYTONA_PASSWORD: "${DAYTONA_PASSWORD:-}"
       DAYTONA_MAX_ROOMS: "${DAYTONA_MAX_ROOMS:-100}"
       DAYTONA_MAX_CONNECTIONS: "${DAYTONA_MAX_CONNECTIONS:-1000}"
       DAYTONA_MAX_PER_IP: "${DAYTONA_MAX_PER_IP:-16}"          # players behind one router share an address
-      # Race settings, the same for every player of every room:
+      # Race settings for every room a game creates (and the web page's defaults):
       DAYTONA_CABINET: "${DAYTONA_CABINET:-twin}"                 # twin | uplight | deluxe
       DAYTONA_COUNTRY: "${DAYTONA_COUNTRY:-usa}"                  # usa (English) | jpn (Japanese) | export
       DAYTONA_DIFFICULTY: "${DAYTONA_DIFFICULTY:-normal}"         # easy | normal | hard | hardest

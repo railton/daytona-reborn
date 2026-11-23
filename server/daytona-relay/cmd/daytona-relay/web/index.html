@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0b1530">
+<title>Daytona Online Rooms</title>
+<style>
+:root{
+  --ink:#0d1221;--white:#f7faff;--cream:#fff3d6;--muted:#b3c7e0;--dim:#7f93b0;
+  --red:#ed3833;--red2:#c71f24;--yellow:#ffd433;--orange:#ff8521;--sky:#3894ff;--sky2:#2a6fd0;
+  --panel:rgba(9,15,31,.80);--slab:rgba(20,30,56,.88);--slab2:rgba(11,18,36,.88);--line:rgba(255,255,255,.10);
+  --font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+}
+*{box-sizing:border-box}
+html{background:#0b1530}
+body{margin:0;min-height:100vh;color:var(--white);font:15px/1.45 var(--font);
+  background:
+    radial-gradient(ellipse 60% 38% at 78% 82%,rgba(255,226,140,.55),rgba(255,160,70,.18) 45%,transparent 70%),
+    linear-gradient(180deg,#070d1f 0%,#0f1d42 30%,#2b3566 52%,#7a5072 70%,#d9774a 86%,#f2b45a 100%) fixed;
+  background-attachment:fixed}
+button,input{font:inherit;color:inherit}
+.wrap{max-width:1120px;margin:0 auto;padding:28px 16px 24px}
+header{overflow:hidden;padding:0 8px 8px 0}
+
+/* header */
+.kicker{display:flex;align-items:center;gap:10px;font-size:11px;font-weight:700;letter-spacing:.32em;color:var(--muted);text-transform:uppercase}
+.flag{display:inline-flex;gap:3px}
+.flag i{width:5px;height:13px;transform:skewX(-18deg);background:var(--red)}
+.flag i:nth-child(2){background:var(--white)}.flag i:nth-child(3){background:var(--sky)}
+h1{position:relative;display:inline-block;margin:10px 0 4px;font-size:clamp(46px,11vw,84px);line-height:1;font-weight:900;font-style:italic;letter-spacing:.01em;
+  background:linear-gradient(180deg,#fffbe8 0%,#ffe9a8 38%,#ffc44a 72%,#ff9a2a 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(4px 5px 0 rgba(2,4,10,.6))}
+h1::after{content:"";position:absolute;left:calc(100% + 14px);top:28%;width:min(30vw,190px);height:44%;
+  background:repeating-linear-gradient(180deg,rgba(255,255,255,.5) 0 2px,transparent 2px 9px);
+  -webkit-mask:linear-gradient(90deg,#000,transparent);mask:linear-gradient(90deg,#000,transparent)}
+.tagrow{display:flex;align-items:center;gap:14px;margin-top:6px}
+.tag{display:inline-block;padding:6px 22px;transform:skewX(-16deg);background:linear-gradient(180deg,var(--red),var(--red2));box-shadow:0 4px 14px rgba(0,0,0,.35)}
+.tag span{display:inline-block;transform:skewX(16deg);font-size:12px;font-weight:800;letter-spacing:.3em;color:#fff}
+.ticks{display:inline-flex;gap:5px}.ticks i{width:4px;height:24px;transform:skewX(-18deg);background:linear-gradient(var(--yellow),var(--orange))}
+.ticks i+i{opacity:.55}
+.server{margin:14px 0 0;color:var(--muted);font-size:13px}
+.server b{color:var(--cream);font-family:var(--mono);font-weight:600}
+
+/* layout */
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,420px);gap:28px;margin-top:28px;align-items:start}
+@media (max-width:860px){.grid{grid-template-columns:minmax(0,1fr)}.create{order:-1}}
+.head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:0 0 12px}
+h2{margin:0;font-size:13px;font-weight:800;letter-spacing:.22em;text-transform:uppercase;color:var(--cream)}
+.count{font-size:12px;color:var(--muted);font-weight:700;letter-spacing:.08em}
+.panel{background:var(--panel);border-left:4px solid var(--sky);padding:20px 20px 22px;box-shadow:0 18px 40px rgba(0,0,0,.35);
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+
+/* room cards */
+.rooms{display:grid;gap:12px}
+.card{position:relative;padding:14px 18px 14px 20px;background:linear-gradient(180deg,var(--slab),var(--slab2));
+  border:1px solid var(--line);transform:skewX(-6deg);margin:0 8px}
+.card>.in{transform:skewX(6deg)}
+.card::before{content:"";position:absolute;left:-1px;top:-1px;bottom:-1px;width:4px;background:var(--sky)}
+.card.racing::before{background:linear-gradient(var(--yellow),var(--orange))}
+.top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.code{font:italic 800 22px/1.1 var(--font);letter-spacing:.08em;color:var(--white)}
+.code.private{font-size:16px;letter-spacing:.04em;color:var(--muted)}
+.state{margin-left:auto;padding:3px 12px;transform:skewX(-14deg);font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;
+  background:linear-gradient(180deg,var(--sky),var(--sky2))}
+.state span{display:inline-block;transform:skewX(14deg)}
+.racing .state{background:linear-gradient(180deg,var(--yellow),var(--orange));color:var(--ink)}
+.slots{display:flex;align-items:center;gap:4px;margin:10px 0 8px}
+.slots i{width:16px;height:8px;transform:skewX(-20deg);background:rgba(255,255,255,.16)}
+.slots i.on{background:var(--sky)}.racing .slots i.on{background:var(--yellow)}
+.slots b{margin-left:8px;font-size:13px;color:var(--cream)}
+.names{display:flex;flex-wrap:wrap;gap:6px;min-height:4px}
+.name{padding:2px 9px;font-size:13px;background:rgba(255,255,255,.08);border:1px solid var(--line)}
+.name.master{border-color:rgba(255,212,51,.55)}
+.name.master::before{content:"1 ";color:var(--yellow);font-weight:800;font-style:italic}
+.meta{margin-top:9px;font-size:12px;color:var(--dim);display:flex;flex-wrap:wrap;gap:4px 12px}
+.meta .set{color:var(--muted)}
+.mini{margin-left:6px;padding:2px 10px;border:1px solid rgba(255,255,255,.25);background:transparent;transform:skewX(-14deg);
+  font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;cursor:pointer}
+.mini span{display:inline-block;transform:skewX(14deg)}
+.mini:hover,.mini:focus-visible{border-color:var(--yellow);color:var(--yellow);outline:none}
+.empty{padding:26px 20px;color:var(--muted);text-align:center;background:rgba(9,15,31,.55);border:1px dashed rgba(255,255,255,.18)}
+
+/* form */
+.field{margin:14px 0 0;border:0;padding:0;min-width:0}
+.field legend,.lbl{padding:0;margin:0 0 6px;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.seg{display:flex;flex-wrap:wrap;gap:6px 8px;padding-left:4px}
+.seg label{position:relative;cursor:pointer}
+.seg input{position:absolute;opacity:0;width:1px;height:1px}
+.seg span{display:block;min-width:44px;padding:7px 13px;text-align:center;font-size:13px;font-weight:700;font-style:italic;
+  transform:skewX(-14deg);background:linear-gradient(180deg,rgba(28,40,70,.95),rgba(13,21,42,.95));border:1px solid var(--line);color:#e0e8ff;
+  transition:background .12s,border-color .12s}
+.seg label:hover span{border-color:rgba(255,255,255,.35)}
+.seg input:checked+span{background:linear-gradient(180deg,#4aa4ff,var(--sky2));border-color:transparent;color:#fff;box-shadow:inset 0 -3px 0 var(--yellow)}
+.seg input:focus-visible+span{outline:2px solid var(--yellow);outline-offset:2px}
+.seg.num span{min-width:38px;padding:7px 0;font-size:16px}
+.pw{display:block;width:100%;margin-top:2px;padding:10px 12px;background:rgba(5,9,20,.8);border:1px solid rgba(255,255,255,.2);color:var(--white);transform:skewX(-8deg)}
+.pw:focus{outline:2px solid var(--yellow);outline-offset:1px}
+.play{position:relative;display:flex;align-items:center;justify-content:space-between;width:calc(100% - 12px);margin:22px 6px 0;padding:14px 22px;
+  border:0;cursor:pointer;transform:skewX(-14deg);background:linear-gradient(180deg,#ffdb3c,#ffa01e 60%,#ff8016);color:var(--ink);
+  box-shadow:0 10px 24px rgba(255,120,20,.28);transition:filter .12s,transform .12s}
+.play:hover{filter:brightness(1.07)}.play:active{transform:skewX(-14deg) translateY(1px)}
+.play:focus-visible{outline:2px solid #fff;outline-offset:3px}
+.play:disabled{filter:saturate(.4) brightness(.8);cursor:wait}
+.play>b{transform:skewX(14deg);font-size:21px;font-weight:800;font-style:italic}
+.chev{display:flex;gap:2px;transform:skewX(14deg)}
+.chev i{width:13px;height:24px;background:var(--ink);clip-path:polygon(0 0,48% 0,100% 50%,48% 100%,0 100%,52% 50%)}
+.chev i:nth-child(2){opacity:.85}.chev i:nth-child(3){opacity:.7}
+.msg{margin:12px 0 0;font-size:13px;color:#ffb09a;min-height:1em}
+.note{margin:12px 0 0;font-size:12px;color:var(--dim)}
+.note code{color:var(--muted);font-family:var(--mono)}
+
+/* result */
+.result[hidden]{display:none}
+.big{margin:4px 0 0;padding:14px 14px;background:rgba(3,6,14,.85);border:1px solid rgba(255,212,51,.45);
+  font:700 clamp(15px,4.4vw,19px)/1.5 var(--mono);letter-spacing:.06em;color:var(--yellow);word-break:break-all;user-select:all}
+.roomcode{font:italic 800 34px/1.1 var(--font);letter-spacing:.1em;color:var(--white)}
+.row{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.btn{padding:10px 20px;border:1px solid rgba(255,255,255,.18);cursor:pointer;transform:skewX(-14deg);
+  background:linear-gradient(180deg,rgba(32,46,80,.95),rgba(14,22,44,.95));font-weight:800;font-style:italic}
+.btn>span{display:inline-block;transform:skewX(14deg)}
+.btn.primary{background:linear-gradient(180deg,#4aa4ff,var(--sky2));border-color:transparent}
+.btn:hover{border-color:rgba(255,255,255,.45)}.btn:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
+.steps{margin:14px 0 0;padding-left:18px;color:var(--muted);font-size:13px}
+.steps b{color:var(--cream)}
+
+/* footer */
+footer{display:flex;align-items:center;gap:14px;margin-top:36px;color:rgba(255,255,255,.75);font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase}
+.checker{flex:none;width:120px;height:10px;opacity:.75;background:repeating-conic-gradient(#fff 0 25%,#0b1022 0 50%) 0 0/10px 10px}
+footer .rule{flex:1;height:1px;background:linear-gradient(90deg,rgba(255,255,255,.4),transparent)}
+@media (max-width:520px){.wrap{padding-top:20px}.card{margin:0 6px;padding:12px 14px 12px 16px}.panel{padding:16px 14px 18px}.code{font-size:19px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="kicker"><span class="flag"><i></i><i></i><i></i></span>Arcade link play / Relay server</div>
+    <h1>DAYTONA</h1>
+    <div class="tagrow"><div class="tag"><span>ONLINE ROOMS</span></div><span class="ticks"><i></i><i></i></span></div>
+    <p class="server" id="server"></p>
+  </header>
+
+  <main class="grid">
+    <section aria-labelledby="rooms-title">
+      <div class="head"><h2 id="rooms-title">Open rooms</h2><span class="count" id="count"></span></div>
+      <div class="rooms" id="rooms" aria-live="polite"><div class="empty">Loading the rooms...</div></div>
+    </section>
+
+    <section class="create panel" aria-labelledby="create-title">
+      <h2 id="create-title">Create a room</h2>
+      <form id="form" novalidate>
+        <fieldset class="field"><legend>Players</legend><div class="seg num" id="players"></div></fieldset>
+        <div id="options"></div>
+        <fieldset class="field"><legend>Room</legend><div class="seg" id="visibility"></div></fieldset>
+        <div class="field" id="pwfield" hidden>
+          <label class="lbl" for="pw">Server password</label>
+          <input class="pw" id="pw" type="password" autocomplete="current-password" maxlength="200">
+        </div>
+        <button class="play" id="go" type="submit"><b>Create the room</b><span class="chev" aria-hidden="true"><i></i><i></i><i></i></span></button>
+        <p class="msg" id="msg" role="alert"></p>
+      </form>
+      <div class="result" id="result" hidden>
+        <div class="field"><div class="lbl">Room code</div><div class="roomcode" id="rcode"></div></div>
+        <div class="field" id="invbox">
+          <div class="lbl">Invite code</div>
+          <div class="big" id="inv"></div>
+          <div class="row"><button class="btn primary" id="copy" type="button"><span>Copy the code</span></button>
+            <button class="btn" id="again" type="button"><span>New room</span></button></div>
+          <ol class="steps">
+            <li>Send the invite code to the players.</li>
+            <li>In the game: <b>Online</b>, type a name, paste the code under <b>Join a room</b>, <b>Join</b>.</li>
+            <li>The first to join is the MASTER. The race starts when the room is full.</li>
+          </ol>
+        </div>
+        <div id="noinv" hidden>
+          <p class="note">No invite code: the server does not know its public address. Set <code>DAYTONA_PUBLIC_ADDRESS</code> (host:port the players reach the relay at) and restart it. Players can still join with <code>--relay-join</code> and this room code.</p>
+          <div class="row"><button class="btn" id="again2" type="button"><span>New room</span></button></div>
+        </div>
+        <p class="note" id="expiry"></p>
+      </div>
+    </section>
+  </main>
+
+  <footer><span class="checker"></span><span class="rule"></span><span id="foot">Relay</span></footer>
+</div>
+
+<script>
+"use strict";
+(function(){
+  var cfg = null, labels = {};
+  var $ = function(id){ return document.getElementById(id); };
+  function el(tag, cls, text){ var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+  function seg(box, name, values, checked){
+    box.textContent = "";
+    values.forEach(function(v){
+      var l = el("label"), i = el("input");
+      i.type = "radio"; i.name = name; i.value = v.name; i.checked = v.name === checked;
+      l.appendChild(i); l.appendChild(el("span", null, v.label)); box.appendChild(l);
+    });
+  }
+  function picked(name){ var i = document.querySelector('input[name="' + name + '"]:checked'); return i ? i.value : null; }
+
+  function age(s){
+    if (s < 60) return "just now";
+    if (s < 3600) return Math.floor(s / 60) + " min ago";
+    return Math.floor(s / 3600) + " h " + Math.floor(s % 3600 / 60) + " min ago";
+  }
+  function summary(s){
+    var L = function(k){ return (labels[k] && labels[k][s[k]]) || s[k]; };
+    return [L("cabinet"), L("country"), L("difficulty"), L("game_mode") + " mode", "Arrow " + s.rival_arrow,
+      "Sound " + s.advertise_sound, "Free play " + s.free_play, (s.start === "anyone" ? "Anyone" : "Master") + " starts"];
+  }
+
+  function copy(text, btn){
+    function done(){ var s = btn.firstChild, t = s.textContent; s.textContent = "Copied"; setTimeout(function(){ s.textContent = t; }, 1400); }
+    function fallback(){
+      var t = el("textarea"); t.value = text; t.setAttribute("readonly", ""); t.style.position = "fixed"; t.style.opacity = "0";
+      document.body.appendChild(t); t.select();
+      try { document.execCommand("copy"); done(); } catch (e) {}
+      document.body.removeChild(t);
+    }
+    if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(text).then(done, fallback); else fallback();
+  }
+
+  function card(r){
+    var c = el("article", "card" + (r.state === "racing" ? " racing" : "")), inn = el("div", "in"), top = el("div", "top");
+    if (r.code) top.appendChild(el("span", "code", r.code));
+    else top.appendChild(el("span", "code private", r.origin === "game" ? "Private room (from a game)" : "Private room"));
+    if (r.invite) {
+      var b = el("button", "mini"); b.type = "button";
+      b.appendChild(el("span", null, "Copy invite"));
+      b.addEventListener("click", function(){ copy(r.invite, b); }); top.appendChild(b);
+    }
+    var st = el("span", "state"); st.appendChild(el("span", null, r.state === "racing" ? "Racing" : "Waiting")); top.appendChild(st);
+    inn.appendChild(top);
+    var slots = el("div", "slots");
+    for (var i = 0; i < r.size; i++) slots.appendChild(el("i", i < r.joined ? "on" : ""));
+    slots.appendChild(el("b", null, r.joined + " / " + r.size + " players"));
+    inn.appendChild(slots);
+    var names = el("div", "names");
+    r.players.forEach(function(n, i){ names.appendChild(el("span", "name" + (i === 0 ? " master" : ""), n || "(no name)")); });
+    inn.appendChild(names);
+    var meta = el("div", "meta");
+    meta.appendChild(el("span", "set", summary(r.settings).join(" · ")));
+    var when = "Opened " + age(r.age_seconds);
+    if (r.expires_in != null) when += " · closes in " + Math.max(1, Math.ceil(r.expires_in / 60)) + " min if nobody joins";
+    meta.appendChild(el("span", null, when));
+    inn.appendChild(meta);
+    c.appendChild(inn);
+    return c;
+  }
+
+  var timer = null;
+  function refresh(){
+    clearTimeout(timer);
+    fetch("api/rooms", {cache: "no-store"}).then(function(r){ return r.json(); }).then(function(d){
+      var box = $("rooms"); box.textContent = "";
+      if (!d.rooms.length) box.appendChild(el("div", "empty", "No room open. Create one, or start one from the game."));
+      d.rooms.forEach(function(r){ box.appendChild(card(r)); });
+      $("count").textContent = d.open + " / " + d.max_rooms;
+    }).catch(function(){
+      $("count").textContent = "offline";
+    }).then(function(){ timer = setTimeout(refresh, document.hidden ? 15000 : 3000); });
+  }
+  document.addEventListener("visibilitychange", function(){ if (!document.hidden) refresh(); });
+
+  function basic(pw){
+    var bytes = new TextEncoder().encode("web:" + pw), s = "";
+    bytes.forEach(function(b){ s += String.fromCharCode(b); });
+    return "Basic " + btoa(s);
+  }
+
+  function showForm(on){ $("form").hidden = !on; $("result").hidden = on; }
+
+  function submit(ev){
+    ev.preventDefault();
+    var body = {players: +picked("players"), public: picked("visibility") === "public"};
+    cfg.options.forEach(function(o){ body[o.key] = picked(o.key); });
+    var headers = {"Content-Type": "application/json"};
+    if (cfg.password_required) headers.Authorization = basic($("pw").value);
+    $("go").disabled = true; $("msg").textContent = "";
+    fetch("api/rooms", {method: "POST", headers: headers, body: JSON.stringify(body)}).then(function(r){
+      return r.json().then(function(d){ return {ok: r.ok, d: d}; });
+    }).then(function(x){
+      if (!x.ok) {
+        $("msg").textContent = x.d.code === "password" ? "Wrong password." : (x.d.error || "The server refused the room.");
+        if (x.d.code === "password") $("pw").focus();
+        return;
+      }
+      var d = x.d;
+      $("rcode").textContent = d.room;
+      $("invbox").hidden = !d.invite; $("noinv").hidden = !!d.invite;
+      $("inv").textContent = d.invite;
+      $("expiry").textContent = (d.public ? "Public: listed with its code. " : "Private: its code is not listed. ") +
+        "It is removed after " + Math.round(d.expires_in / 60) + " minutes without players.";
+      showForm(false);
+      refresh();
+    }).catch(function(){ $("msg").textContent = "No answer from the server."; })
+      .then(function(){ $("go").disabled = false; });
+  }
+
+  fetch("api/config", {cache: "no-store"}).then(function(r){ return r.json(); }).then(function(c){
+    cfg = c;
+    var nums = [];
+    for (var n = c.min_players; n <= c.max_players; n++) nums.push({name: String(n), label: String(n)});
+    seg($("players"), "players", nums, "2");
+    var box = $("options");
+    c.options.forEach(function(o){
+      labels[o.key] = {};
+      o.values.forEach(function(v){ labels[o.key][v.name] = v.label; });
+      var f = el("fieldset", "field"), lg = el("legend", null, o.label), s = el("div", "seg");
+      f.appendChild(lg); f.appendChild(s); box.appendChild(f);
+      seg(s, o.key, o.values, c.defaults[o.key]);
+    });
+    seg($("visibility"), "visibility", [{name: "public", label: "Public"}, {name: "private", label: "Private"}], "public");
+    $("pwfield").hidden = !c.password_required;
+    $("server").textContent = "";
+    if (c.server) { $("server").append("Server "); $("server").appendChild(el("b", null, c.server)); }
+    else $("server").textContent = "Invite codes are off: set DAYTONA_PUBLIC_ADDRESS on the server.";
+    $("foot").textContent = c.min_players + " to " + c.max_players + " players / " + (c.password_required ? "password" : "open");
+    refresh();
+  }).catch(function(){ $("rooms").textContent = ""; $("rooms").appendChild(el("div", "empty", "The server does not answer.")); });
+
+  $("form").addEventListener("submit", submit);
+  $("copy").addEventListener("click", function(){ copy($("inv").textContent, $("copy")); });
+  $("again").addEventListener("click", function(){ showForm(true); });
+  $("again2").addEventListener("click", function(){ showForm(true); });
+})();
+</script>
+</body>
+</html>
