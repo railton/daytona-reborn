@@ -808,6 +808,9 @@ msgstr "Join"
 msgid "Code d'invitation invalide : copiez-le en entier, il commence par DTN1."
 msgstr "Invalid invite code: copy all of it, it starts with DTN1."
 
+msgid "Le code contient déjà le serveur, la salle et le mot de passe."
+msgstr "The code already holds the server, the room and the password."
+
 msgid "Connexion à %s..."
 msgstr "Connecting to %s..."
 

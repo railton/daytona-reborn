@@ -726,6 +726,9 @@ msgstr ""
 msgid "Code d'invitation invalide : copiez-le en entier, il commence par DTN1."
 msgstr ""
 
+msgid "Le code contient déjà le serveur, la salle et le mot de passe."
+msgstr ""
+
 msgid "Connexion à %s..."
 msgstr ""
 

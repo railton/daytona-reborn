@@ -12,6 +12,7 @@
 //           [--arcade] (Revision A desktop: use the cabinet launcher)
 //           [--start-solo 1|2|3 [--transmission automatic|manual] [--race-mode normal|time-attack]] (Revision A desktop)
 //           [--capture-home FILE.bmp]
+//           [--online] (Revision A: open the home menu's Online screen)
 //           [--inputs FILE] (bounded PC solo race, after the native start)
 //           [--trace-player-inputs FILE | --trace-effective-inputs FILE]
 //           [--trace-software-presents FILE.csv] (bounded software solo race)
@@ -479,6 +480,7 @@ int main(int argc, char **argv) {
     bool interpolate_flag = false;           // --interpolate-poses given on the command line
     std::optional<float> hdr10_paper_white;
     const char *capture_home = nullptr;
+    bool open_online = false; // --online: the home menu's Online screen first
     const char *present_trace_path = nullptr;
     const char *hardware_trace_path = nullptr;
     const char *input_script_path = nullptr;
@@ -516,6 +518,7 @@ int main(int argc, char **argv) {
         }
 #ifndef M2_MOBILE
         else if (!std::strcmp(argv[i], "--capture-home") && i + 1 < argc) capture_home = argv[++i];
+        else if (!std::strcmp(argv[i], "--online")) open_online = true;
         else if (!std::strcmp(argv[i], "--capture-raster")) {
             if (i + 1 >= argc) return 1;
             raster_capture = argv[++i];
@@ -898,12 +901,13 @@ int main(int argc, char **argv) {
     }
     bool settings = false, pc_race = false;
     app::OnlineMenu online_menu;
-    bool online_screen = false; // the home menu shows the Online screen
+    bool online_screen = open_online && pc_home; // the home menu shows the Online screen
     bool solo = false;
     std::string home_message;
     uint64_t reveal_at = 0;
     SDL_GPUTexture *capture_image = nullptr;
     int capture_status = 0;
+    int capture_frames = 0; // --capture-home waits a few frames: ImGui measures auto-sized windows first
     if (capture_home) {
         const SDL_GPUTextureCreateInfo info{SDL_GPU_TEXTURETYPE_2D, ii.ColorTargetFormat,
             SDL_GPU_TEXTUREUSAGE_COLOR_TARGET, Uint32(window_width), Uint32(window_height),
@@ -2104,7 +2108,7 @@ int main(int argc, char **argv) {
                     SDL_Log("Displayed capture failed: %s", SDL_GetError());
                 if (copy) SDL_ReleaseGPUTexture(dev, copy);
             }
-        } else if (capture_image) {
+        } else if (capture_image && ++capture_frames >= 3) {
             if (!save_home_capture(dev, cmd, capture_image, ii.ColorTargetFormat, sw, sh, capture_home)) {
                 SDL_Log("Home capture failed: %s", SDL_GetError());
                 capture_status = 1;
