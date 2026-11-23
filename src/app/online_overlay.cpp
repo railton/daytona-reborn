@@ -204,7 +204,8 @@ void CarTagOverlay::draw(const online::Status &room, Picture picture, int screen
         outlined(draw, font, figure_size, {bar_x + (tab_w - fs.x) * 0.5f, bottom - h + (h - fs.y) * 0.5f - 1.f * s},
                  rgba(light(colour) ? kBlack : kWhite), rgba(light(colour) ? kWhite : kBlack, 0.6f), 1.f * s, figure);
         const float ny = bottom - h + (h - name_size) * 0.5f - 1.f * s;
-        outlined(draw, font, name_size, {bar_x + tab_w + pad, ny}, rgba(kWhite), rgba(kBlack), 1.5f * s, name);
+        outlined(draw, font, name_size, {bar_x + tab_w + pad, ny}, rgba(name_colour(car)), rgba(kBlack), 1.5f * s,
+                 name); // in its car's colour, as in the players list
         lean(draw, from, bottom, kLean);
     }
 }
