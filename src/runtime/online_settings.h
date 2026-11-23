@@ -1,7 +1,8 @@
 #pragma once
 
 // Online play (app/relay_link.h): the cabinet's own settings for a linked
-// race, written before the first frame as PcSolo::configure does. The relay
+// race, written before the first frame as PcSolo::configure does, and the
+// entry into a race another player started (AutoEntry, below). The relay
 // server numbers the players: the first in the room is the MASTER (car 1),
 // the others SLAVEs (car 2, 3...). Every player gets the server's race
 // settings, so the linked cabinets always agree (the game cancels a link
@@ -70,5 +71,28 @@ template <class Board> void configure(Board &board, int position, const std::vec
     std::copy(settings.begin(), settings.end(), backup.begin());
     std::copy(settings.begin(), settings.end(), backup.begin() + settings.size());
 }
+
+// Online: one Start for the whole room. When another linked cabinet starts a
+// race, this one shows WAITING FOR YOUR ENTRY (the mode dispatch at 0x5010a0,
+// as pc_solo.h reads it: 16 while the entry countdown runs, about 16 s,
+// observed 23/11 on two linked cabinets) and joins only if its own Start is
+// pressed. AutoEntry presses it: short edges until the guest leaves the
+// state, as PcSolo presents its Start. Board inputs only, no RAM writes.
+class AutoEntry {
+public:
+    static constexpr uint32_t mode_address = 0x5010a0;
+    static constexpr int waiting_for_entry = 16;
+    template <class Board, class Inputs> void apply(Board &board, Inputs &inputs) {
+        if (board.read_byte(mode_address) != waiting_for_entry) {
+            age_ = 0;
+            return;
+        }
+        ++age_;
+        if (age_ >= 20 && (age_ - 20) % 24 < 5) inputs.in0 &= 0xef; // Start
+    }
+
+private:
+    unsigned age_ = 0;
+};
 
 } // namespace rt::online

@@ -19,7 +19,9 @@ struct FakeBoard {
     std::array<uint8_t, 16384> backup{};
     Io &io() { return io_; }
     std::array<uint8_t, 16384> &backup_ram() { return backup; }
+    int mode = 3; // the guest's mode dispatch (AutoEntry)
     uint8_t read_byte(uint32_t address) const {
+        if (address == rt::online::AutoEntry::mode_address) return uint8_t(mode);
         const uint32_t i = address - 0x239d60;
         if (i < 8) return uint8_t("SEGA@\x82\x02\x00"[i]);
         return i == 0x0b ? 1 : 0; // factory: MASTER
@@ -114,6 +116,32 @@ int main() {
           std::equal(e.begin(), e.end(), board.backup.begin() + 128));
     rt::online::configure(board, 1, {});
     CHECK(e[0x0b] == 1 && e[0x0c] == 0 && e[0x20] == 3); // MASTER car 1; earlier valid settings kept
+
+    // AutoEntry: Start only while another cabinet's race waits for this
+    // one's entry, in short edges, nothing otherwise
+    struct In { uint8_t in0 = 0xff; };
+    rt::online::AutoEntry entry;
+    int presses = 0;
+    for (int f = 0; f < 200; ++f) {
+        In in;
+        entry.apply(board, in);
+        CHECK(in.in0 == 0xff); // attract: untouched
+    }
+    board.mode = rt::online::AutoEntry::waiting_for_entry;
+    bool held = false;
+    for (int f = 0; f < 100; ++f) {
+        In in;
+        entry.apply(board, in);
+        const bool start = !(in.in0 & 0x10);
+        CHECK((in.in0 | 0x10) == 0xff); // Start only
+        if (start && !held) ++presses;
+        held = start;
+    }
+    CHECK(presses >= 3); // released between presses: edges, not a held button
+    board.mode = 17;
+    In after;
+    entry.apply(board, after);
+    CHECK(after.in0 == 0xff);
     std::puts("online ok");
     return 0;
 }

@@ -1027,6 +1027,7 @@ int main(int argc, char **argv) {
     bool online_game = false;   // the game runs an online race
     bool online_wanted = false; // the next start_game is one
     uint32_t online_epoch = 0;  // the room's ring that race started on
+    rt::online::AutoEntry online_entry; // one Start for the whole room
     std::unique_ptr<rt::GameLoop> game;
     bool pose_session = false, last_render_was_pose = false;
     uint64_t pose_interval_ns = 0;
@@ -1477,6 +1478,7 @@ int main(int argc, char **argv) {
                     if (cfg.hold_test != test_hold.armed()) cfg.hold_test ? test_hold.arm() : test_hold.cancel();
                     if (test_hold.apply(game->frames(), inputs.in0)) cfg.hold_test = false; // held: the box clears
                 }
+                if (online_game) online_entry.apply(game->board(), inputs); // another player started: join
                 game->run_frame(inputs);
 #ifndef M2_MOBILE
                 if (interpolate_poses && !pose_session && (solo || pc_race)) {
