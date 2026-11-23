@@ -190,10 +190,9 @@ std::string percent_decode(const std::string &s) {
 }
 
 std::string hello_line(const Hello &hello) {
-    std::string line = "DAYTONA-RELAY 1 op=";
+    std::string line = "DAYTONA-RELAY 2 op=";
     line += hello.op == Hello::Op::Create ? "create" : "join";
     line += " room=" + percent_encode(hello.room);
-    if (hello.op == Hello::Op::Create) line += " players=" + std::to_string(hello.players);
     const std::string name = clean_name(hello.name);
     if (!name.empty()) line += " name=" + percent_encode(name);
     if (!hello.password.empty()) line += " pass=" + percent_encode(hello.password);
@@ -224,6 +223,14 @@ std::optional<Status> parse_status(const std::string &payload) {
             s.names.push_back(clean_name(percent_decode(line.substr(5))));
         } else if (line == "start=anyone") {
             s.any_start = true;
+        } else if (line == "owner=1") {
+            s.owner = true;
+        } else if (line == "racing=1") {
+            s.racing = true;
+        } else if (line.rfind("me=", 0) == 0) {
+            s.me = std::atoi(line.c_str() + 3);
+        } else if (line.rfind("waiting=", 0) == 0) {
+            s.waiting.push_back(clean_name(percent_decode(line.substr(8))));
         }
     }
     return s;

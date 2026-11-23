@@ -1954,6 +1954,7 @@ int main(int argc, char **argv) {
                 case app::OnlineMenu::Back: online_screen = false; break;
                 case app::OnlineMenu::Resume: in_launcher = false; break;
                 case app::OnlineMenu::Leave: leave_online(); home_message.clear(); break;
+                case app::OnlineMenu::Begin: if (online_link) online_link->begin(); break;
                 case app::OnlineMenu::Connect:
                     leave_online();
                     if (!launcher.rom_ok()) { // the race starts as soon as the room fills: the ROM set first

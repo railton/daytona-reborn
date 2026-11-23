@@ -87,23 +87,32 @@ func TestRoomSettingsInStatus(t *testing.T) {
 
 	web := env
 	web.Difficulty, web.GameMode, web.FreePlay, web.Start, web.Country = "hardest", "endurance", "off", "anyone", "jpn"
-	code, err := s.createWebRoom(2, web, true, "127.0.0.1")
+	code, err := s.createWebRoom(web, true, "127.0.0.1")
 	if err != nil {
 		t.Fatal(err)
 	}
 	a, st := dial(t, ln.Addr().String(), proto.Hello{Op: "join", Room: code, Name: "A", Game: "3"})
-	if st.Size != 2 || st.Joined != 1 || st.Position != 1 || st.Ready {
+	if st.Size != 0 || st.Joined != 1 || st.Position != 0 || st.Ready || !st.Owner || st.Racing {
 		t.Errorf("first status %+v", st)
 	}
 	if !reflect.DeepEqual(st.EEPROM, web.EEPROM()) || !st.AnyStart {
 		t.Errorf("web room: eeprom %v anyStart %v, want %v true", st.EEPROM, st.AnyStart, web.EEPROM())
 	}
-	_, st = dial(t, ln.Addr().String(), proto.Hello{Op: "join", Room: code, Name: "B", Game: "3"})
-	if st.Position != 2 || !st.Ready || !reflect.DeepEqual(st.Names, []string{"A", "B"}) || !reflect.DeepEqual(st.EEPROM, web.EEPROM()) {
+	b, st := dial(t, ln.Addr().String(), proto.Hello{Op: "join", Room: code, Name: "B", Game: "3"})
+	if st.Ready || st.Owner || !reflect.DeepEqual(st.Names, []string{"A", "B"}) || !reflect.DeepEqual(st.EEPROM, web.EEPROM()) {
 		t.Errorf("second status %+v", st)
 	}
-	if st := nextStatus(t, a); !st.Ready || !st.AnyStart {
+	if st := nextStatus(t, a); st.Ready || st.Joined != 2 || !st.AnyStart {
 		t.Errorf("first player's update %+v", st)
+	}
+	// only the owner starts: B's Begin is ignored, A's forms the ring
+	proto.WriteFrame(b, proto.Frame{Type: proto.TypeBegin})
+	proto.WriteFrame(a, proto.Frame{Type: proto.TypeBegin})
+	if st := nextStatus(t, a); !st.Ready || st.Position != 1 || st.Size != 2 || !st.Racing {
+		t.Errorf("owner after Begin %+v", st)
+	}
+	if st := nextStatus(t, b); !st.Ready || st.Position != 2 || !reflect.DeepEqual(st.EEPROM, web.EEPROM()) {
+		t.Errorf("second after Begin %+v", st)
 	}
 
 	_, st = dial(t, ln.Addr().String(), proto.Hello{Op: "create", Room: "game1", Players: 2, Name: "C", Game: "3"})
@@ -116,7 +125,7 @@ func TestWebRoomExpiry(t *testing.T) {
 	s := newTestServer(t)
 	c := &clock{time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)}
 	s.now = c.now
-	code, err := s.createWebRoom(2, s.race, false, "1.2.3.4")
+	code, err := s.createWebRoom(s.race, false, "1.2.3.4")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -132,7 +141,7 @@ func TestWebRoomExpiry(t *testing.T) {
 	}
 
 	// a player joins and leaves: counted again from when it left
-	code, _ = s.createWebRoom(2, s.race, false, "1.2.3.4")
+	code, _ = s.createWebRoom(s.race, false, "1.2.3.4")
 	c.add(5 * time.Minute)
 	p := fakeClient("A")
 	if err := s.join(p, proto.Hello{Op: "join", Room: code, Game: "3"}); err != nil {
@@ -177,7 +186,7 @@ func TestWebRoomExpiry(t *testing.T) {
 
 func TestWebRoomJoinRules(t *testing.T) {
 	s := newTestServer(t)
-	code, _ := s.createWebRoom(2, s.race, false, "x")
+	code, _ := s.createWebRoom(s.race, false, "x")
 	var e *proto.Error
 	if err := s.join(fakeClient("A"), proto.Hello{Op: "create", Room: code, Players: 2}); !errors.As(err, &e) || e.Code != "exists" {
 		t.Errorf("create over a web room: %v", err)
@@ -189,9 +198,106 @@ func TestWebRoomJoinRules(t *testing.T) {
 	if err := s.join(fakeClient("B"), proto.Hello{Op: "join", Room: code, Game: "2"}); !errors.As(err, &e) || e.Code != "game_version" {
 		t.Errorf("another game version: %v", err)
 	}
-	s.join(fakeClient("B"), proto.Hello{Op: "join", Room: code, Game: "3"})
-	if err := s.join(fakeClient("C"), proto.Hello{Op: "join", Room: code, Game: "3"}); !errors.As(err, &e) || e.Code != "full" {
-		t.Errorf("third in a room of 2: %v", err)
+	for i := 1; i < proto.MaxPlayers; i++ {
+		if err := s.join(fakeClient("B"), proto.Hello{Op: "join", Room: code, Game: "3"}); err != nil {
+			t.Fatalf("player %d: %v", i+1, err)
+		}
+	}
+	if err := s.join(fakeClient("I"), proto.Hello{Op: "join", Room: code, Game: "3"}); !errors.As(err, &e) || e.Code != "full" {
+		t.Errorf("ninth in a room: %v", err)
+	}
+}
+
+// lastStatus: the newest status queued for a fake client.
+func lastStatus(t *testing.T, c *client) (proto.Status, uint32) {
+	t.Helper()
+	var st proto.Status
+	var epoch uint32
+	found := false
+	for {
+		select {
+		case f := <-c.out:
+			if f.Type == proto.TypeStatus {
+				st, _ = proto.DecodeStatus(f.Payload)
+				epoch, found = f.Epoch, true
+			}
+		default:
+			if !found {
+				t.Fatalf("%s: no status", c.name)
+			}
+			return st, epoch
+		}
+	}
+}
+
+// The owner starts races; who joins during one waits for the next; a new
+// Begin takes everyone; a racer leaving breaks the ring; the owner's role
+// passes on.
+func TestBeginQueueAndOwner(t *testing.T) {
+	s := newTestServer(t)
+	a, b, c := fakeClient("A"), fakeClient("B"), fakeClient("C")
+	if err := s.join(a, proto.Hello{Op: "create", Room: "r"}); err != nil {
+		t.Fatal(err)
+	}
+	s.begin(a) // alone: nothing
+	if st, _ := lastStatus(t, a); st.Racing || !st.Owner {
+		t.Fatalf("alone %+v", st)
+	}
+	s.join(b, proto.Hello{Op: "join", Room: "r"})
+	s.begin(b) // not the owner: nothing
+	if st, _ := lastStatus(t, b); st.Racing {
+		t.Fatal("a non-owner started a race")
+	}
+	s.begin(a)
+	sa, ea := lastStatus(t, a)
+	sb, eb := lastStatus(t, b)
+	if !sa.Ready || sa.Position != 1 || !sb.Ready || sb.Position != 2 || ea != eb {
+		t.Fatalf("race of 2: %+v %+v", sa, sb)
+	}
+	// C joins during the race: waits; the racers' ring (epoch) is unchanged
+	s.join(c, proto.Hello{Op: "join", Room: "r"})
+	sc, _ := lastStatus(t, c)
+	sa, ea2 := lastStatus(t, a)
+	if sc.Ready || sc.Position != 0 || !sc.Racing || ea2 != ea || !sa.Ready ||
+		!reflect.DeepEqual(sa.Waiting, []string{"C"}) || !reflect.DeepEqual(sa.Names, []string{"A", "B"}) {
+		t.Fatalf("joining during a race: C %+v, A %+v (epoch %d -> %d)", sc, sa, ea, ea2)
+	}
+	// a new Begin takes everyone, in a new ring
+	s.begin(a)
+	sc, ec := lastStatus(t, c)
+	if !sc.Ready || sc.Position != 3 || sc.Size != 3 || ec == ea {
+		t.Fatalf("second race: C %+v epoch %d", sc, ec)
+	}
+	lastStatus(t, a)
+	lastStatus(t, b)
+	// B leaves mid-race: the ring breaks, back to the room
+	s.leave(b)
+	sa, ea3 := lastStatus(t, a)
+	if sa.Ready || sa.Racing || ea3 == ec || !reflect.DeepEqual(sa.Names, []string{"A", "C"}) {
+		t.Fatalf("after a racer left: %+v", sa)
+	}
+	// the owner leaves: C owns the room now
+	s.leave(a)
+	if sc, _ := lastStatus(t, c); !sc.Owner || sc.Joined != 1 {
+		t.Fatalf("owner left: %+v", sc)
+	}
+}
+
+// The daytona-link helper's rooms keep a fixed size and start on their own.
+func TestAutoRoomStartsAtSize(t *testing.T) {
+	s := newTestServer(t)
+	a, b := fakeClient("A"), fakeClient("B")
+	s.join(a, proto.Hello{Op: "auto", Room: "h", Players: 2})
+	if st, _ := lastStatus(t, a); st.Racing || st.Owner {
+		t.Fatalf("helper room, alone: %+v", st)
+	}
+	s.join(b, proto.Hello{Op: "auto", Room: "h", Players: 2})
+	if st, _ := lastStatus(t, b); !st.Ready || st.Position != 2 {
+		t.Fatalf("helper room, full: %+v", st)
+	}
+	var e *proto.Error
+	if err := s.join(fakeClient("C"), proto.Hello{Op: "auto", Room: "h", Players: 2}); !errors.As(err, &e) || e.Code != "full" {
+		t.Errorf("third in a helper room of 2: %v", err)
 	}
 }
 
@@ -201,11 +307,11 @@ func TestMaxRoomsCountsBoth(t *testing.T) {
 	if err := s.join(fakeClient("A"), proto.Hello{Op: "create", Room: "game", Players: 2}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.createWebRoom(2, s.race, true, "x"); err != nil {
+	if _, err := s.createWebRoom(s.race, true, "x"); err != nil {
 		t.Fatal(err)
 	}
 	var e *proto.Error
-	if _, err := s.createWebRoom(2, s.race, true, "x"); !errors.As(err, &e) || e.Code != "server_full" {
+	if _, err := s.createWebRoom(s.race, true, "x"); !errors.As(err, &e) || e.Code != "server_full" {
 		t.Errorf("third room on the web: %v", err)
 	}
 	if err := s.join(fakeClient("B"), proto.Hello{Op: "create", Room: "game2", Players: 2}); !errors.As(err, &e) || e.Code != "server_full" {

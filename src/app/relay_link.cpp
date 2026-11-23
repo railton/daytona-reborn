@@ -304,6 +304,12 @@ void RelayLink::send_control(const std::string &text) {
     flush();
 }
 
+void RelayLink::begin() {
+    if (sock_ < 0 || state_ == State::Failed || !status_.owner) return;
+    online::append_frame(out_, online::kBegin, epoch_, nullptr, 0);
+    flush();
+}
+
 std::vector<std::string> RelayLink::take_controls() {
     std::vector<std::string> out;
     out.swap(controls_);

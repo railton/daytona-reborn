@@ -14,7 +14,7 @@ class RelayLink;
 
 class OnlineMenu {
 public:
-    enum Action { Stay, Back, Connect, Leave, Resume };
+    enum Action { Stay, Back, Connect, Leave, Resume, Begin };
     // link: the current room's connection, or null; racing: its game runs.
     Action draw(Config &cfg, const RelayLink *link, bool racing, const std::string &message);
     // After Connect: where, and how to introduce ourselves.

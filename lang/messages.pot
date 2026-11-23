@@ -767,7 +767,7 @@ msgstr ""
 msgid "Server password (optional)"
 msgstr ""
 
-msgid "Players"
+msgid "Up to 8 players. You start the race once your friends are in; who joins later races the next one."
 msgstr ""
 
 msgid "Create the room"
@@ -812,25 +812,52 @@ msgstr ""
 msgid "Send it to your friends: they paste it under Join."
 msgstr ""
 
+msgid "Players"
+msgstr ""
+
 msgid "Player %d"
+msgstr ""
+
+msgid " (starts the race)"
 msgstr ""
 
 msgid " (you)"
 msgstr ""
 
-msgid "%d. waiting..."
+msgid "Next race:"
 msgstr ""
 
-msgid "Waiting for the other players; the race starts when the room is full."
+msgid "Waiting for at least one more player."
+msgstr ""
+
+msgid "Start the race when everyone is in."
+msgstr ""
+
+msgid "Waiting for %s to start the race."
+msgstr ""
+
+msgid "the room's owner"
+msgstr ""
+
+msgid "A race is on: you will join the next one."
 msgstr ""
 
 msgid "Online race in progress."
 msgstr ""
 
-msgid "Room full: starting..."
+msgid "Starting the race..."
 msgstr ""
 
 msgid "Press Start (Enter) to play. Esc comes back to this menu."
+msgstr ""
+
+msgid "New race with everyone"
+msgstr ""
+
+msgid "Start the race"
+msgstr ""
+
+msgid "Restarts every player's game with everyone in the room."
 msgstr ""
 
 msgid "Resume the race"

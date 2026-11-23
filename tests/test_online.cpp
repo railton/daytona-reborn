@@ -76,15 +76,14 @@ int main() {
     Hello h;
     h.op = Hello::Op::Create;
     h.room = "abc";
-    h.players = 3;
     h.name = "Jo\xC3\xA3o S";
     h.password = "a b";
-    CHECK(hello_line(h) == "DAYTONA-RELAY 1 op=create room=abc players=3 name=Jo%C3%A3o%20S pass=a%20b v=" +
+    CHECK(hello_line(h) == "DAYTONA-RELAY 2 op=create room=abc name=Jo%C3%A3o%20S pass=a%20b v=" +
                                std::to_string(kOnlineVersion) + "\n");
     h.op = Hello::Op::Join;
     h.name.clear();
     h.password.clear();
-    CHECK(hello_line(h) == "DAYTONA-RELAY 1 op=join room=abc v=" + std::to_string(kOnlineVersion) + "\n");
+    CHECK(hello_line(h) == "DAYTONA-RELAY 2 op=join room=abc v=" + std::to_string(kOnlineVersion) + "\n");
 
     // status (as the Go server's Status.Encode writes it); offsets the
     // server may not set are dropped
@@ -94,6 +93,12 @@ int main() {
     CHECK(st->names.size() == 2 && st->names[1] == "Jo\xC3\xA3o");
     CHECK(!st->any_start);
     st = parse_status("joined=2 size=2 pos=1 ready=1\neeprom=\nname=A\nname=B\nstart=anyone\n");
+    CHECK(st && !st->owner && !st->racing && st->waiting.empty() && st->me == 0);
+    // a race of 2 with a third waiting for the next one (as the Go server's Status.Encode writes it)
+    auto race = parse_status("joined=3 size=2 pos=1 ready=1\neeprom=\nname=A\nname=B\nstart=master\n"
+                             "owner=1\nracing=1\nme=1\nwaiting=Ana%20Maria\n");
+    CHECK(race && race->owner && race->racing && race->me == 1 && race->size == 2 && race->joined == 3);
+    CHECK(race->waiting.size() == 1 && race->waiting[0] == "Ana Maria");
     CHECK(st && st->ready && st->any_start && st->eeprom.empty());
     CHECK(!parse_status("garbage"));
 

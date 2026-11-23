@@ -23,18 +23,21 @@ func TestHelloRoundTrip(t *testing.T) {
 func TestHelloRejects(t *testing.T) {
 	for _, line := range []string{
 		"HTTP/1.1 GET /",
-		"DAYTONA-RELAY 2 op=join room=x",
-		"DAYTONA-RELAY 1 op=steal room=x",
-		"DAYTONA-RELAY 1 op=create room=x players=9",
-		"DAYTONA-RELAY 1 op=create room=x players=1",
-		"DAYTONA-RELAY 1 op=join room=bad%20room",
+		"DAYTONA-RELAY 1 op=join room=x", // the version before rooms of up to 8
+		"DAYTONA-RELAY 2 op=steal room=x",
+		"DAYTONA-RELAY 2 op=auto room=x players=9",
+		"DAYTONA-RELAY 2 op=auto room=x players=1",
+		"DAYTONA-RELAY 2 op=join room=bad%20room",
 	} {
 		if _, err := ParseHello(line); err == nil {
 			t.Errorf("accepted %q", line)
 		}
 	}
-	if h, err := ParseHello("DAYTONA-RELAY 1 op=join room=ABC"); err != nil || h.Room != "abc" {
+	if h, err := ParseHello("DAYTONA-RELAY 2 op=join room=ABC"); err != nil || h.Room != "abc" {
 		t.Errorf("join without players: %+v %v", h, err)
+	}
+	if h, err := ParseHello("DAYTONA-RELAY 2 op=create room=abc"); err != nil || h.Players != 0 {
+		t.Errorf("create without players: %+v %v", h, err)
 	}
 }
 
@@ -48,8 +51,9 @@ func TestCleanName(t *testing.T) {
 }
 
 func TestStatusRoundTrip(t *testing.T) {
-	in := Status{Joined: 2, Size: 3, Position: 2, Ready: false,
-		EEPROM: []Setting{{0x1a, 1}, {0x20, 3}}, Names: []string{"Railton", "João"}, AnyStart: true}
+	in := Status{Joined: 3, Size: 2, Position: 2, Ready: true,
+		EEPROM: []Setting{{0x1a, 1}, {0x20, 3}}, Names: []string{"Railton", "João"}, AnyStart: true,
+		Owner: true, Racing: true, Waiting: []string{"Ana Maria"}, Me: 2}
 	out, err := DecodeStatus(in.Encode())
 	if err != nil {
 		t.Fatal(err)

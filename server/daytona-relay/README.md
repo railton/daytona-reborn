@@ -68,7 +68,7 @@ readable on a phone:
   settings, its age. A **public** room shows its code (and, on a server
   without a password, a Copy invite button); a **private** room, and every
   room a game created, never shows its code.
-- **Create a room**: number of players (2 to 8), each race setting, who may
+- **Create a room** (up to 8 players; the first to join owns it): each race setting, who may
   start, public or private. The new room's code and its **invite code**
   (`DTN1-...`, the one the game's Online mode takes) show, with a Copy
   button. The invite code needs `DAYTONA_PUBLIC_ADDRESS`; without it the
@@ -105,15 +105,18 @@ The JSON API behind the page (errors are `{"code": ..., "error": ...}`):
 In the game's home menu, **Online**:
 
 1. The room's creator types a name, the server (its IP or DNS name; `:port`
-   only when it is not 7777), its password if it has one, and the number of
-   players, then **Create the room**. An **invite code** shows (`DTN1-...`):
+   only when it is not 7777) and its password if it has one, then **Create
+   the room** (it takes up to 8 players). An **invite code** shows (`DTN1-...`):
    **Copy the code** and send it to the friends. It holds the server, the room
    and the password, with a check, so a cut or mistyped code is refused.
 2. The friends type a name, paste the code under **Join a room**, **Join**.
    A room can also be created on the web page (above): every player then
-   joins with its invite code, and the first to join is the MASTER.
-3. When the room is full the game starts on its own for everyone. The
-   MASTER (the room's creator) presses **Start (Enter)**: every other player
+   joins with its invite code, and the first to join owns the room.
+3. The room's owner presses **Start the race** when everyone is in: the game
+   starts for everyone then in the room, the owner being the MASTER. Who joins
+   later waits on the room's screen for the next race, which the owner starts
+   with **New race with everyone**. In the race the MASTER presses
+   **Start (Enter)**: every other player
    joins that race on their own (the cabinet's WAITING FOR YOUR ENTRY is
    answered for them). With `DAYTONA_START=anyone`, any player's Start does.
 4. The MASTER chooses the course: the others' course cursor follows it and
@@ -167,10 +170,11 @@ the version that created it, so every player of a room behaves the same.
 ## Protocol
 
 One TCP connection a player. A greeting line
-(`DAYTONA-RELAY 1 op=create|join room=... players=N name=... pass=...`), then
+(`DAYTONA-RELAY 2 op=create|join room=... name=... pass=... v=...`; `op=auto
+players=N` for the helper's fixed-size rooms), then
 frames `type (1) | epoch (4) | length (2) | data`: `D` the game's bytes, `S`
 the room's state, `P` ping, `C` the games' own coordination (the MASTER's
-course, to every other player), `E` a refusal (`code\ntext`; the game shows its
+course, to every other player), `G` the owner starting a race, `E` a refusal (`code\ntext`; the game shows its
 own text for the code, in the player's language). The epoch changes whenever
 someone joins or leaves, and an old ring's data is dropped. Details in
 `proto/proto.go`; the game's side is `src/app/online.*` and

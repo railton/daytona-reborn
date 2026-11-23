@@ -4,10 +4,17 @@
 // The client opens one TCP connection and sends a single text line, values
 // percent-encoded:
 //
-//	DAYTONA-RELAY 1 op=create room=k7f3q9xz players=3 name=Railton pass=segredo\n
+//	DAYTONA-RELAY 2 op=create room=k7f3q9xz name=Railton pass=segredo\n
 //
-// op: create (the room must not exist), join (it must exist; players is then
-// not needed) or auto (create or join; the daytona-link helper).
+// op: create (the room must not exist; its creator owns it), join (it must
+// exist) or auto (create or join, with players=N: the daytona-link helper's
+// fixed-size rooms, which start on their own once N have joined).
+//
+// A room takes up to MaxPlayers. Its owner (the creator, or the first in a
+// room made on the web; the next in line when the owner leaves) starts a
+// race with a Begin frame: everyone in the room at that moment forms the
+// ring, the owner first (the MASTER). Who joins later waits in the room for
+// the next race; a new Begin forms a new ring with everyone.
 //
 // After that both sides exchange frames:
 //
@@ -42,7 +49,7 @@ import (
 
 const (
 	Magic      = "DAYTONA-RELAY"
-	Version    = 1
+	Version    = 2
 	MaxPlayers = 8
 	MinPlayers = 2
 	MaxPayload = 16 * 1024
@@ -53,6 +60,7 @@ const (
 	TypePing    byte = 'P' // keepalive, both directions
 	TypeError   byte = 'E' // server -> client: fatal error text, then the server closes
 	TypeControl byte = 'C' // client -> server -> every other member: the games' own coordination (course choice)
+	TypeBegin   byte = 'G' // client -> server: the room's owner starts a race with everyone in the room
 )
 
 var roomRe = regexp.MustCompile(`^[a-z0-9_-]{1,32}$`)
@@ -113,7 +121,7 @@ func CleanName(s string) string {
 type Hello struct {
 	Op       string // create, join, auto
 	Room     string
-	Players  int // create and auto
+	Players  int // auto only: the helper's fixed room size
 	Name     string
 	Password string
 	Game     string // the game's online version ("v"); a room only takes one; empty: the daytona-link helper
@@ -180,7 +188,7 @@ func ParseHello(line string) (Hello, error) {
 		return Hello{}, err
 	}
 	h.Room = room
-	if h.Op != "join" && (h.Players < MinPlayers || h.Players > MaxPlayers) {
+	if h.Op == "auto" && (h.Players < MinPlayers || h.Players > MaxPlayers) {
 		return Hello{}, Errf("players", "players must be %d to %d", MinPlayers, MaxPlayers)
 	}
 	h.Name = CleanName(h.Name)
@@ -257,14 +265,20 @@ type Setting struct {
 // Status is what the server tells every member when the room changes.
 type Status struct {
 	Joined   int  // players in the room now
-	Size     int  // players the room waits for
-	Position int  // this client's place in the ring, 1-based (1 = MASTER)
-	Ready    bool // the ring is complete: open the game's connections
+	Size     int  // players in the race's ring; 0 while no race is formed
+	Position int  // this client's place in the ring, 1-based (1 = MASTER); 0: not in it
+	Ready    bool // this client is in a formed ring: open the game's connections
 	EEPROM   []Setting
-	Names    []string // ring order
+	// Names: the ring's players in ring order while a race is formed (car
+	// 1, 2...); else everyone in the room, in the order a race would take.
+	Names []string
 	// AnyStart: any player may start a race (the others join it); else only
-	// the MASTER, the first in the room.
+	// the MASTER, the first in the ring.
 	AnyStart bool
+	Owner    bool     // this client may start a race (Begin)
+	Racing   bool     // a race's ring is formed
+	Waiting  []string // in the room but not in the race: the next one
+	Me       int      // this client's line in Names, 1-based; 0: in Waiting
 }
 
 func (s Status) Encode() []byte {
@@ -289,6 +303,18 @@ func (s Status) Encode() []byte {
 		b.WriteString("start=anyone\n")
 	} else {
 		b.WriteString("start=master\n")
+	}
+	if s.Owner {
+		b.WriteString("owner=1\n")
+	}
+	if s.Racing {
+		b.WriteString("racing=1\n")
+	}
+	if s.Me > 0 {
+		fmt.Fprintf(&b, "me=%d\n", s.Me)
+	}
+	for _, n := range s.Waiting {
+		fmt.Fprintf(&b, "waiting=%s\n", url.PathEscape(n))
 	}
 	return []byte(b.String())
 }
@@ -321,6 +347,15 @@ func DecodeStatus(p []byte) (Status, error) {
 			s.Names = append(s.Names, n)
 		case "start":
 			s.AnyStart = v == "anyone"
+		case "owner":
+			s.Owner = v == "1"
+		case "racing":
+			s.Racing = v == "1"
+		case "me":
+			s.Me, _ = strconv.Atoi(v)
+		case "waiting":
+			n, _ := url.PathUnescape(v)
+			s.Waiting = append(s.Waiting, n)
 		}
 	}
 	return s, nil

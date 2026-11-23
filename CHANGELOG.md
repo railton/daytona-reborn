@@ -21,9 +21,15 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
   room's are not saved. Mapped from the test menu: LINK ID, CAR NUMBER,
   CABINET, COUNTRY, DIFFICULTY, GAME MODE, RIVAL ARROW, ADVERTISE SOUND,
   free play, and the settings CRC (CRC-16/XMODEM of 0x0a..0x7f).
-- **The race starts on its own** when the room is full; if someone leaves,
-  the others return to the room's screen and the race starts again when it
-  is full again.
+- **Rooms of up to 8, started by their owner.** No player count to choose:
+  friends join, the room's owner (its creator, or the first to join a room
+  made on the web) presses **Start the race**, and everyone then in the room
+  races. Who joins during a race waits on the room's screen for the next one;
+  **New race with everyone** forms a new race with them. If a racer leaves,
+  the others return to the room's screen until the owner starts again; if
+  the owner leaves, the next player owns the room. Relay protocol version 2,
+  online version 4 (the daytona-link helper keeps fixed-size rooms that
+  start on their own).
 - **One Start for the room.** Only the MASTER starts a race (configurable);
   every other player joins it on their own (the cabinet's WAITING FOR YOUR
   ENTRY is answered for them).

@@ -20,8 +20,9 @@ by alphanu1. What it adds is listed in [CHANGELOG.md](CHANGELOG.md).
 
 - **Online mode.** Race friends over the Internet, up to 8 players a room,
   through a small relay server you can run in Docker. Create a room, send the
-  invite code, and the race starts on its own when the room is full: the
-  cabinets' settings, the start and the course choice are synchronised; the
+  invite code, and start the race when your friends are in (who comes later
+  races the next one): the cabinets' settings, the start and the course
+  choice are synchronised; the
   players' names and live standings show over the race, and each other
   player's name rides above their car. No router port to open. Rooms of 8
   linked cabinets have been run through the relay. See
@@ -118,12 +119,13 @@ e.g. a second player on the same computer), `--online`, `--settings`,
    `docker compose up -d --build`; TCP port 7777 for the games, 8080 for its
    web page). Its environment variables set the race for rooms the games
    create; rooms created on the web page carry their own settings.
-2. In the home menu, **Online**: type your name, the server and the number
-   of players, **Create the room**, and send the invite code. Or create the
-   room on the server's web page and share the code it shows.
-3. Friends paste the code under **Join a room**. When the room is full the
-   game starts for everyone; the first player in the room presses Start and
-   chooses the course, the others follow.
+2. In the home menu, **Online**: type your name and the server, **Create the
+   room**, and send the invite code. Or create the room on the server's web
+   page and share the code it shows. A room takes up to 8 players.
+3. Friends paste the code under **Join a room**. The room's owner presses
+   **Start the race** when everyone is in; in the race the owner presses
+   Start and chooses the course, the others follow. Who joins later waits
+   for the next race (**New race with everyone**).
 4. In the race, the players list (first 10 s, then hold Tab) shows the live
    standings, and a tag with each player's name floats above their car. When
    the race ends the games return to the attract screen still linked: the

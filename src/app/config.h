@@ -76,7 +76,6 @@ struct Config {
     std::string online_name;
     std::string online_server;
     std::string online_password;
-    int online_players = 2;              // a new room's size, 2..8
     float ffb_strength = 0.7f; // force feedback (the drive board) on the steering device: 0 off .. 1
     bool ffb_invert = false;   // turn the wheel the other way
     bool ffb_log = false;      // log the force feedback device, failures and the commands (daytona.log on Windows)

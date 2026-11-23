@@ -818,8 +818,8 @@ msgstr "Serveur (IP ou DNS)"
 msgid "Server password (optional)"
 msgstr "Mot de passe du serveur (facultatif)"
 
-msgid "Players"
-msgstr "Joueurs"
+msgid "Up to 8 players. You start the race once your friends are in; who joins later races the next one."
+msgstr "Jusqu'à 8 joueurs. Vous lancez la course une fois vos amis arrivés ; qui arrive ensuite court la suivante."
 
 msgid "Create the room"
 msgstr "Créer la salle"
@@ -863,26 +863,53 @@ msgstr "Copier le code"
 msgid "Send it to your friends: they paste it under Join."
 msgstr "Envoyez-le à vos amis : ils le collent dans Rejoindre."
 
+msgid "Players"
+msgstr "Joueurs"
+
 msgid "Player %d"
 msgstr "Joueur %d"
+
+msgid " (starts the race)"
+msgstr " (lance la course)"
 
 msgid " (you)"
 msgstr " (vous)"
 
-msgid "%d. waiting..."
-msgstr "%d. en attente..."
+msgid "Next race:"
+msgstr "Prochaine course :"
 
-msgid "Waiting for the other players; the race starts when the room is full."
-msgstr "En attente des autres joueurs ; la course démarre quand la salle est complète."
+msgid "Waiting for at least one more player."
+msgstr "En attente d'au moins un autre joueur."
+
+msgid "Start the race when everyone is in."
+msgstr "Lancez la course quand tout le monde est là."
+
+msgid "Waiting for %s to start the race."
+msgstr "En attente que %s lance la course."
+
+msgid "the room's owner"
+msgstr "le créateur de la salle"
+
+msgid "A race is on: you will join the next one."
+msgstr "Une course est en cours : vous rejoindrez la suivante."
 
 msgid "Online race in progress."
 msgstr "Course en ligne en cours."
 
-msgid "Room full: starting..."
-msgstr "Salle complète : démarrage..."
+msgid "Starting the race..."
+msgstr "Démarrage de la course..."
 
 msgid "Press Start (Enter) to play. Esc comes back to this menu."
 msgstr "Appuyez sur Start (Entrée) pour jouer. Échap revient à ce menu."
+
+msgid "New race with everyone"
+msgstr "Nouvelle course avec tout le monde"
+
+msgid "Start the race"
+msgstr "Lancer la course"
+
+msgid "Restarts every player's game with everyone in the room."
+msgstr "Relance le jeu de chaque joueur avec tous ceux de la salle."
 
 msgid "Resume the race"
 msgstr "Reprendre la course"

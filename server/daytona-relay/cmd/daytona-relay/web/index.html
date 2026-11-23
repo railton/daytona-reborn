@@ -152,7 +152,6 @@ footer .rule{flex:1;height:1px;background:linear-gradient(90deg,rgba(255,255,255
     <section class="create panel" aria-labelledby="create-title">
       <h2 id="create-title">Create a room</h2>
       <form id="form" novalidate>
-        <fieldset class="field"><legend>Players</legend><div class="seg num" id="players"></div></fieldset>
         <div id="options"></div>
         <fieldset class="field"><legend>Room</legend><div class="seg" id="visibility"></div></fieldset>
         <div class="field" id="pwfield" hidden>
@@ -172,7 +171,7 @@ footer .rule{flex:1;height:1px;background:linear-gradient(90deg,rgba(255,255,255
           <ol class="steps">
             <li>Send the invite code to the players.</li>
             <li>In the game: <b>Online</b>, type a name, paste the code under <b>Join a room</b>, <b>Join</b>.</li>
-            <li>The first to join is the MASTER. The race starts when the room is full.</li>
+            <li>Up to 8 players. The first to join owns the room: they press <b>Start the race</b> when everyone is in, and choose the course. Who joins later races the next one.</li>
           </ol>
         </div>
         <div id="noinv" hidden>
@@ -238,8 +237,8 @@ footer .rule{flex:1;height:1px;background:linear-gradient(90deg,rgba(255,255,255
     var st = el("span", "state"); st.appendChild(el("span", null, r.state === "racing" ? "Racing" : "Waiting")); top.appendChild(st);
     inn.appendChild(top);
     var slots = el("div", "slots");
-    for (var i = 0; i < r.size; i++) slots.appendChild(el("i", i < r.joined ? "on" : ""));
-    slots.appendChild(el("b", null, r.joined + " / " + r.size + " players"));
+    for (var i = 0; i < r.max; i++) slots.appendChild(el("i", i < r.joined ? "on" : ""));
+    slots.appendChild(el("b", null, r.joined + " / " + r.max + " players" + (r.racing ? " · " + r.racing + " racing" : "")));
     inn.appendChild(slots);
     var names = el("div", "names");
     r.players.forEach(function(n, i){ names.appendChild(el("span", "name" + (i === 0 ? " master" : ""), n || "(no name)")); });
@@ -278,7 +277,7 @@ footer .rule{flex:1;height:1px;background:linear-gradient(90deg,rgba(255,255,255
 
   function submit(ev){
     ev.preventDefault();
-    var body = {players: +picked("players"), public: picked("visibility") === "public"};
+    var body = {public: picked("visibility") === "public"};
     cfg.options.forEach(function(o){ body[o.key] = picked(o.key); });
     var headers = {"Content-Type": "application/json"};
     if (cfg.password_required) headers.Authorization = basic($("pw").value);
@@ -305,9 +304,6 @@ footer .rule{flex:1;height:1px;background:linear-gradient(90deg,rgba(255,255,255
 
   fetch("api/config", {cache: "no-store"}).then(function(r){ return r.json(); }).then(function(c){
     cfg = c;
-    var nums = [];
-    for (var n = c.min_players; n <= c.max_players; n++) nums.push({name: String(n), label: String(n)});
-    seg($("players"), "players", nums, "2");
     var box = $("options");
     c.options.forEach(function(o){
       labels[o.key] = {};
@@ -321,7 +317,7 @@ footer .rule{flex:1;height:1px;background:linear-gradient(90deg,rgba(255,255,255
     $("server").textContent = "";
     if (c.server) { $("server").append("Server "); $("server").appendChild(el("b", null, c.server)); }
     else $("server").textContent = "Invite codes are off: set DAYTONA_PUBLIC_ADDRESS on the server.";
-    $("foot").textContent = c.min_players + " to " + c.max_players + " players / " + (c.password_required ? "password" : "open");
+    $("foot").textContent = "Up to " + c.max_players + " players / " + (c.password_required ? "password" : "open");
     refresh();
   }).catch(function(){ $("rooms").textContent = ""; $("rooms").appendChild(el("div", "empty", "The server does not answer.")); });
 

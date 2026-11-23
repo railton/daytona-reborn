@@ -818,8 +818,8 @@ msgstr "Servidor (IP ou DNS)"
 msgid "Server password (optional)"
 msgstr "Senha do servidor (opcional)"
 
-msgid "Players"
-msgstr "Jogadores"
+msgid "Up to 8 players. You start the race once your friends are in; who joins later races the next one."
+msgstr "Até 8 jogadores. Você começa a corrida quando seus amigos entrarem; quem entrar depois corre a próxima."
 
 msgid "Create the room"
 msgstr "Criar a sala"
@@ -863,26 +863,53 @@ msgstr "Copiar o código"
 msgid "Send it to your friends: they paste it under Join."
 msgstr "Envie aos seus amigos: eles colam em Entrar."
 
+msgid "Players"
+msgstr "Jogadores"
+
 msgid "Player %d"
 msgstr "Jogador %d"
+
+msgid " (starts the race)"
+msgstr " (começa a corrida)"
 
 msgid " (you)"
 msgstr " (você)"
 
-msgid "%d. waiting..."
-msgstr "%d. aguardando..."
+msgid "Next race:"
+msgstr "Próxima corrida:"
 
-msgid "Waiting for the other players; the race starts when the room is full."
-msgstr "Aguardando os outros jogadores; a corrida começa quando a sala estiver completa."
+msgid "Waiting for at least one more player."
+msgstr "Aguardando pelo menos mais um jogador."
+
+msgid "Start the race when everyone is in."
+msgstr "Comece a corrida quando todos tiverem entrado."
+
+msgid "Waiting for %s to start the race."
+msgstr "Aguardando %s começar a corrida."
+
+msgid "the room's owner"
+msgstr "o dono da sala"
+
+msgid "A race is on: you will join the next one."
+msgstr "Há uma corrida em andamento: você entra na próxima."
 
 msgid "Online race in progress."
 msgstr "Corrida online em andamento."
 
-msgid "Room full: starting..."
-msgstr "Sala completa: iniciando..."
+msgid "Starting the race..."
+msgstr "Iniciando a corrida..."
 
 msgid "Press Start (Enter) to play. Esc comes back to this menu."
 msgstr "Aperte Start (Enter) para jogar. Esc volta a este menu."
+
+msgid "New race with everyone"
+msgstr "Nova corrida com todos"
+
+msgid "Start the race"
+msgstr "Começar a corrida"
+
+msgid "Restarts every player's game with everyone in the room."
+msgstr "Reinicia o jogo de cada jogador com todos da sala."
 
 msgid "Resume the race"
 msgstr "Voltar à corrida"

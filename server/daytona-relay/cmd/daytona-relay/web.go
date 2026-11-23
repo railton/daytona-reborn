@@ -7,7 +7,8 @@
 //	GET  /api/rooms    the open rooms; a private room's code (and a game's
 //	                   room's) is never shown; a public room's invite code
 //	                   only when the server has no password
-//	POST /api/rooms    create a room: {"players": 2-8, "public": bool
+//	POST /api/rooms    create a room (up to 8 players; its first player
+//	                   starts the races): {"public": bool
 //	                   (default false), and any race setting, e.g.
 //	                   "difficulty": "hard"}; missing settings take the
 //	                   environment's. 201 with the room's code and the
@@ -121,11 +122,12 @@ type roomJSON struct {
 	Code       string        `json:"code,omitempty"`   // public web rooms only
 	Invite     string        `json:"invite,omitempty"` // public rooms, when the server has no password
 	Public     bool          `json:"public"`
-	Origin     string        `json:"origin"` // web, game
-	Size       int           `json:"size"`
-	Joined     int           `json:"joined"`
-	Players    []string      `json:"players"` // ring order: the first is the MASTER
-	State      string        `json:"state"`   // waiting, racing (the room is full and linked)
+	Origin     string        `json:"origin"`  // web, game
+	Max        int           `json:"max"`     // players the room takes
+	Joined     int           `json:"joined"`  // players in the room
+	Racing     int           `json:"racing"`  // players in the race (0: waiting for its owner to start one)
+	Players    []string      `json:"players"` // join order: the first is the room's owner
+	State      string        `json:"state"`   // waiting, racing (a race's ring is formed)
 	Settings   settings.Race `json:"settings"`
 	AgeSeconds int64         `json:"age_seconds"`
 	// ExpiresIn: an empty web room, seconds before it is removed
@@ -143,8 +145,8 @@ func (s *server) apiRooms(w http.ResponseWriter, r *http.Request) {
 	now := s.now()
 	out := roomsJSON{Rooms: []roomJSON{}, Open: len(s.rooms), MaxRooms: s.maxRooms}
 	for _, rm := range s.rooms {
-		j := roomJSON{Public: rm.public, Origin: "game", Size: rm.size, Joined: len(rm.members),
-			Players: make([]string, len(rm.members)), State: "waiting", Settings: rm.race,
+		j := roomJSON{Public: rm.public, Origin: "game", Max: rm.capacity(), Joined: len(rm.members),
+			Racing: len(rm.ring), Players: make([]string, 0, len(rm.members)), State: "waiting", Settings: rm.race,
 			AgeSeconds: int64(now.Sub(rm.created) / time.Second)}
 		if rm.web {
 			j.Origin = "web"
@@ -160,10 +162,15 @@ func (s *server) apiRooms(w http.ResponseWriter, r *http.Request) {
 				j.Invite = invite.Encode(invite.Invite{Server: s.publicAddr, Room: rm.code})
 			}
 		}
-		for i, m := range rm.members {
-			j.Players[i] = m.name
+		if rm.owner != nil {
+			j.Players = append(j.Players, rm.owner.name)
 		}
-		if len(rm.members) == rm.size {
+		for _, m := range rm.members {
+			if m != rm.owner {
+				j.Players = append(j.Players, m.name)
+			}
+		}
+		if rm.ring != nil {
 			j.State = "racing"
 		}
 		out.Rooms = append(out.Rooms, j)
@@ -181,14 +188,12 @@ func (s *server) apiRooms(w http.ResponseWriter, r *http.Request) {
 }
 
 type createRequest struct {
-	Players int   `json:"players"`
-	Public  *bool `json:"public"`
+	Public *bool `json:"public"`
 	settings.Race
 }
 
 type createResponse struct {
 	Room      string        `json:"room"`
-	Players   int           `json:"players"`
 	Public    bool          `json:"public"`
 	Settings  settings.Race `json:"settings"`
 	Server    string        `json:"server"` // empty: DAYTONA_PUBLIC_ADDRESS is not set
@@ -231,17 +236,13 @@ func (s *server) apiCreate(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "json", "invalid JSON: one object only")
 		return
 	}
-	if req.Players < proto.MinPlayers || req.Players > proto.MaxPlayers {
-		writeError(w, http.StatusBadRequest, "players", "players must be %d to %d", proto.MinPlayers, proto.MaxPlayers)
-		return
-	}
 	if err := req.Race.Validate(); err != nil {
 		writeError(w, http.StatusBadRequest, "settings", "%v", err)
 		return
 	}
 	ip, _, _ := net.SplitHostPort(r.RemoteAddr)
 	public := req.Public != nil && *req.Public
-	rm, err := s.createWebRoom(req.Players, req.Race, public, ip)
+	rm, err := s.createWebRoom(req.Race, public, ip)
 	if err != nil {
 		var e *proto.Error
 		if errors.As(err, &e) && e.Code == "too_many" {
@@ -253,12 +254,12 @@ func (s *server) apiCreate(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	resp := createResponse{Room: rm, Players: req.Players, Public: public, Settings: req.Race,
+	resp := createResponse{Room: rm, Public: public, Settings: req.Race,
 		Server: s.publicAddr, ExpiresIn: int64(webRoomIdle / time.Second)}
 	if s.publicAddr != "" {
 		resp.Invite = invite.Encode(invite.Invite{Server: s.publicAddr, Room: rm, Password: s.password})
 	}
-	log.Printf("room %s: created on the web by %s (%d players, public: %v, %s)", rm, ip, req.Players, public, req.Race)
+	log.Printf("room %s: created on the web by %s (public: %v, %s)", rm, ip, public, req.Race)
 	writeJSON(w, http.StatusCreated, resp)
 }
 
@@ -278,7 +279,7 @@ func randomRoom() (string, error) {
 }
 
 // createWebRoom opens an empty room with its own settings and returns its code.
-func (s *server) createWebRoom(players int, race settings.Race, public bool, creator string) (string, error) {
+func (s *server) createWebRoom(race settings.Race, public bool, creator string) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if len(s.rooms) >= s.maxRooms {
@@ -302,7 +303,7 @@ func (s *server) createWebRoom(players int, race settings.Race, public bool, cre
 			continue
 		}
 		now := s.now()
-		s.rooms[code] = &room{code: code, size: players, race: race, eeprom: race.EEPROM(), created: now,
+		s.rooms[code] = &room{code: code, race: race, eeprom: race.EEPROM(), created: now,
 			web: true, public: public, idleSince: now, creator: creator}
 		return code, nil
 	}

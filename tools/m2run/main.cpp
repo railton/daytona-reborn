@@ -10,7 +10,7 @@
 //         [--scene-pair TICK] (own and verify two adjacent completed draws)
 //         [--transmission automatic|manual] [--race-mode normal|time-attack] (requires --pc-solo)
 //         [--link-listen PORT --link-next HOST:PORT [--link-sync]]
-//         [--relay HOST:PORT (--relay-create ROOM:PLAYERS | --relay-join ROOM) [--relay-name NAME]
+//         [--relay HOST:PORT (--relay-create ROOM[:N] | --relay-join ROOM) [--relay-name NAME]
 //          [--relay-password PASS]] (online play through a daytona-relay server)
 //         [--realtime] (hold each frame to the arcade's 57.52 Hz, as the game paces itself)
 //         [--draw-budget N] [--draw-order-only] [--original-selection] [--scenery-log FILE]
@@ -369,25 +369,32 @@ int main(int argc, char **argv) {
             app::online::Hello hello;
             hello.name = relay_name;
             hello.password = relay_password;
+            int start_at = 0; // the room's creator starts the race once this many are in (ROOM:N, 2 by default)
             if (!relay_create.empty()) {
                 const auto colon = relay_create.rfind(':');
-                if (colon == std::string::npos) throw std::runtime_error("--relay-create needs ROOM:PLAYERS");
                 hello.op = app::online::Hello::Op::Create;
                 hello.room = relay_create.substr(0, colon);
-                hello.players = std::atoi(relay_create.c_str() + colon + 1);
+                start_at = colon == std::string::npos ? 2 : std::atoi(relay_create.c_str() + colon + 1);
+                if (start_at < app::online::kMinPlayers || start_at > app::online::kMaxPlayers)
+                    throw std::runtime_error("--relay-create ROOM:N needs N from 2 to 8");
             } else {
                 hello.room = relay_join;
             }
             relay = std::make_unique<app::RelayLink>(*server, hello);
             const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(60);
+            bool begun = false;
             while (relay->state() != app::RelayLink::State::Ready) {
                 relay->poll();
+                if (start_at && !begun && relay->status().owner && relay->status().joined >= start_at) {
+                    relay->begin(); // as the room's owner presses Start the race
+                    begun = true;
+                }
                 if (relay->state() == app::RelayLink::State::Failed) throw std::runtime_error("relay: " + relay->error());
-                if (std::chrono::steady_clock::now() > deadline) throw std::runtime_error("relay: the room did not fill in 60 s");
+                if (std::chrono::steady_clock::now() > deadline) throw std::runtime_error("relay: no race started in 60 s");
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
             const auto &st = relay->status();
-            std::printf("m2run: relay room %s full: player %d of %d (%s)\n", relay->room().c_str(), st.position, st.size,
+            std::printf("m2run: relay room %s race: player %d of %d (%s)\n", relay->room().c_str(), st.position, st.size,
                         st.position == 1 ? "MASTER" : "SLAVE");
             rt::online::configure(game.board(), st.position, st.eeprom);
             game.board().set_link(relay.get(), link_sync);

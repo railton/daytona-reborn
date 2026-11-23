@@ -47,6 +47,8 @@ public:
     // arcade's link data: to every other player of the room; what they sent
     // since the last call. Only while the room is complete, this ring's only.
     void send_control(const std::string &text);
+    // The room's owner starts a race with everyone in the room (Status::owner).
+    void begin();
     std::vector<std::string> take_controls();
 
 private:

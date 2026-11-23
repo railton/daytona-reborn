@@ -78,16 +78,16 @@ OnlineMenu::Action OnlineMenu::draw(Config &cfg, const RelayLink *link, bool rac
                 cfg.online_password = password_;
                 cfg.save();
             }
-            ImGui::TextUnformatted(TX("Players"));
-            ImGui::SetNextItemWidth(-FLT_MIN);
-            if (ImGui::SliderInt("##players", &cfg.online_players, online::kMinPlayers, online::kMaxPlayers)) cfg.save();
+            ImGui::PushTextWrapPos(0);
+            ImGui::TextDisabled("%s", TX("Up to 8 players. You start the race once your friends are in; who joins "
+                                         "later races the next one."));
+            ImGui::PopTextWrapPos();
             if (ImGui::Button(TX("Create the room"), {-FLT_MIN, button_h})) {
                 if (const auto server = online::normalize_server(server_buf_)) {
                     server_ = *server;
                     hello_ = {};
                     hello_.op = online::Hello::Op::Create;
                     hello_.room = online::random_room();
-                    hello_.players = cfg.online_players;
                     hello_.name = name_;
                     hello_.password = password_;
                     room_password_ = password_;
@@ -153,7 +153,7 @@ OnlineMenu::Action OnlineMenu::draw(Config &cfg, const RelayLink *link, bool rac
         if (ImGui::Button(TX("Cancel"), {full, button_h})) action = Leave;
     } else {
         const auto &st = link->status();
-        ImGui::Text(TX("Room %s: %d / %d players"), link->room().c_str(), st.joined, st.size);
+        ImGui::Text(TX("Room %s: %d / %d players"), link->room().c_str(), st.joined, online::kMaxPlayers);
 
         section(TX("Invite code"));
         // read-only field: the whole code shows, and it can be selected as well as copied
@@ -166,26 +166,48 @@ OnlineMenu::Action OnlineMenu::draw(Config &cfg, const RelayLink *link, bool rac
         }
         ImGui::TextDisabled("%s", TX("Send it to your friends: they paste it under Join."));
 
+        // the players: the race's (car 1, 2...) or, before one, the order a race
+        // will take (the room's owner first); then who waits for the next race
         section(TX("Players"));
+        const bool me_in_race = st.position > 0;
         for (int i = 0; i < int(st.names.size()); ++i) {
-            const bool me = i + 1 == st.position;
+            const bool me = i + 1 == st.me;
             char unnamed[64];
             std::snprintf(unnamed, sizeof unnamed, TX("Player %d"), i + 1);
-            ImGui::TextColored(me ? good : ImVec4(0.91f, 0.97f, 1, 1), "%d. %s%s", i + 1,
-                               st.names[i].empty() ? unnamed : st.names[i].c_str(), me ? TX(" (you)") : "");
+            ImGui::TextColored(me ? good : ImVec4(0.91f, 0.97f, 1, 1), "%d. %s%s%s", i + 1,
+                               st.names[i].empty() ? unnamed : st.names[i].c_str(), i == 0 ? TX(" (starts the race)") : "",
+                               me ? TX(" (you)") : "");
         }
-        for (int i = int(st.names.size()); i < st.size; ++i) ImGui::TextDisabled(TX("%d. waiting..."), i + 1);
+        if (!st.waiting.empty()) {
+            ImGui::TextDisabled("%s", TX("Next race:"));
+            for (const auto &name : st.waiting) ImGui::TextDisabled("   %s", name.empty() ? "-" : name.c_str());
+        }
         ImGui::Dummy({0, 4.f * scale});
         ImGui::PushTextWrapPos(0);
-        if (link->state() == State::Waiting) {
-            ImGui::TextColored(warn, "%s", TX("Waiting for the other players; the race starts when the room is full."));
+        if (!st.racing) {
+            if (st.owner)
+                ImGui::TextColored(warn, "%s", st.joined < online::kMinPlayers
+                                                   ? TX("Waiting for at least one more player.")
+                                                   : TX("Start the race when everyone is in."));
+            else
+                ImGui::TextColored(warn, TX("Waiting for %s to start the race."),
+                                   st.names.empty() || st.names[0].empty() ? TX("the room's owner") : st.names[0].c_str());
+        } else if (!me_in_race) {
+            ImGui::TextColored(warn, "%s", TX("A race is on: you will join the next one."));
         } else {
-            ImGui::TextColored(good, "%s", racing ? TX("Online race in progress.") : TX("Room full: starting..."));
+            ImGui::TextColored(good, "%s", racing ? TX("Online race in progress.") : TX("Starting the race..."));
             ImGui::TextUnformatted(TX("Press Start (Enter) to play. Esc comes back to this menu."));
         }
         if (!message.empty()) ImGui::TextColored(warn, "%s", message.c_str());
         ImGui::PopTextWrapPos();
         ImGui::Dummy({0, 4.f * scale});
+        if (st.owner) { // a race with everyone in the room; during one, a new race with whoever is waiting too
+            ImGui::BeginDisabled(st.joined < online::kMinPlayers);
+            if (ImGui::Button(st.racing ? TX("New race with everyone") : TX("Start the race"), {full, button_h}))
+                action = Begin;
+            ImGui::EndDisabled();
+            if (st.racing) ImGui::TextDisabled("%s", TX("Restarts every player's game with everyone in the room."));
+        }
         if (racing && link->state() == State::Ready && ImGui::Button(TX("Resume the race"), {full, button_h}))
             action = Resume;
         if (ImGui::Button(TX("Leave the room"), {full, button_h})) action = Leave;

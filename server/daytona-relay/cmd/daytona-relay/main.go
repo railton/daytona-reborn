@@ -1,7 +1,8 @@
 // daytona-relay: the server. Players connect here (the game's Online mode,
-// or the daytona-link helper) and join a room by its code; once the room is
-// full, the server forms the ring (in join order: the first is the MASTER)
-// and passes each player's game bytes to the next player.
+// or the daytona-link helper) and join a room by its code, up to 8. The
+// room's owner starts a race: the server forms the ring of everyone in the
+// room (the owner first: the MASTER) and passes each player's game bytes to
+// the next player. Who joins during a race waits for the next one.
 //
 // Configuration: flags, or the environment (Docker):
 //
@@ -80,10 +81,12 @@ func (c *client) send(f proto.Frame) {
 
 type room struct {
 	code    string
-	size    int
 	game    string    // the online version of the games in it (Hello.Game)
-	members []*client // ring order = join order
-	epoch   uint32
+	members []*client // everyone in the room, in join order
+	owner   *client   // starts races (Begin); nil until someone joins a web room
+	ring    []*client // the race's cabinets in ring order (the owner first); nil: no race formed
+	epoch   uint32    // changes with every new ring (and when one breaks)
+	auto    int       // the daytona-link helper's rooms: a ring forms on its own at this many; 0: the owner starts
 
 	race    settings.Race   // the room's settings: the environment's, for a room a game created
 	eeprom  []proto.Setting // race.EEPROM()
@@ -134,10 +137,13 @@ func (s *server) join(c *client, h proto.Hello) error {
 		if len(s.rooms) >= s.maxRooms {
 			return proto.Errf("server_full", "server full: %d rooms at most", s.maxRooms)
 		}
-		r = &room{code: h.Room, size: h.Players, game: h.Game, race: s.race, eeprom: s.race.EEPROM(), created: s.now()}
+		r = &room{code: h.Room, game: h.Game, race: s.race, eeprom: s.race.EEPROM(), created: s.now()}
+		if h.Op == "auto" {
+			r.auto = h.Players
+		}
 		s.rooms[h.Room] = r
-	case h.Op == "auto" && r.size != h.Players:
-		return proto.Errf("size", "room %q is for %d players, not %d", h.Room, r.size, h.Players)
+	case h.Op == "auto" && r.auto != h.Players:
+		return proto.Errf("size", "room %q is not for %d players", h.Room, h.Players)
 	}
 	if r.game == "" {
 		r.game = h.Game
@@ -145,14 +151,65 @@ func (s *server) join(c *client, h proto.Hello) error {
 	if h.Game != "" && h.Game != r.game {
 		return proto.Errf("game_version", "room %q is for game online version %s, not %s", h.Room, r.game, h.Game)
 	}
-	if len(r.members) >= r.size {
-		return proto.Errf("full", "room %q is full (%d players)", h.Room, r.size)
+	if limit := r.capacity(); len(r.members) >= limit {
+		return proto.Errf("full", "room %q is full (%d players)", h.Room, limit)
 	}
 	r.members = append(r.members, c)
 	c.room = r
-	s.changed(r)
-	log.Printf("room %s: %q (%s) joined (%d/%d)", r.code, c.name, c.addr, len(r.members), r.size)
+	if r.owner == nil && r.auto == 0 {
+		r.owner = c
+	}
+	log.Printf("room %s: %q (%s) joined (%d in the room)", r.code, c.name, c.addr, len(r.members))
+	if r.auto > 0 && r.ring == nil && len(r.members) == r.auto {
+		s.formRing(r)
+	} else {
+		s.notify(r)
+	}
 	return nil
+}
+
+// capacity: the most players a room takes.
+func (r *room) capacity() int {
+	if r.auto > 0 {
+		return r.auto
+	}
+	return proto.MaxPlayers
+}
+
+func (r *room) inRing(c *client) int { // c's place in the ring, 1-based; 0: not in it
+	for i, m := range r.ring {
+		if m == c {
+			return i + 1
+		}
+	}
+	return 0
+}
+
+// begin: the owner starts a race with everyone in the room.
+func (s *server) begin(c *client) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	r := c.room
+	if r == nil || r.owner != c || len(r.members) < proto.MinPlayers {
+		return
+	}
+	s.formRing(r)
+	log.Printf("room %s: race started by %q with %d players", r.code, c.name, len(r.ring))
+}
+
+// formRing: a new ring of everyone in the room, the owner first. Caller holds s.mu.
+func (s *server) formRing(r *room) {
+	r.ring = r.ring[:0]
+	if r.owner != nil {
+		r.ring = append(r.ring, r.owner)
+	}
+	for _, m := range r.members {
+		if m != r.owner {
+			r.ring = append(r.ring, m)
+		}
+	}
+	r.epoch++ // a new ring: data of the old one is dropped
+	s.notify(r)
 }
 
 func (s *server) leave(c *client) {
@@ -169,7 +226,17 @@ func (s *server) leave(c *client) {
 		}
 	}
 	c.room = nil
-	log.Printf("room %s: %q (%s) left (%d/%d)", r.code, c.name, c.addr, len(r.members), r.size)
+	if r.owner == c { // the next in line owns the room
+		r.owner = nil
+		if len(r.members) > 0 && r.auto == 0 {
+			r.owner = r.members[0]
+		}
+	}
+	if r.inRing(c) > 0 { // the race's ring is broken: back to the room until the owner starts again
+		r.ring = nil
+		r.epoch++
+	}
+	log.Printf("room %s: %q (%s) left (%d in the room)", r.code, c.name, c.addr, len(r.members))
 	if len(r.members) == 0 {
 		if r.web {
 			// it waits for players again, of any game version
@@ -180,7 +247,7 @@ func (s *server) leave(c *client) {
 		}
 		return
 	}
-	s.changed(r)
+	s.notify(r)
 }
 
 // expire removes the web rooms that have stayed empty for webRoomIdle.
@@ -196,16 +263,38 @@ func (s *server) expire() {
 	}
 }
 
-// changed starts a new ring (epoch) and tells every member. Caller holds s.mu.
-func (s *server) changed(r *room) {
-	r.epoch++
-	ready := len(r.members) == r.size
-	names := make([]string, len(r.members))
-	for i, m := range r.members {
-		names[i] = m.name
+// notify tells every member the room's state, in the current epoch. Caller holds s.mu.
+func (s *server) notify(r *room) {
+	var names, waiting []string
+	line := map[*client]int{} // each member's line in names
+	add := func(m *client) {
+		names = append(names, m.name)
+		line[m] = len(names)
 	}
-	for i, m := range r.members {
-		st := proto.Status{Joined: len(r.members), Size: r.size, Position: i + 1, Ready: ready, EEPROM: r.eeprom, Names: names, AnyStart: r.race.AnyStart()}
+	if r.ring != nil {
+		for _, m := range r.ring {
+			add(m)
+		}
+		for _, m := range r.members {
+			if r.inRing(m) == 0 {
+				waiting = append(waiting, m.name)
+			}
+		}
+	} else { // the order a race would take: the owner first
+		if r.owner != nil {
+			add(r.owner)
+		}
+		for _, m := range r.members {
+			if m != r.owner {
+				add(m)
+			}
+		}
+	}
+	for _, m := range r.members {
+		pos := r.inRing(m)
+		st := proto.Status{Joined: len(r.members), Size: len(r.ring), Position: pos, Ready: pos > 0,
+			EEPROM: r.eeprom, Names: names, AnyStart: r.race.AnyStart(), Owner: m == r.owner,
+			Racing: r.ring != nil, Waiting: waiting, Me: line[m]}
 		m.send(proto.Frame{Type: proto.TypeStatus, Epoch: r.epoch, Payload: st.Encode()})
 	}
 }
@@ -214,12 +303,12 @@ func (s *server) changed(r *room) {
 func (s *server) broadcast(c *client, f proto.Frame) {
 	s.mu.Lock()
 	r := c.room
-	if r == nil || f.Epoch != r.epoch || len(r.members) != r.size {
+	if r == nil || f.Epoch != r.epoch || r.inRing(c) == 0 {
 		s.mu.Unlock()
 		return
 	}
-	others := make([]*client, 0, len(r.members)-1)
-	for _, m := range r.members {
+	others := make([]*client, 0, len(r.ring)-1)
+	for _, m := range r.ring {
 		if m != c {
 			others = append(others, m)
 		}
@@ -234,17 +323,15 @@ func (s *server) broadcast(c *client, f proto.Frame) {
 func (s *server) forward(c *client, f proto.Frame) {
 	s.mu.Lock()
 	r := c.room
-	if r == nil || f.Epoch != r.epoch || len(r.members) != r.size {
+	pos := 0
+	if r != nil {
+		pos = r.inRing(c)
+	}
+	if pos == 0 || f.Epoch != r.epoch {
 		s.mu.Unlock()
-		return // an old ring's data, or the ring is not complete
+		return // an old ring's data, or c is not in the race
 	}
-	var next *client
-	for i, m := range r.members {
-		if m == c {
-			next = r.members[(i+1)%len(r.members)]
-			break
-		}
-	}
+	next := r.ring[pos%len(r.ring)]
 	s.mu.Unlock()
 	if next != nil {
 		next.send(f)
@@ -351,6 +438,8 @@ func (s *server) handle(conn net.Conn) {
 		switch f.Type {
 		case proto.TypeData:
 			s.forward(c, f)
+		case proto.TypeBegin:
+			s.begin(c)
 		case proto.TypeControl:
 			if len(f.Payload) <= 256 {
 				s.broadcast(c, f)
