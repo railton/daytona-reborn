@@ -1,0 +1,935 @@
+# Daytona Arcade Native: pt
+
+msgid "Tourner à gauche"
+msgstr "Virar à esquerda"
+
+msgid "Tourner à droite"
+msgstr "Virar à direita"
+
+msgid "Accélérer"
+msgstr "Acelerar"
+
+msgid "Freiner"
+msgstr "Frear"
+
+msgid "Vitesse 1"
+msgstr "Marcha 1"
+
+msgid "Vitesse 2"
+msgstr "Marcha 2"
+
+msgid "Vitesse 3"
+msgstr "Marcha 3"
+
+msgid "Vitesse 4"
+msgstr "Marcha 4"
+
+msgid "Monter un rapport"
+msgstr "Subir marcha"
+
+msgid "Descendre un rapport"
+msgstr "Descer marcha"
+
+msgid "Vue 1 (rouge)"
+msgstr "Visão 1 (vermelho)"
+
+msgid "Vue 2 (bleue)"
+msgstr "Visão 2 (azul)"
+
+msgid "Vue 3 (jaune)"
+msgstr "Visão 3 (amarelo)"
+
+msgid "Vue 4 (verte)"
+msgstr "Visão 4 (verde)"
+
+msgid "Pièce"
+msgstr "Ficha"
+
+msgid "Start"
+msgstr "Start"
+
+msgid "Test"
+msgstr "Test"
+
+msgid "Service"
+msgstr "Service"
+
+msgid "Bouton "
+msgstr "Botão "
+
+msgid "Gâchette "
+msgstr "Gatilho "
+
+msgid "Axe "
+msgstr "Eixo "
+
+msgid "Croix "
+msgstr "Direcional "
+
+msgid "haut"
+msgstr "cima"
+
+msgid "bas"
+msgstr "baixo"
+
+msgid "gauche"
+msgstr "esquerda"
+
+msgid "droite"
+msgstr "direita"
+
+msgid " (non connecté)"
+msgstr " (não conectado)"
+
+msgid "volant (retour de force)"
+msgstr "volante (force feedback)"
+
+msgid "volant (retour de force non ouvert ; nouvel essai)"
+msgstr "volante (force feedback não aberto; tentando de novo)"
+
+msgid "manette (vibrations)"
+msgstr "controle (vibração)"
+
+msgid "aucun"
+msgstr "nenhum"
+
+msgid "M O D E L   2    /    É D I T I O N   P C"
+msgstr "M O D E L   2    /    E D I Ç Ã O   P C"
+
+msgid "Préparation de la course..."
+msgstr "Preparando a corrida..."
+
+msgid "Course solo"
+msgstr "Corrida solo"
+
+msgid "Retour"
+msgstr "Voltar"
+
+msgid "Mode de la prochaine course"
+msgstr "Modo da próxima corrida"
+
+msgid "Mode de jeu"
+msgstr "Modo de jogo"
+
+msgid "Course normale"
+msgstr "Corrida normal"
+
+msgid "Time Attack"
+msgstr "Time Attack"
+
+msgid "Boîte de la prochaine course"
+msgstr "Câmbio da próxima corrida"
+
+msgid "Boîte de vitesses"
+msgstr "Câmbio"
+
+msgid "Automatique"
+msgstr "Automático"
+
+msgid "Manuelle"
+msgstr "Manual"
+
+msgid "Reprendre"
+msgstr "Continuar"
+
+msgid "Jouer"
+msgstr "Jogar"
+
+msgid "Réglages"
+msgstr "Configurações"
+
+msgid "Quitter"
+msgstr "Sair"
+
+msgid "Nouvelle course"
+msgstr "Nova corrida"
+
+msgid "En ligne"
+msgstr "Online"
+
+msgid "SOLO   /   JEU LIBRE"
+msgstr "SOLO   /   JOGO LIVRE"
+
+msgid "SDR   /   %d × %d"
+msgstr "SDR   /   %d × %d"
+
+msgid "Choisissez de nouveau le jeu de ROM avec Parcourir."
+msgstr "Escolha novamente o conjunto de ROM com Procurar."
+
+msgid "Choisissez le jeu de ROM %s (.zip ou .7z)."
+msgstr "Escolha o conjunto de ROM %s (.zip ou .7z)."
+
+msgid "Les %d fichiers sont vérifiés."
+msgstr "Os %d arquivos foram verificados."
+
+msgid "%d fichiers sur %d absents ou incorrects : ce n'est pas le jeu %s."
+msgstr "%d de %d arquivos ausentes ou incorretos: este não é o conjunto %s."
+
+msgid "Choix de la ROM : "
+msgstr "Escolha da ROM: "
+
+msgid "Jeu de ROM (zip, 7z)"
+msgstr "Conjunto de ROM (zip, 7z)"
+
+msgid "Tous les fichiers"
+msgstr "Todos os arquivos"
+
+msgid "Retour à l'accueil"
+msgstr "Voltar ao início"
+
+msgid "  recompilation statique, moteur natif"
+msgstr "  recompilação estática, motor nativo"
+
+msgid "Jeu"
+msgstr "Jogo"
+
+msgid "Jeu de ROM"
+msgstr "Conjunto de ROM"
+
+msgid "Parcourir donne accès à votre ZIP/7z. Une copie vérifiée est gardée dans l'application."
+msgstr "Procurar dá acesso ao seu ZIP/7z. Uma cópia verificada é guardada no aplicativo."
+
+msgid "Parcourir..."
+msgstr "Procurar..."
+
+msgid "Vérifier"
+msgstr "Verificar"
+
+msgid "Fichiers"
+msgstr "Arquivos"
+
+msgid "Affichage"
+msgstr "Vídeo"
+
+msgid "Arcade 4:3 (la borne d'origine)"
+msgstr "Arcade 4:3 (o gabinete original)"
+
+msgid "21:9 (ultra-large)"
+msgstr "21:9 (ultrawide)"
+
+msgid "Format de l'image"
+msgstr "Formato da imagem"
+
+msgid ""
+"Arcade 4:3 : le cadrage de la borne, centré, avec des bandes sur les côtés d'un écran large.\n"
+"Automatique : la forme de la fenêtre en rendu natif, sinon le 4:3 d'origine.\n"
+"16:10, 16:9, 21:9 : la scène s'élargit sur les côtés, la voiture garde ses proportions."
+msgstr ""
+"Arcade 4:3: o enquadramento do gabinete, centralizado, com barras nas laterais de uma tela larga.\n"
+"Automático: o formato da janela no renderizador nativo; senão, o 4:3 original.\n"
+"16:10, 16:9, 21:9: a cena se alarga nas laterais, e o carro mantém as proporções."
+
+msgid "API graphique (redémarrer le jeu)"
+msgstr "API gráfica (reiniciar o jogo)"
+
+msgid "Logiciel (exact)"
+msgstr "Software (exato)"
+
+msgid "Matériel (expérimental)"
+msgstr "Hardware (experimental)"
+
+msgid "Rendu"
+msgstr "Renderizador"
+
+msgid ""
+"Logiciel : la 3D est calculée par le processeur, comme sur la carte d'arcade. Matériel :\n"
+"par la carte graphique ; en développement, très proche mais pas encore exact au pixel près."
+msgstr ""
+"Software: o 3D é calculado pelo processador, como na placa do arcade. Hardware:\n"
+"pela placa de vídeo; em desenvolvimento, muito próximo, mas ainda não exato pixel a pixel."
+
+msgid "Plein écran"
+msgstr "Tela cheia"
+
+msgid "Cacher la souris pendant le jeu"
+msgstr "Esconder o mouse durante o jogo"
+
+msgid ""
+"Pas de pointeur de souris pendant la partie. Il revient quand ce lanceur\n"
+"s'ouvre (Échap) et disparaît de nouveau avec Reprendre."
+msgstr ""
+"Sem ponteiro do mouse durante a corrida. Ele volta quando este launcher\n"
+"abre (Esc) e some de novo com Continuar."
+
+msgid "Bureau (sans bordure)"
+msgstr "Área de trabalho (sem borda)"
+
+msgid "Mode plein écran"
+msgstr "Modo de tela cheia"
+
+msgid ""
+"Bureau : plein écran à la résolution et à la fréquence du bureau.\n"
+"Un mode : plein écran exclusif à cette résolution et cette fréquence, par exemple\n"
+"un mode à 57,52 Hz créé dans les réglages du pilote graphique."
+msgstr ""
+"Área de trabalho: tela cheia na resolução e na frequência da área de trabalho.\n"
+"Um modo: tela cheia exclusiva nessa resolução e frequência, por exemplo\n"
+"um modo de 57,52 Hz criado nas configurações do driver de vídeo."
+
+msgid "Cadence d'affichage"
+msgstr "Ritmo de exibição"
+
+msgid "(tout décoché : la vitesse de la borne sur tout écran)"
+msgstr "(tudo desmarcado: a velocidade do arcade em qualquer tela)"
+
+msgid "Cadence fluide sur un écran à 57,52 Hz"
+msgstr "Ritmo suave em tela de 57,52 Hz"
+
+msgid ""
+"Sur un écran réglé à 57,52 Hz (ou 115,05 Hz), une image du jeu par rafraîchissement (ou deux) :\n"
+"aucune image doublée ou sautée. La vitesse reste celle de la borne, à 1 %% près.\n"
+"Sans effet aux autres fréquences."
+msgstr ""
+"Em uma tela ajustada para 57,52 Hz (ou 115,05 Hz), um quadro do jogo por atualização (ou dois):\n"
+"nenhum quadro duplicado ou pulado. A velocidade continua a do arcade, com até 1 %% de diferença.\n"
+"Sem efeito em outras frequências."
+
+msgid "Caler sur l'écran (change la vitesse du jeu)"
+msgstr "Sincronizar com a tela (muda a velocidade do jogo)"
+
+msgid ""
+"Fait tourner le jeu à une cadence qui divise exactement celle de l'écran : chaque image\n"
+"reste affichée le même temps et le mouvement est parfaitement fluide. Sur un écran à\n"
+"60, 120, 180 ou 240 Hz, le jeu tourne à 60 images/s, environ 4 %% plus vite que la borne\n"
+"(57,52) ; avec le son de référence, le son est aussi un peu plus rapide. Sans effet\n"
+"sur un écran à 144 ou 165 Hz, qui ne peut pas caler une cadence proche de la borne :\n"
+"utilisez alors la cadence VRR si l'écran gère G-Sync ou FreeSync.\n"
+"Décoché : le jeu tourne toujours à la vitesse de la borne."
+msgstr ""
+"Roda o jogo num ritmo que divide exatamente o da tela: cada quadro\n"
+"fica na tela o mesmo tempo e o movimento é perfeitamente suave. Em uma tela de\n"
+"60, 120, 180 ou 240 Hz, o jogo roda a 60 quadros/s, cerca de 4 %% mais rápido que o arcade\n"
+"(57,52); com o som de referência, o som também fica um pouco mais rápido. Sem efeito\n"
+"em telas de 144 ou 165 Hz, que não conseguem um ritmo próximo ao do arcade:\n"
+"nesse caso, use o ritmo VRR se a tela suportar G-Sync ou FreeSync.\n"
+"Desmarcado: o jogo sempre roda na velocidade do arcade."
+
+msgid "Cadence VRR (G-Sync / FreeSync)"
+msgstr "Ritmo VRR (G-Sync / FreeSync)"
+
+msgid ""
+"Pour un écran à fréquence variable : chaque image dure exactement 1/57,52 s, l'écran\n"
+"se rafraîchit au rythme du jeu et chaque image reste affichée le même temps.\n"
+"Le VRR doit être actif dans l'écran et le pilote graphique ; sur un écran à\n"
+"fréquence fixe, le résultat ressemble au réglage par défaut."
+msgstr ""
+"Para telas de frequência variável: cada quadro dura exatamente 1/57,52 s, a tela\n"
+"atualiza no ritmo do jogo e cada quadro fica na tela o mesmo tempo.\n"
+"O VRR precisa estar ativo na tela e no driver de vídeo; em uma tela de\n"
+"frequência fixa, o resultado é parecido com o padrão."
+
+msgid "Actuellement : %s."
+msgstr "Atualmente: %s."
+
+msgid "Passer le lanceur"
+msgstr "Pular o launcher"
+
+msgid "(lance le jeu tout de suite ; Échap ouvre ce lanceur)"
+msgstr "(inicia o jogo direto; Esc abre este launcher)"
+
+msgid "Double tampon"
+msgstr "Buffer duplo"
+
+msgid "Simple tampon"
+msgstr "Buffer simples"
+
+msgid "Une image sur trois"
+msgstr "Um quadro a cada três"
+
+msgid "Mode de dessin"
+msgstr "Modo de desenho"
+
+msgid ""
+"Double tampon : chaque image est dessinée, comme dans le jeu. Simple tampon : une sur deux ;\n"
+"une image sur trois : une sur trois. Plus rapide ; le jeu lui-même n'est pas ralenti."
+msgstr ""
+"Buffer duplo: todo quadro é desenhado, como no jogo. Buffer simples: um a cada dois;\n"
+"um quadro a cada três: um a cada três. Mais rápido; o jogo em si não fica mais lento."
+
+msgid "Natif 2x"
+msgstr "Nativo 2x"
+
+msgid "Désactivé"
+msgstr "Desativado"
+
+msgid "Natif direct"
+msgstr "Nativo direto"
+
+msgid "Résolution du rendu"
+msgstr "Resolução de renderização"
+
+msgid ""
+"Les modes natifs suivent la fenêtre sous Direct3D 12.\n"
+"2x à 4x agrandissent la résolution d'origine."
+msgstr ""
+"Os modos nativos acompanham a janela no Direct3D 12.\n"
+"2x a 4x ampliam a resolução original."
+
+msgid "Améliorations"
+msgstr "Melhorias"
+
+msgid "Compteurs au bord de l'écran (expérimental)"
+msgstr "HUD nas bordas da tela (experimental)"
+
+msgid "Étirer le fond du ciel (expérimental)"
+msgstr "Esticar o fundo do céu (experimental)"
+
+msgid ""
+"Montre davantage de la scène sur les côtés. Les compteurs restent en 4:3 au centre, ou bien\n"
+"les temps au tour, la position et les cartes passent sur les bords. En course, le ciel\n"
+"des côtés est bleu uni, ou bien l'image du ciel du jeu étirée sur tout l'écran."
+msgstr ""
+"Mostra mais da cena nas laterais. O HUD fica em 4:3 no centro, ou então\n"
+"os tempos de volta, a posição e os mapas vão para as bordas. Na corrida, o céu\n"
+"das laterais fica azul liso, ou então a imagem do céu do jogo esticada na tela toda."
+
+msgid "La plus courte"
+msgstr "A mais curta"
+
+msgid "Plus courte"
+msgstr "Mais curta"
+
+msgid "Par défaut"
+msgstr "Padrão"
+
+msgid "Plus loin"
+msgstr "Mais longe"
+
+msgid "Le plus loin"
+msgstr "A mais longe"
+
+msgid "Distance d'affichage"
+msgstr "Distância de visão"
+
+msgid ""
+"Le décor autour du circuit. L'écran large ajoute aussi le décor sur les côtés.\n"
+"Plus court réduit la portée ; plus loin ajoute arbres et bâtiments, pas la route."
+msgstr ""
+"O cenário em volta da pista. O widescreen também acrescenta cenário nas laterais.\n"
+"Mais curta reduz o alcance; mais longe acrescenta árvores e prédios, não a pista."
+
+msgid "Décor en volume"
+msgstr "Cenário em 3D"
+
+msgid ""
+"Sapins en volume, tribunes pleines, piliers sous le pont de Dinosaur Canyon.\n"
+"Pris en compte au prochain lancement du jeu."
+msgstr ""
+"Pinheiros em 3D, arquibancadas cheias, pilares sob a ponte do Dinosaur Canyon.\n"
+"Vale a partir da próxima vez que o jogo abrir."
+
+msgid "Voitures adverses toujours détaillées"
+msgstr "Carros adversários sempre detalhados"
+
+msgid ""
+"Un seul modèle, le plus détaillé, à toutes les distances : plus de voitures\n"
+"qui changent d'aspect en approchant. Pris en compte au prochain lancement du jeu."
+msgstr ""
+"Um único modelo, o mais detalhado, em todas as distâncias: sem carros\n"
+"que mudam de aparência ao se aproximar. Vale a partir da próxima vez que o jogo abrir."
+
+msgid "Ombres du soleil (ray tracing, expérimental)"
+msgstr "Sombras do sol (ray tracing, experimental)"
+
+msgid ""
+"Ombres projetées par le soleil du jeu (Direct3D 12, carte compatible ray tracing,\n"
+"résolution native). Pris en compte au prochain lancement du jeu."
+msgstr ""
+"Sombras projetadas pelo sol do jogo (Direct3D 12, placa com ray tracing,\n"
+"resolução nativa). Vale a partir da próxima vez que o jogo abrir."
+
+msgid "Lumière du ciel (expérimental)"
+msgstr "Luz do céu (experimental)"
+
+msgid ""
+"Le ciel éclaire de partout : plus sombre sous les voitures, sous le portique,\n"
+"au pied des murs. Pris en compte au prochain lancement du jeu."
+msgstr ""
+"O céu ilumina de todos os lados: mais escuro sob os carros, sob o pórtico,\n"
+"ao pé dos muros. Vale a partir da próxima vez que o jogo abrir."
+
+msgid "%d degrés"
+msgstr "%d graus"
+
+msgid "celle du jeu"
+msgstr "a do jogo"
+
+msgid "Hauteur du soleil"
+msgstr "Altura do sol"
+
+msgid ""
+"La direction reste celle du soleil du jeu. Plus bas, les ombres s'allongent\n"
+"(comme en fin d'après-midi). Pris en compte au prochain lancement du jeu."
+msgstr ""
+"A direção continua a do sol do jogo. Mais baixo, as sombras ficam mais longas\n"
+"(como no fim da tarde). Vale a partir da próxima vez que o jogo abrir."
+
+msgid "Lissage 120 images/s (expérimental)"
+msgstr "Suavização 120 quadros/s (experimental)"
+
+msgid ""
+"Images intermédiaires entre celles du jeu. Demande le rendu Matériel et le double\n"
+"tampon.\n"
+"Pris en compte au prochain lancement du jeu."
+msgstr ""
+"Quadros intermediários entre os do jogo. Requer o renderizador Hardware e o buffer\n"
+"duplo.\n"
+"Vale a partir da próxima vez que o jogo abrir."
+
+msgid "PC (origine)"
+msgstr "PC (original)"
+
+msgid "Borne %d,%d"
+msgstr "Arcade %d,%d"
+
+msgid "Couleurs de l'écran (redémarrer le jeu)"
+msgstr "Cores da tela (reiniciar o jogo)"
+
+msgid ""
+"PC : les couleurs du jeu comme avant (image d'origine).\n"
+"Borne 2,2 à 2,6 : les mêmes couleurs comme sur un écran de borne d'arcade,\n"
+"plus profondes et moins délavées. Conseillé : 2,4."
+msgstr ""
+"PC: as cores do jogo como antes (imagem original).\n"
+"Arcade 2,2 a 2,6: as mesmas cores de uma tela de gabinete de arcade,\n"
+"mais profundas e menos desbotadas. Recomendado: 2,4."
+
+msgid "Saturation des couleurs (redémarrer le jeu)"
+msgstr "Saturação das cores (reiniciar o jogo)"
+
+msgid "100 %% (origine)"
+msgstr "100 %% (original)"
+
+msgid "Plus de 100 %% : des couleurs plus vives. 100 %% : les couleurs du jeu telles quelles."
+msgstr "Acima de 100 %%: cores mais vivas. 100 %%: as cores do jogo como são."
+
+msgid "Personnalisé"
+msgstr "Personalizado"
+
+msgid "Budget de polygones"
+msgstr "Orçamento de polígonos"
+
+msgid "Allocation personnalisée"
+msgstr "Alocação personalizada"
+
+msgid ""
+"Remplace l'allocation automatique. De 1 à 1 000 000.\n"
+"Trop bas, du décor peut manquer ; trop haut, le jeu peut ralentir."
+msgstr ""
+"Substitui a alocação automática. De 1 a 1.000.000.\n"
+"Baixo demais, pode faltar cenário; alto demais, o jogo pode ficar lento."
+
+msgid ""
+"Allocation actuelle : %u. Elle suit l'écran large et la distance d'affichage.\n"
+"La résolution et le suréchantillonnage ne la changent pas."
+msgstr ""
+"Alocação atual: %u. Ela acompanha o widescreen e a distância de visão.\n"
+"A resolução e a superamostragem não a alteram."
+
+msgid "Jeu en réseau (expérimental, réinitialiser)"
+msgstr "Jogo em rede (experimental, reiniciar)"
+
+msgid "Relier à d'autres bornes"
+msgstr "Conectar a outros gabinetes"
+
+msgid "Port de cette borne"
+msgstr "Porta deste gabinete"
+
+msgid "Borne suivante (hôte:port)"
+msgstr "Próximo gabinete (host:porta)"
+
+msgid "Synchroniser les images (chaque borne attend la principale)"
+msgstr "Sincronizar quadros (cada gabinete espera o principal)"
+
+msgid "Réseau : %s"
+msgstr "Rede: %s"
+
+msgid ""
+"Les bornes se relient en anneau par le réseau (Wi-Fi ou câble) : chacune écoute sur son\n"
+"port et se connecte à la suivante ; à deux, chacune a l'autre pour suivante. Tous les\n"
+"ordinateurs peuvent prendre le même port, par exemple 15112, et Borne suivante =\n"
+"adresse de l'autre ordinateur:15112. En mode test (F2) > GAME SYSTEM, régler LINK ID\n"
+"(une MASTER, les autres SLAVE) et un CAR NUMBER différent sur chacune. Le jeu de 1994\n"
+"(révision A) permet le jeu en réseau."
+msgstr ""
+"Os gabinetes se conectam em anel pela rede (Wi-Fi ou cabo): cada um escuta na sua\n"
+"porta e se conecta ao próximo; com dois, cada um tem o outro como próximo. Todos os\n"
+"computadores podem usar a mesma porta, por exemplo 15112, e Próximo gabinete =\n"
+"endereço do outro computador:15112. No modo de teste (F2) > GAME SYSTEM, ajuste LINK ID\n"
+"(um MASTER, os outros SLAVE) e um CAR NUMBER diferente em cada um. O jogo de 1994\n"
+"(revisão A) permite jogo em rede."
+
+msgid "Maintenir le bouton Test"
+msgstr "Segurar o botão Test"
+
+msgid "Ouvre le menu de test : réglages des pièces, type de partie ; sans touche F2."
+msgstr "Abre o menu de teste: configurações de fichas, tipo de partida; sem a tecla F2."
+
+msgid "(ouvre le menu de test : réglages des pièces, type de partie ; sans touche F2)"
+msgstr "(abre o menu de teste: configurações de fichas, tipo de partida; sem a tecla F2)"
+
+msgid ""
+"Cochez, puis Démarrer ou Reprendre : une fois le jeu lancé, le bouton Test est maintenu\n"
+"3 secondes, ce qui ouvre le menu de test, puis la case se décoche toute seule.\n"
+"F2, ou tout bouton affecté à Test, fonctionne toujours."
+msgstr ""
+"Marque e depois Iniciar ou Continuar: com o jogo rodando, o botão Test fica pressionado\n"
+"por 3 segundos, o que abre o menu de teste, e depois a caixa se desmarca sozinha.\n"
+"F2, ou qualquer botão atribuído a Test, continua funcionando."
+
+msgid "Réinitialiser"
+msgstr "Reiniciar"
+
+msgid "Démarrer"
+msgstr "Iniciar"
+
+msgid "Commandes"
+msgstr "Controles"
+
+msgid "Manette : %s"
+msgstr "Controle: %s"
+
+msgid "aucune connectée"
+msgstr "nenhum conectado"
+
+msgid "Volants et joysticks : %s"
+msgstr "Volantes e joysticks: %s"
+
+msgid "aucun connecté"
+msgstr "nenhum conectado"
+
+msgid "Direction"
+msgstr "Direção"
+
+msgid "Accélérateur"
+msgstr "Acelerador"
+
+msgid "Frein"
+msgstr "Freio"
+
+msgid "Zone morte"
+msgstr "Zona morta"
+
+msgid "Inverser la direction"
+msgstr "Inverter a direção"
+
+msgid "Zone morte du volant (expérimental)"
+msgstr "Zona morta do volante (experimental)"
+
+msgid "Sensibilité du volant"
+msgstr "Sensibilidade do volante"
+
+msgid ""
+"100 %% : linéaire. Plus bas : plus doux près du centre. Plus haut : plus vif.\n"
+"Seulement pour l'axe de direction d'un volant ou joystick ; le braquage complet est conservé."
+msgstr ""
+"100 %%: linear. Mais baixo: mais suave perto do centro. Mais alto: mais rápido.\n"
+"Só para o eixo de direção de um volante ou joystick; o giro completo é mantido."
+
+msgid "Sensibilité du stick (manette)"
+msgstr "Sensibilidade do analógico (controle)"
+
+msgid "Vitesse de braquage (manette)"
+msgstr "Velocidade de esterçamento (controle)"
+
+msgid "Immédiate"
+msgstr "Imediata"
+
+msgid ""
+"Stick de la manette seulement. Sensibilité : plus bas, plus doux près du centre (braquage complet gardé).\n"
+"Vitesse : à quelle vitesse le volant du jeu suit le stick, par image (100 %% : aussitôt)."
+msgstr ""
+"Só o analógico do controle. Sensibilidade: mais baixo, mais suave perto do centro (giro completo mantido).\n"
+"Velocidade: o quão rápido o volante do jogo segue o analógico, por quadro (100 %%: na hora)."
+
+msgid ""
+"Gâchettes, sticks, volants et pédales sont analogiques. Pour affecter un axe de volant ou de pédale,\n"
+"cliquez sur son bouton, puis tournez le volant ou appuyez sur la pédale aussi loin que vous voulez\n"
+"le braquage ou la course complète, et relâchez : cela fixe sa plage."
+msgstr ""
+"Gatilhos, analógicos, volantes e pedais são analógicos. Para atribuir um eixo de volante ou pedal,\n"
+"clique no botão dele, depois gire o volante ou pise no pedal até onde você quer\n"
+"o giro ou o curso completo, e solte: isso define a faixa."
+
+msgid "Ancienne prise en charge des volants Logitech (redémarrer le jeu)"
+msgstr "Suporte legado a volantes Logitech (reiniciar o jogo)"
+
+msgid ""
+"Volants Logitech par le pilote du système : nécessaire pour un volant listé mais qui ne fait\n"
+"rien quand on l'affecte (le Driving Force d'origine). Décoché : le pilote de SDL, qui donne\n"
+"le retour de force aux volants récents sous macOS. Après un changement, redémarrez et\n"
+"affectez de nouveau les commandes du volant."
+msgstr ""
+"Volantes Logitech pelo driver do sistema: necessário para um volante listado que não faz\n"
+"nada ao ser atribuído (o Driving Force original). Desmarcado: o driver do SDL, que dá\n"
+"force feedback aos volantes recentes no macOS. Depois de mudar, reinicie e\n"
+"atribua de novo os controles do volante."
+
+msgid "Retour de force (expérimental)"
+msgstr "Force feedback (experimental)"
+
+msgid "Coupé"
+msgstr "Desligado"
+
+msgid "Inverser la force"
+msgstr "Inverter a força"
+
+msgid "Journal du retour de force"
+msgstr "Log do force feedback"
+
+msgid "Centrage calculé par le jeu"
+msgstr "Centralização calculada pelo jogo"
+
+msgid ""
+"Pour un volant qui pousse aux chocs mais ne se recentre pas dans les virages : son pilote\n"
+"Linux n'a pas d'effet de ressort (la 1re ligne du journal dit \"spring no\").\n"
+"Le recentrage du jeu est alors calculé ici d'après la position du volant et\n"
+"envoyé comme une force constante. Laissez décoché si le volant se recentre déjà."
+msgstr ""
+"Para um volante que reage às batidas mas não volta ao centro nas curvas: o driver\n"
+"Linux dele não tem efeito de mola (a 1ª linha do log diz \"spring no\").\n"
+"A centralização do jogo é então calculada aqui a partir da posição do volante e\n"
+"enviada como força constante. Deixe desmarcado se o volante já volta ao centro."
+
+msgid ""
+"Le moteur du volant de la borne (recentrage, résistance, volant qui tire), sur l'appareil\n"
+"affecté à la direction ; une manette vibre quand la voiture est poussée. Actuellement : %s.\n"
+"Volants et retour de force ne sont pas encore testés sur du vrai matériel : avis bienvenus.\n"
+"Le journal va dans daytona.log, à côté de launcher.ini sous Windows, sinon dans le terminal."
+msgstr ""
+"O motor do volante do arcade (centralização, resistência, volante puxando), no dispositivo\n"
+"atribuído à direção; um controle vibra quando o carro é empurrado. Atualmente: %s.\n"
+"Volantes e force feedback ainda não foram testados em hardware real: opiniões são bem-vindas.\n"
+"O log vai para daytona.log, ao lado de launcher.ini no Windows; senão, para o terminal."
+
+msgid "Commande"
+msgstr "Comando"
+
+msgid "Clavier"
+msgstr "Teclado"
+
+msgid "Manette"
+msgstr "Controle"
+
+msgid "Volant / joystick (expérimental)"
+msgstr "Volante / joystick (experimental)"
+
+msgid "Appuyez sur une touche..."
+msgstr "Pressione uma tecla..."
+
+msgid "Appuyez ou bougez..."
+msgstr "Pressione ou mova..."
+
+msgid "effacer"
+msgstr "limpar"
+
+msgid "Aussi loin que voulu, puis relâchez..."
+msgstr "Até onde quiser, depois solte..."
+
+msgid "Appuyez, ou bougez à fond et relâchez..."
+msgstr "Pressione, ou mova até o fim e solte..."
+
+msgid "Échap annule une affectation ; Retour arrière efface une touche."
+msgstr "Esc cancela uma atribuição; Backspace apaga uma tecla."
+
+msgid "Remettre les réglages par défaut"
+msgstr "Restaurar as configurações padrão"
+
+msgid "Son"
+msgstr "Som"
+
+msgid "Volume"
+msgstr "Volume"
+
+msgid "Muet"
+msgstr "Mudo"
+
+msgid "Musique"
+msgstr "Música"
+
+msgid "Effets"
+msgstr "Efeitos"
+
+msgid ""
+"L'équilibre entre la musique et tout le reste (moteur, dérapages, chocs).\n"
+"100 %% et 100 %% : le mélange de la carte son de la borne."
+msgstr ""
+"O equilíbrio entre a música e todo o resto (motor, derrapagens, batidas).\n"
+"100 %% e 100 %%: a mixagem da placa de som do arcade."
+
+msgid "Son natif (expérimental, réinitialiser)"
+msgstr "Som nativo (experimental, reiniciar)"
+
+msgid "Séquenceur et mixeur natifs ; le son de référence reste disponible pour comparer."
+msgstr "Sequenciador e mixer nativos; o som de referência continua disponível para comparar."
+
+msgid "Le jeu n'a pas pu démarrer : "
+msgstr "O jogo não pôde iniciar: "
+
+msgid "Choisissez d'abord le jeu de ROM Daytona Revision A dans Réglages."
+msgstr "Escolha primeiro o conjunto de ROM Daytona Revision A em Configurações."
+
+msgid "Jouez en réseau par Internet avec jusqu'à 8 joueurs, à travers un serveur daytona-relay."
+msgstr "Corra pela internet com até 8 jogadores, por meio de um servidor daytona-relay."
+
+msgid "Votre nom"
+msgstr "Seu nome"
+
+msgid "Créer une salle"
+msgstr "Criar uma sala"
+
+msgid "Serveur (IP ou DNS)"
+msgstr "Servidor (IP ou DNS)"
+
+msgid "Mot de passe du serveur (facultatif)"
+msgstr "Senha do servidor (opcional)"
+
+msgid "Joueurs"
+msgstr "Jogadores"
+
+msgid "Créer la salle"
+msgstr "Criar a sala"
+
+msgid "Adresse du serveur invalide : IP ou nom, avec :port si ce n'est pas 7777."
+msgstr "Endereço do servidor inválido: um IP ou nome, com :porta se não for 7777."
+
+msgid "Rejoindre une salle"
+msgstr "Entrar numa sala"
+
+msgid "Code d'invitation"
+msgstr "Código de convite"
+
+msgid "Coller"
+msgstr "Colar"
+
+msgid "Rejoindre"
+msgstr "Entrar"
+
+msgid "Code d'invitation invalide : copiez-le en entier, il commence par DTN1."
+msgstr "Código de convite inválido: copie o código inteiro, ele começa com DTN1."
+
+msgid "Le code contient déjà le serveur, la salle et le mot de passe."
+msgstr "O código já contém o servidor, a sala e a senha."
+
+msgid "Connexion à %s..."
+msgstr "Conectando a %s..."
+
+msgid "Annuler"
+msgstr "Cancelar"
+
+msgid "Salle %s : %d / %d joueurs"
+msgstr "Sala %s: %d / %d jogadores"
+
+msgid "Copié !"
+msgstr "Copiado!"
+
+msgid "Copier le code"
+msgstr "Copiar o código"
+
+msgid "Envoyez-le à vos amis : ils le collent dans Rejoindre."
+msgstr "Envie aos seus amigos: eles colam em Entrar."
+
+msgid "Joueur %d"
+msgstr "Jogador %d"
+
+msgid " (vous)"
+msgstr " (você)"
+
+msgid "%d. en attente..."
+msgstr "%d. aguardando..."
+
+msgid "En attente des autres joueurs ; la course démarre quand la salle est complète."
+msgstr "Aguardando os outros jogadores; a corrida começa quando a sala estiver completa."
+
+msgid "Course en ligne en cours."
+msgstr "Corrida online em andamento."
+
+msgid "Salle complète : démarrage..."
+msgstr "Sala completa: iniciando..."
+
+msgid "Appuyez sur Start (Entrée) pour jouer. Échap revient à ce menu."
+msgstr "Aperte Start (Enter) para jogar. Esc volta a este menu."
+
+msgid "Reprendre la course"
+msgstr "Voltar à corrida"
+
+msgid "Quitter la salle"
+msgstr "Sair da sala"
+
+msgid " sur un écran à %.2f Hz"
+msgstr " em uma tela de %.2f Hz"
+
+msgid "vitesse de la borne, 57,52 images/s%s"
+msgstr "velocidade do arcade, 57,52 quadros/s%s"
+
+msgid "à chaque rafraîchissement"
+msgstr "a cada atualização"
+
+msgid "tous les %d rafraîchissements"
+msgstr "a cada %d atualizações"
+
+msgid ", vitesse %+.1f %%"
+msgstr ", velocidade %+.1f %%"
+
+msgid "calé, %.2f images/s, une image %s%s%s"
+msgstr "sincronizado, %.2f quadros/s, um quadro %s%s%s"
+
+msgid "VRR, 57,52 images/s, chacune tenue 17,38 ms%s"
+msgstr "VRR, 57,52 quadros/s, cada um por 17,38 ms%s"
+
+msgid "Cette salle n'existe pas : le code est-il complet ? Son créateur est-il encore connecté ?"
+msgstr "Esta sala não existe: o código está completo? Quem criou ainda está conectado?"
+
+msgid "Cette salle existe déjà."
+msgstr "Esta sala já existe."
+
+msgid "Cette salle est complète."
+msgstr "Esta sala está cheia."
+
+msgid "Cette salle n'a pas ce nombre de joueurs."
+msgstr "Esta sala não é para esse número de jogadores."
+
+msgid "Mot de passe du serveur incorrect."
+msgstr "Senha do servidor incorreta."
+
+msgid "Le serveur est plein : trop de salles ouvertes."
+msgstr "O servidor está cheio: salas abertas demais."
+
+msgid "Ce serveur n'est pas compatible avec cette version du jeu."
+msgstr "Este servidor não é compatível com esta versão do jogo."
+
+msgid "Code de salle invalide."
+msgstr "Código de sala inválido."
+
+msgid "Nombre de joueurs invalide : de 2 à 8."
+msgstr "Número de jogadores inválido: de 2 a 8."
+
+msgid "Cette salle a été créée par une autre version du jeu : tous les joueurs doivent avoir la même version."
+msgstr "Esta sala foi criada por outra versão do jogo: todos os jogadores precisam ter a mesma versão."
+
+msgid "Le serveur a refusé la connexion : "
+msgstr "O servidor recusou a conexão: "
+
+msgid "Adresse du serveur invalide."
+msgstr "Endereço do servidor inválido."
+
+msgid "Serveur introuvable : "
+msgstr "Servidor não encontrado: "
+
+msgid "Connexion impossible au serveur (est-il en marche ? son port est-il ouvert ?) : "
+msgstr "Não foi possível conectar ao servidor (ele está ligado? a porta está aberta?): "
+
+msgid "Le serveur ne répond plus."
+msgstr "O servidor parou de responder."
+
+msgid "Connexion au serveur perdue."
+msgstr "Conexão com o servidor perdida."
+
+msgid "La connexion au serveur est trop lente."
+msgstr "A conexão com o servidor está lenta demais."
+
+msgid "Réponse invalide du serveur."
+msgstr "Resposta inválida do servidor."
+
+msgid "Le jeu ne lit pas les données reçues."
+msgstr "O jogo não está lendo os dados recebidos."
