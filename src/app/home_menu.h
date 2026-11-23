@@ -8,7 +8,7 @@ namespace app {
 
 class HomeMenu {
 public:
-    enum Action { Stay, Play, Resume, Settings, Quit, Cancel };
+    enum Action { Stay, Play, Resume, Settings, Quit, Cancel, Online };
     void init();
     void select(rt::StartRaceRequest request) {
         course_ = request.course;

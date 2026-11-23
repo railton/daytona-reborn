@@ -238,7 +238,7 @@ if(EXISTS ${CMAKE_SOURCE_DIR}/extern/sdl3/CMakeLists.txt)
     add_library(gpurender STATIC src/app/gpu/gpu_renderer.cpp src/app/gpu/opponent_bodies.cpp src/app/gpu/dxr_scene.cpp)
     target_include_directories(gpurender PUBLIC src)
     target_link_libraries(gpurender PUBLIC runtime ${M2_SDL_TARGET})
-    add_library(daytona_app OBJECT src/app/main.cpp src/app/launcher.cpp src/app/i18n.cpp src/app/config.cpp src/app/controls.cpp src/app/ffb.cpp src/app/link_socket.cpp src/app/pacing.cpp)
+    add_library(daytona_app OBJECT src/app/main.cpp src/app/launcher.cpp src/app/i18n.cpp src/app/config.cpp src/app/controls.cpp src/app/ffb.cpp src/app/link_socket.cpp src/app/relay_link.cpp src/app/online.cpp src/app/online_menu.cpp src/app/pacing.cpp)
     if(NOT M2_MOBILE)
         target_sources(daytona_app PRIVATE src/app/home_menu.cpp src/app/gpu/home_scene.cpp)
         target_include_directories(daytona_app PRIVATE tools)
@@ -270,7 +270,7 @@ if(EXISTS ${GEN_DIR}/gen_table.cpp AND EXISTS ${TGP_GEN} AND EXISTS ${SND_GEN})
     add_executable(m2native tools/m2native/main.cpp ${GEN_SOURCES} ${TGP_GEN} ${SND_GEN})
     target_link_libraries(m2native PRIVATE runtime)
     # The game on its own: native board runtime, no trace.
-    add_executable(m2run tools/m2run/main.cpp src/app/link_socket.cpp ${GEN_SOURCES} ${TGP_GEN} ${SND_GEN})
+    add_executable(m2run tools/m2run/main.cpp src/app/link_socket.cpp src/app/relay_link.cpp src/app/online.cpp ${GEN_SOURCES} ${TGP_GEN} ${SND_GEN})
     target_link_libraries(m2run PRIVATE runtime)
     if(M2_ROMSET STREQUAL "daytona")
         # Bounded selection experiment; never part of the normal app build.
@@ -307,9 +307,10 @@ if(EXISTS ${GEN_DIR}/gen_table.cpp AND EXISTS ${TGP_GEN} AND EXISTS ${SND_GEN})
         if(WIN32)
             target_link_libraries(daytona PRIVATE ws2_32) # link play's sockets
         endif()
-        # Interface languages (app/i18n.h): lang/<code>.po next to the game
-        add_custom_command(TARGET daytona POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory
-                           ${CMAKE_SOURCE_DIR}/lang $<TARGET_FILE_DIR:daytona>/lang)
+        # Interface languages (app/i18n.h): lang/<code>.po next to the game,
+        # copied on every build, so a changed translation needs no relink
+        add_custom_target(daytona_lang ALL COMMAND ${CMAKE_COMMAND} -E copy_directory
+                          ${CMAKE_SOURCE_DIR}/lang $<TARGET_FILE_DIR:daytona>/lang)
         # Headless frames through the hardware renderer, to compare with m2run's.
         add_executable(m2gpushot tools/m2gpushot/main.cpp ${GEN_SOURCES} ${TGP_GEN} ${SND_GEN})
         target_link_libraries(m2gpushot PRIVATE runtime gpurender)
@@ -521,6 +522,10 @@ add_test(NAME hdr10_choice COMMAND test_hdr10_choice)
 add_executable(test_comm_board tests/test_comm_board.cpp src/runtime/comm_board.cpp)
 target_include_directories(test_comm_board PRIVATE src)
 add_test(NAME comm_board COMMAND test_comm_board)
+# Online play: invite code, relay protocol text, the cabinet's online settings
+add_executable(test_online tests/test_online.cpp src/app/online.cpp)
+target_include_directories(test_online PRIVATE src)
+add_test(NAME online COMMAND test_online)
 
 # Wheel and pedal bindings against SDL virtual joysticks.
 if(TARGET SDL3::SDL3-static)

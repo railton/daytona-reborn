@@ -71,6 +71,12 @@ struct Config {
     int link_port = 15112;               // where the cabinet before this one connects
     std::string link_next = "127.0.0.1:15113"; // host:port of the next cabinet
     bool link_framesync = false;         // hold every cabinet to the master's frame
+    // Online play (app/relay_link.h): through a daytona-relay server, the
+    // home menu's Online screen. The player's name, the last server used.
+    std::string online_name;
+    std::string online_server;
+    std::string online_password;
+    int online_players = 2;              // a new room's size, 2..8
     float ffb_strength = 0.7f; // force feedback (the drive board) on the steering device: 0 off .. 1
     bool ffb_invert = false;   // turn the wheel the other way
     bool ffb_log = false;      // log the force feedback device, failures and the commands (daytona.log on Windows)

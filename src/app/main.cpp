@@ -35,6 +35,9 @@
 #include "app/pacing.h"
 #include "runtime/test_hold.h"
 #include "app/link_socket.h"
+#include "app/relay_link.h"
+#include "app/online_menu.h"
+#include "runtime/online_settings.h"
 #include "app/gpu/dxr_scene.h"
 #include "app/gpu/gpu_renderer.h"
 #include "app/launcher.h"
@@ -894,6 +897,8 @@ int main(int argc, char **argv) {
         app::i18n::add_fonts();
     }
     bool settings = false, pc_race = false;
+    app::OnlineMenu online_menu;
+    bool online_screen = false; // the home menu shows the Online screen
     bool solo = false;
     std::string home_message;
     uint64_t reveal_at = 0;
@@ -1014,6 +1019,10 @@ int main(int argc, char **argv) {
     app::Launcher launcher(cfg, window);
     app::ForceFeedback ffb; // the drive board on the steering device
     std::unique_ptr<app::TcpLink> link; // link play (declared first: outlives the game, which holds it)
+    std::unique_ptr<app::RelayLink> online_link; // online play, the same (app/relay_link.h)
+    bool online_game = false;   // the game runs an online race
+    bool online_wanted = false; // the next start_game is one
+    uint32_t online_epoch = 0;  // the room's ring that race started on
     std::unique_ptr<rt::GameLoop> game;
     bool pose_session = false, last_render_was_pose = false;
     uint64_t pose_interval_ns = 0;
@@ -1032,7 +1041,7 @@ int main(int argc, char **argv) {
     bool pose_discontinuity = true;
     const std::string eeprom_path = pref_file("ioboard_eeprom.bin"), backup_path = pref_file("backup_ram.bin");
     auto save_nv = [&] {
-        if (!game) return;
+        if (!game || online_game) return; // online: the room's settings, not the player's own
         save_file(eeprom_path, game->board().io().eeprom);
         save_file(backup_path, game->board().backup_ram());
     };
@@ -1046,6 +1055,7 @@ int main(int argc, char **argv) {
         audio.close();
         game.reset();
         link.reset();
+        online_game = false;
         have_audio = false;
         native_fault = false;
         timed_audio_active = audio_timing_probe && solo_mode;
@@ -1076,7 +1086,16 @@ int main(int argc, char **argv) {
                 ? "native (experimental, 48000 Hz device clock; no reference sound board)" : "reference");
             load_file(eeprom_path, game->board().io().eeprom);
             load_file(backup_path, game->board().backup_ram());
-            if (cfg.link && !solo_mode) { // link play: the communication board on TCP
+            if (online_wanted && !solo_mode && online_link && online_link->state() == app::RelayLink::State::Ready) {
+                // online: this player's place in the room (the first is the MASTER) and the
+                // server's race settings, written before the first frame
+                const auto &st = online_link->status();
+                rt::online::configure(game->board(), st.position, st.eeprom);
+                game->board().set_link(online_link.get(), false);
+                online_game = true;
+                online_epoch = online_link->epoch();
+                std::printf("daytona: online: room %s, player %d of %d\n", online_link->room().c_str(), st.position, st.size);
+            } else if (cfg.link && !solo_mode) { // link play: the communication board on TCP
                 link = std::make_unique<app::TcpLink>(uint16_t(cfg.link_port), cfg.link_next);
                 if (!link->error().empty()) throw std::runtime_error("Link play: " + link->error());
                 game->board().set_link(link.get(), cfg.link_framesync);
@@ -1089,6 +1108,7 @@ int main(int argc, char **argv) {
             audio.close();
             game.reset();
             link.reset();
+            online_game = false;
             launcher.set_error(e.what());
             return false;
         }
@@ -1107,6 +1127,18 @@ int main(int argc, char **argv) {
 #endif
         if ((autostart || cfg.skip_launcher) && launcher.rom_ok() && start_game()) in_launcher = false;
 #ifndef M2_MOBILE
+    // Leave the online room: its race ends here, the others see the link lost.
+    auto leave_online = [&] {
+        if (online_game) {
+            native_audio.close();
+            audio.close();
+            game.reset();
+            have_audio = false;
+            have_frame = false;
+            online_game = false;
+        }
+        online_link.reset();
+    };
     auto begin_solo = [&](rt::StartRaceRequest request) {
         if (!rt::valid_course(request.course) || !rt::valid_transmission(request.transmission)) {
             home_message = "Paramètres de course invalides.";
@@ -1116,6 +1148,7 @@ int main(int argc, char **argv) {
             home_message = "Choisis une archive Daytona Revision A valide dans Réglages.";
             return false;
         }
+        if (online_link) leave_online(); // a solo race: out of the online room
         // start_game replaces the old session even if loading fails. Once that
         // destructive attempt begins, Resume must not refer to the old race.
         // Keep it available when the earlier ROM preflight alone fails.
@@ -1218,6 +1251,28 @@ int main(int argc, char **argv) {
             in_launcher = true;
             have_frame = false;
         };
+        if (online_link) { // online: the room's state; its race starts on its own when it fills
+            online_link->poll();
+            const bool ready = online_link->state() == app::RelayLink::State::Ready;
+            if (ready && (!online_game || online_epoch != online_link->epoch())) {
+                solo = pc_race = false;
+                online_wanted = true;
+                const bool started = start_game();
+                online_wanted = false;
+                if (started) {
+                    in_launcher = settings = have_frame = false;
+                    online_screen = true;
+                    home_message.clear();
+                } else {
+                    home_message = launcher.error();
+                    leave_online();
+                }
+            } else if (online_game && !ready && !in_launcher) {
+                in_launcher = true; // the room changed: its screen until it is full again
+                online_screen = true;
+                settings = false;
+            }
+        }
 #endif
 #ifdef M2_MOBILE
         int tw = 0, th = 0;
@@ -1406,7 +1461,7 @@ int main(int argc, char **argv) {
                 rt::Inputs inputs = cfg.controls.sample(SDL_GetKeyboardState(nullptr), devices);
 #ifndef M2_MOBILE
                 if (solo) inputs = {}; // the runtime owns native startup inputs
-                else if (pc_home) {
+                else if (pc_home && !online_game) { // online: the cabinet's own Start (free play) and test menu
                     // Replays use absolute simulation ticks after the native start.
                     if (input_script && game->race_status() == rt::RaceStatus::Racing)
                         inputs = input_script->at(game->frames());
@@ -1835,8 +1890,21 @@ int main(int argc, char **argv) {
 #endif
             ImGui::NewFrame();
 #ifndef M2_MOBILE
-            if (draw_home) {
+            if (draw_home && online_screen) {
+                switch (online_menu.draw(cfg, online_link.get(), online_game && game, home_message)) {
+                case app::OnlineMenu::Back: online_screen = false; break;
+                case app::OnlineMenu::Resume: in_launcher = false; break;
+                case app::OnlineMenu::Leave: leave_online(); home_message.clear(); break;
+                case app::OnlineMenu::Connect:
+                    leave_online();
+                    home_message.clear();
+                    online_link = std::make_unique<app::RelayLink>(online_menu.server(), online_menu.hello());
+                    break;
+                default: break;
+                }
+            } else if (draw_home) {
                 switch (home_menu.draw(pc_race, solo, home_message.c_str(), 1.f)) {
+                case app::HomeMenu::Online: online_screen = true; home_message.clear(); break;
                 case app::HomeMenu::Play: begin_solo(home_menu.request()); break;
                 case app::HomeMenu::Resume: in_launcher = false; break;
                 case app::HomeMenu::Settings: settings = true; break;

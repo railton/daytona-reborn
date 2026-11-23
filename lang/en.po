@@ -144,6 +144,9 @@ msgstr "Quit"
 msgid "Nouvelle course"
 msgstr "New race"
 
+msgid "En ligne"
+msgstr "Online"
+
 msgid "SOLO   /   JEU LIBRE"
 msgstr "SOLO   /   FREE PLAY"
 
@@ -760,6 +763,90 @@ msgstr "Native sound (experimental, reset)"
 msgid "Séquenceur et mixeur natifs ; le son de référence reste disponible pour comparer."
 msgstr "Native sequencer and mixer; the reference sound stays available for comparison."
 
+msgid "Jouez en réseau par Internet avec jusqu'à 8 joueurs, à travers un serveur daytona-relay."
+msgstr "Race over the Internet with up to 8 players, through a daytona-relay server."
+
+msgid "Votre nom"
+msgstr "Your name"
+
+msgid "Créer une salle"
+msgstr "Create a room"
+
+msgid "Serveur (IP ou DNS)"
+msgstr "Server (IP or DNS)"
+
+msgid "Mot de passe du serveur (facultatif)"
+msgstr "Server password (optional)"
+
+msgid "Joueurs"
+msgstr "Players"
+
+msgid "Créer la salle"
+msgstr "Create the room"
+
+msgid "Adresse du serveur invalide : IP ou nom, avec :port si ce n'est pas 7777."
+msgstr "Invalid server address: an IP or name, with :port if it is not 7777."
+
+msgid "Rejoindre une salle"
+msgstr "Join a room"
+
+msgid "Code d'invitation"
+msgstr "Invite code"
+
+msgid "Coller"
+msgstr "Paste"
+
+msgid "Rejoindre"
+msgstr "Join"
+
+msgid "Code d'invitation invalide : copiez-le en entier, il commence par DTN1."
+msgstr "Invalid invite code: copy all of it, it starts with DTN1."
+
+msgid "Connexion à %s..."
+msgstr "Connecting to %s..."
+
+msgid "Annuler"
+msgstr "Cancel"
+
+msgid "Salle %s : %d / %d joueurs"
+msgstr "Room %s: %d / %d players"
+
+msgid "Copié !"
+msgstr "Copied!"
+
+msgid "Copier le code"
+msgstr "Copy the code"
+
+msgid "Envoyez-le à vos amis : ils le collent dans Rejoindre."
+msgstr "Send it to your friends: they paste it under Join."
+
+msgid "Joueur %d"
+msgstr "Player %d"
+
+msgid " (vous)"
+msgstr " (you)"
+
+msgid "%d. en attente..."
+msgstr "%d. waiting..."
+
+msgid "En attente des autres joueurs ; la course démarre quand la salle est complète."
+msgstr "Waiting for the other players; the race starts when the room is full."
+
+msgid "Course en ligne en cours."
+msgstr "Online race in progress."
+
+msgid "Salle complète : démarrage..."
+msgstr "Room full: starting..."
+
+msgid "Appuyez sur Start (Entrée) pour jouer. Échap revient à ce menu."
+msgstr "Press Start (Enter) to play. Esc comes back to this menu."
+
+msgid "Reprendre la course"
+msgstr "Resume the race"
+
+msgid "Quitter la salle"
+msgstr "Leave the room"
+
 msgid " sur un écran à %.2f Hz"
 msgstr " on a %.2f Hz display"
 
@@ -780,3 +867,57 @@ msgstr "locked, %.2f frames/s, one frame %s%s%s"
 
 msgid "VRR, 57,52 images/s, chacune tenue 17,38 ms%s"
 msgstr "VRR, 57.52 frames/s, each held 17.38 ms%s"
+
+msgid "Cette salle n'existe pas : le code est-il complet ? Son créateur est-il encore connecté ?"
+msgstr "This room does not exist: is the code complete? Is its creator still connected?"
+
+msgid "Cette salle existe déjà."
+msgstr "This room already exists."
+
+msgid "Cette salle est complète."
+msgstr "This room is full."
+
+msgid "Cette salle n'a pas ce nombre de joueurs."
+msgstr "This room is not for that number of players."
+
+msgid "Mot de passe du serveur incorrect."
+msgstr "Wrong server password."
+
+msgid "Le serveur est plein : trop de salles ouvertes."
+msgstr "The server is full: too many rooms open."
+
+msgid "Ce serveur n'est pas compatible avec cette version du jeu."
+msgstr "This server is not compatible with this version of the game."
+
+msgid "Code de salle invalide."
+msgstr "Invalid room code."
+
+msgid "Nombre de joueurs invalide : de 2 à 8."
+msgstr "Invalid number of players: 2 to 8."
+
+msgid "Le serveur a refusé la connexion : "
+msgstr "The server refused the connection: "
+
+msgid "Adresse du serveur invalide."
+msgstr "Invalid server address."
+
+msgid "Serveur introuvable : "
+msgstr "Server not found: "
+
+msgid "Connexion impossible au serveur (est-il en marche ? son port est-il ouvert ?) : "
+msgstr "Cannot connect to the server (is it running? is its port open?): "
+
+msgid "Le serveur ne répond plus."
+msgstr "The server stopped answering."
+
+msgid "Connexion au serveur perdue."
+msgstr "Connection to the server lost."
+
+msgid "La connexion au serveur est trop lente."
+msgstr "The connection to the server is too slow."
+
+msgid "Réponse invalide du serveur."
+msgstr "Invalid answer from the server."
+
+msgid "Le jeu ne lit pas les données reçues."
+msgstr "The game is not reading the data it receives."

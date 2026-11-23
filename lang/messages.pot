@@ -145,6 +145,9 @@ msgstr ""
 msgid "Nouvelle course"
 msgstr ""
 
+msgid "En ligne"
+msgstr ""
+
 msgid "SOLO   /   JEU LIBRE"
 msgstr ""
 
@@ -678,6 +681,90 @@ msgstr ""
 msgid "Séquenceur et mixeur natifs ; le son de référence reste disponible pour comparer."
 msgstr ""
 
+msgid "Jouez en réseau par Internet avec jusqu'à 8 joueurs, à travers un serveur daytona-relay."
+msgstr ""
+
+msgid "Votre nom"
+msgstr ""
+
+msgid "Créer une salle"
+msgstr ""
+
+msgid "Serveur (IP ou DNS)"
+msgstr ""
+
+msgid "Mot de passe du serveur (facultatif)"
+msgstr ""
+
+msgid "Joueurs"
+msgstr ""
+
+msgid "Créer la salle"
+msgstr ""
+
+msgid "Adresse du serveur invalide : IP ou nom, avec :port si ce n'est pas 7777."
+msgstr ""
+
+msgid "Rejoindre une salle"
+msgstr ""
+
+msgid "Code d'invitation"
+msgstr ""
+
+msgid "Coller"
+msgstr ""
+
+msgid "Rejoindre"
+msgstr ""
+
+msgid "Code d'invitation invalide : copiez-le en entier, il commence par DTN1."
+msgstr ""
+
+msgid "Connexion à %s..."
+msgstr ""
+
+msgid "Annuler"
+msgstr ""
+
+msgid "Salle %s : %d / %d joueurs"
+msgstr ""
+
+msgid "Copié !"
+msgstr ""
+
+msgid "Copier le code"
+msgstr ""
+
+msgid "Envoyez-le à vos amis : ils le collent dans Rejoindre."
+msgstr ""
+
+msgid "Joueur %d"
+msgstr ""
+
+msgid " (vous)"
+msgstr ""
+
+msgid "%d. en attente..."
+msgstr ""
+
+msgid "En attente des autres joueurs ; la course démarre quand la salle est complète."
+msgstr ""
+
+msgid "Course en ligne en cours."
+msgstr ""
+
+msgid "Salle complète : démarrage..."
+msgstr ""
+
+msgid "Appuyez sur Start (Entrée) pour jouer. Échap revient à ce menu."
+msgstr ""
+
+msgid "Reprendre la course"
+msgstr ""
+
+msgid "Quitter la salle"
+msgstr ""
+
 msgid " sur un écran à %.2f Hz"
 msgstr ""
 
@@ -697,4 +784,58 @@ msgid "calé, %.2f images/s, une image %s%s%s"
 msgstr ""
 
 msgid "VRR, 57,52 images/s, chacune tenue 17,38 ms%s"
+msgstr ""
+
+msgid "Cette salle n'existe pas : le code est-il complet ? Son créateur est-il encore connecté ?"
+msgstr ""
+
+msgid "Cette salle existe déjà."
+msgstr ""
+
+msgid "Cette salle est complète."
+msgstr ""
+
+msgid "Cette salle n'a pas ce nombre de joueurs."
+msgstr ""
+
+msgid "Mot de passe du serveur incorrect."
+msgstr ""
+
+msgid "Le serveur est plein : trop de salles ouvertes."
+msgstr ""
+
+msgid "Ce serveur n'est pas compatible avec cette version du jeu."
+msgstr ""
+
+msgid "Code de salle invalide."
+msgstr ""
+
+msgid "Nombre de joueurs invalide : de 2 à 8."
+msgstr ""
+
+msgid "Le serveur a refusé la connexion : "
+msgstr ""
+
+msgid "Adresse du serveur invalide."
+msgstr ""
+
+msgid "Serveur introuvable : "
+msgstr ""
+
+msgid "Connexion impossible au serveur (est-il en marche ? son port est-il ouvert ?) : "
+msgstr ""
+
+msgid "Le serveur ne répond plus."
+msgstr ""
+
+msgid "Connexion au serveur perdue."
+msgstr ""
+
+msgid "La connexion au serveur est trop lente."
+msgstr ""
+
+msgid "Réponse invalide du serveur."
+msgstr ""
+
+msgid "Le jeu ne lit pas les données reçues."
 msgstr ""

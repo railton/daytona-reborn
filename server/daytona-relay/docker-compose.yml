@@ -1,0 +1,31 @@
+# The Online mode server for Daytona USA (Revision A).
+#   Start:  docker compose up -d --build
+#   Logs:   docker compose logs -f
+#   Changed a variable? docker compose up -d (recreates the container)
+services:
+  daytona-relay:
+    build: .
+    image: daytona-relay
+    container_name: daytona-relay
+    restart: unless-stopped
+    ports:
+      - "${DAYTONA_PORT:-7777}:${DAYTONA_PORT:-7777}/tcp"
+    environment:
+      DAYTONA_PORT: "${DAYTONA_PORT:-7777}"
+      # Optional password: only who knows it can use the server (it travels in the invite code).
+      DAYTONA_PASSWORD: "${DAYTONA_PASSWORD:-}"
+      DAYTONA_MAX_ROOMS: "${DAYTONA_MAX_ROOMS:-100}"
+      # Race settings, the same for every player of every room:
+      DAYTONA_CABINET: "${DAYTONA_CABINET:-twin}"                 # twin | uplight | deluxe
+      DAYTONA_COUNTRY: "${DAYTONA_COUNTRY:-jpn}"                  # jpn | usa | export
+      DAYTONA_DIFFICULTY: "${DAYTONA_DIFFICULTY:-normal}"         # easy | normal | hard | hardest
+      DAYTONA_GAME_MODE: "${DAYTONA_GAME_MODE:-normal}"           # normal | grandprix | endurance
+      DAYTONA_RIVAL_ARROW: "${DAYTONA_RIVAL_ARROW:-on}"           # on | off
+      DAYTONA_ADVERTISE_SOUND: "${DAYTONA_ADVERTISE_SOUND:-on}"   # on | off
+      DAYTONA_FREE_PLAY: "${DAYTONA_FREE_PLAY:-on}"               # on: no coins, Start only | off
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }

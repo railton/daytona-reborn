@@ -120,9 +120,11 @@ HomeMenu::Action HomeMenu::draw(bool has_race, bool loading, const char *message
         if (button(TX("Réglages"),left,row+131*scale,174*scale,47*scale,false)) action = Settings;
         if (button(TX("Quitter"),left+189*scale,row+131*scale,174*scale,47*scale,false)) action = Quit;
         if (has_race && button(TX("Nouvelle course"),left,row+190*scale,panel_width,42*scale,false)) action = Play;
+        // Online play through a daytona-relay server (app/online_menu.h)
+        if (button(TX("En ligne"),left,row+(has_race ? 240.f : 190.f)*scale,panel_width,42*scale,false)) action = Online;
     }
     if (message && *message) {
-        at(left, row + (loading ? 85.f : 243.f)*scale);
+        at(left, row + (loading ? 85.f : has_race ? 293.f : 243.f)*scale);
         ImGui::PushFont(body_, 16*scale);
         ImGui::PushTextWrapPos(left + panel_width);
         ImGui::TextColored({1,0.74f,0.45f,1}, "%s", message);
