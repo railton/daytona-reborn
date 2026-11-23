@@ -2,7 +2,7 @@
 
 Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
 
-## online-relay (unreleased)
+## Unreleased
 
 ### Online play
 

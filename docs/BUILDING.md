@@ -27,16 +27,15 @@ Official, more detailed guide (macOS too, and every option):
 
 ## Get the code
 
-The Online mode is on the `online-relay` branch of
+The game with the Online mode is
 [railton/daytona-reborn](https://github.com/railton/daytona-reborn):
 
-    git clone -b online-relay https://github.com/railton/daytona-reborn.git
+    git clone https://github.com/railton/daytona-reborn.git
     cd daytona-reborn
 
 Already cloned? From the project folder:
 
-    git fetch origin
-    git checkout online-relay
+    git pull
 
 Every command below runs from this project folder.
 
