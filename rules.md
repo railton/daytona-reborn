@@ -5,11 +5,6 @@ legal problem, or hours re-deriving something already established.
 
 ---
 
-## Technical decisions and handoffs
-
-Development approvals and handoffs follow the permanent rules in
-[Project continuity](docs/PROJECT_CONTINUITY.md#autorité-technique-et-relais).
-
 ## Git
 
 1. **No `Co-Authored-By` trailer. Ever.** Commits are made under the user's
@@ -62,9 +57,12 @@ Development approvals and handoffs follow the permanent rules in
 
 ## The design document governs
 
-10. **`docs/daytona-usa-recomp-design.md` is binding, and it is checked before
-    work, not after.** Read the relevant section before making a design
-    decision, and say which section a decision rests on.
+10. **`docs/daytona-usa-recomp-design.md` is binding for the recompilers and
+    the native board, and it is checked before work, not after.** Read the
+    relevant section before making a design decision there, and say which
+    section a decision rests on. The application layer (menus, settings,
+    the Online mode and its server) is documented where it lives: its code
+    comments and its README (`server/daytona-relay/README.md`).
 
     Order of authority when sources disagree:
 
@@ -89,31 +87,58 @@ Development approvals and handoffs follow the permanent rules in
     the document corrected when they differ. Never treat a MAME cycle count as
     a hardware fact.
 
-12. **The milestone order is not optional.** M0 tooling → M1 boot → M2
-    geometry → M3 pixels → M4 playable → M5 cabinet feel → M6 ship. i960 parity
-    is the critical path, then TGP parity. A milestone is met at its exit
-    criterion, not when the work feels finished. **No subsystem is done until a
-    recorded input replay matches MAME for a full race.**
+12. **Parity is kept.** The desktop game is playable; any change to a
+    recompiler, the generated code's runtime or the native board must keep it
+    matching MAME: **no such change is done until a recorded input replay
+    matches MAME for a full race** (or it is stated as untested). i960 parity
+    comes first, then TGP parity. Changes to the application layer alone
+    (interface, Online mode, server) are held to their own tests instead.
 
 ## Every commit updates the record
 
-13. **`HANDOFF.md` is updated on every commit**, in the same commit as the work
-    it describes: current state, what is complete, what is next in order, and
-    every finding from the session — **including the ones that turned out
-    wrong, and why.** Recorded failure modes are worth more than a clean
-    narrative; keep a "what not to re-propose" section current.
+13. **`CHANGELOG.md` is updated in the same commit as any change a player or
+    a contributor would notice**: what it does, in plain words, under the
+    right heading, and any new known limit. A finding that lives only in a
+    commit message is lost.
 
-## The Model 2 MiSTer core reference
+## Language
 
-14. **`/home/ben/source/sega-model2-mister` is read-only from this project.**
-    Never write to its working copy, never run a build or tool inside it, never
-    commit to it from here. Read its RTL and its `docs/model2a-design-study.md`
-    freely. It is developed locally and its newest work is not always pushed or
-    committed — when something looks inconsistent, check whether the relevant
-    work there is still uncommitted before concluding anything.
+14. **English everywhere in the repository**: code, comments, identifiers,
+    commit messages, documentation, log and server messages, script output.
+15. **Interface text is written in English and goes through the translation
+    files.** `TX("...")` in the app, `TXR("...")` in files that build without
+    the translator (`app/i18n.h`, `app/i18n_mark.h`); the English text is the
+    key. After adding or changing interface text, run
+    `python3 scripts/extract_strings.py` and fill every new entry in
+    `lang/fr.po` and `lang/pt.po`: no empty translation is committed. There
+    is no `en.po`; French and Portuguese exist only in their `.po` files.
+    Text passed to a printf-style call takes `"%s"` unless it is a format.
 
-    Knowledge flows both ways: a replay divergence that points at a bug in the
-    core is recorded in `HANDOFF.md` for that project, not fixed from here.
+## Online play
+
+16. **Any change to what the game sends or how it behaves online raises
+    `app::online::kOnlineVersion`** (`src/app/online.h`): the server keeps a
+    room to one version, so every player of a room behaves the same.
+17. **The relay server answers with error codes**, with English text for its
+    log; the game shows its own translated text for each code
+    (`server_error` in `src/app/relay_link.cpp`). A new code gets its text
+    in the game in the same change.
+18. **Online play is tested headless** before it is committed: several
+    `m2run --relay` cabinets against a local server (see the server's README)
+    for anything the cabinets exchange.
+
+## Building, testing, sharing
+
+19. **Every commit builds and passes the tests**: `ctest` in the build folder
+    and `go test ./...` in `server/daytona-relay`.
+20. **Docker is the reference Linux build** (`scripts/docker-build.sh`,
+    `docker/linux-build`); nothing else needs installing on the host. The
+    Windows build is `setup.ps1`; `zig-setup.ps1` is not recommended to
+    players (it runs as administrator and downloads without checksums).
+21. **Game builds are never shared.** A build, its `build*` folders and its
+    generated code hold code derived from the ROM (rule 6): every player
+    builds from their own ROM set, and only the source and the guide
+    (`docs/BUILDING.md`) are passed on.
 
 ## Standing engineering rules
 
