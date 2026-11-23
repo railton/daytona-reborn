@@ -4,7 +4,7 @@
 // Daytona USA Revision A:
 //
 //	DAYTONA_CABINET          twin | uplight | deluxe        (0x1a: 01 02 00)
-//	DAYTONA_COUNTRY          jpn | usa | export             (0x1b: 01 00 02)
+//	DAYTONA_COUNTRY          usa | jpn | export             (0x1b: 00 01 02; the game's texts: usa in English)
 //	DAYTONA_DIFFICULTY       easy | normal | hard | hardest (0x20: 00 01 02 03)
 //	DAYTONA_GAME_MODE        normal | grandprix | endurance (0x1c: 00 01 02)
 //	DAYTONA_RIVAL_ARROW      on | off                       (0x1d: 00 01)
@@ -32,7 +32,7 @@ type option struct {
 var options = []option{
 	{"DAYTONA_ADVERTISE_SOUND", 0x19, "on", map[string]byte{"on": 0, "off": 1}},
 	{"DAYTONA_CABINET", 0x1a, "twin", map[string]byte{"twin": 1, "uplight": 2, "deluxe": 0}},
-	{"DAYTONA_COUNTRY", 0x1b, "jpn", map[string]byte{"jpn": 1, "usa": 0, "export": 2}},
+	{"DAYTONA_COUNTRY", 0x1b, "usa", map[string]byte{"jpn": 1, "usa": 0, "export": 2}},
 	{"DAYTONA_GAME_MODE", 0x1c, "normal", map[string]byte{"normal": 0, "grandprix": 1, "endurance": 2}},
 	{"DAYTONA_RIVAL_ARROW", 0x1d, "on", map[string]byte{"on": 0, "off": 1}},
 	{"DAYTONA_DIFFICULTY", 0x20, "normal", map[string]byte{"easy": 0, "normal": 1, "hard": 2, "hardest": 3}},

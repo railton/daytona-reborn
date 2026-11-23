@@ -17,7 +17,7 @@ services:
       DAYTONA_MAX_ROOMS: "${DAYTONA_MAX_ROOMS:-100}"
       # Race settings, the same for every player of every room:
       DAYTONA_CABINET: "${DAYTONA_CABINET:-twin}"                 # twin | uplight | deluxe
-      DAYTONA_COUNTRY: "${DAYTONA_COUNTRY:-jpn}"                  # jpn | usa | export
+      DAYTONA_COUNTRY: "${DAYTONA_COUNTRY:-usa}"                  # usa (English) | jpn (Japanese) | export
       DAYTONA_DIFFICULTY: "${DAYTONA_DIFFICULTY:-normal}"         # easy | normal | hard | hardest
       DAYTONA_GAME_MODE: "${DAYTONA_GAME_MODE:-normal}"           # normal | grandprix | endurance
       DAYTONA_RIVAL_ARROW: "${DAYTONA_RIVAL_ARROW:-on}"           # on | off

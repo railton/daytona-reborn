@@ -31,7 +31,7 @@ Edit `docker-compose.yml`, or put them in a `.env` file beside it, then
 | `DAYTONA_PASSWORD` | empty | the server's password; it travels in the invite code |
 | `DAYTONA_MAX_ROOMS` | `100` | rooms open at the same time |
 | `DAYTONA_CABINET` | `twin` | `twin`, `uplight`, `deluxe` |
-| `DAYTONA_COUNTRY` | `jpn` | `jpn`, `usa`, `export` |
+| `DAYTONA_COUNTRY` | `usa` | `usa` (the game in English), `jpn` (in Japanese), `export` |
 | `DAYTONA_DIFFICULTY` | `normal` | `easy`, `normal`, `hard`, `hardest` |
 | `DAYTONA_GAME_MODE` | `normal` | `normal`, `grandprix`, `endurance` |
 | `DAYTONA_RIVAL_ARROW` | `on` | `on`, `off` |

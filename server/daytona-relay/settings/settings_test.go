@@ -3,7 +3,7 @@ package settings
 import "testing"
 
 func TestDefaultsAndEnv(t *testing.T) {
-	env := map[string]string{"DAYTONA_DIFFICULTY": "Hardest", "DAYTONA_COUNTRY": "usa"}
+	env := map[string]string{"DAYTONA_DIFFICULTY": "Hardest"} // country: usa by default
 	got, _, err := FromEnv(func(k string) string { return env[k] })
 	if err != nil {
 		t.Fatal(err)
@@ -24,5 +24,22 @@ func TestDefaultsAndEnv(t *testing.T) {
 		return ""
 	}); err == nil {
 		t.Error("accepted DAYTONA_CABINET=giant")
+	}
+}
+
+func TestCountryJapan(t *testing.T) {
+	got, _, err := FromEnv(func(k string) string {
+		if k == "DAYTONA_COUNTRY" {
+			return "jpn"
+		}
+		return ""
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range got {
+		if s.Offset == 0x1b && s.Value != 1 {
+			t.Errorf("jpn = %d, want 1", s.Value)
+		}
 	}
 }
