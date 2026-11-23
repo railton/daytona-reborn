@@ -126,6 +126,16 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
   DejaVu) when there is one. Same shaders; the scene is 84k vertices
   (3.4 MB, uploaded once), drawn in two calls plus one per car.
 
+### Documentation
+
+- README rewritten for this fork (highlights, quick start, playing, Online,
+  link play, platforms, developers), with a screenshot of the home screen;
+  it now also describes the relay's web page, the name tags over the cars,
+  8-cabinet rooms and what happens when a race ends.
+- rules.md: this fork's rules (CHANGELOG on every visible change, English
+  with interface text through lang/*.po, online version and error codes,
+  tests on every commit, the Docker build, never sharing game builds).
+
 ### Building
 
 - `docs/BUILDING.md`: from cloning to the Online mode, on Windows
