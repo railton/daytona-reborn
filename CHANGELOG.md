@@ -113,7 +113,8 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
   workflow: none of it builds or runs the game.
 
 - `m2run --relay` joins a room headless, as the game does (settings, Start,
-  course, standings), and prints the standings it knew.
+  course, standings), and prints the standings it knew; `m2run --realtime`
+  holds each frame to the arcade's 57.52 Hz, as players' games run.
 - `tests/test_online.cpp`: invite code, protocol text, cabinet settings,
   Start, course and standings logic. Go tests for the server's protocol and
   settings.
@@ -124,9 +125,11 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
 ### Known limits
 
 - Not yet tested between players on different networks.
-- With 7 or 8 cabinets starting at very different speeds (headless runs) the
-  link handshake sometimes does not complete, on direct LAN links as well as
-  through the relay; an 8-player race through the relay has completed.
+- Headless test cabinets must run at the arcade's pace (`m2run --realtime`)
+  for large rooms: free-running ones at different speeds flood each other
+  and lose the link, and the frame sync option drops it after 3 s of wait.
+  At the arcade's pace 8 cabinets through the relay link and stay linked
+  (two runs of 104 s and 157 s, no link lost before the end).
 - Traffic: about 3.5 KB per cabinet per frame, passed round the ring, so
   roughly 3.3 Mbit/s each way per player with 2 players and 13 Mbit/s with
   8; the server carries the sum.

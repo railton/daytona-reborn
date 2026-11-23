@@ -12,6 +12,7 @@
 //         [--link-listen PORT --link-next HOST:PORT [--link-sync]]
 //         [--relay HOST:PORT (--relay-create ROOM:PLAYERS | --relay-join ROOM) [--relay-name NAME]
 //          [--relay-password PASS]] (online play through a daytona-relay server)
+//         [--realtime] (hold each frame to the arcade's 57.52 Hz, as the game paces itself)
 //         [--draw-budget N] [--draw-order-only] [--original-selection] [--scenery-log FILE]
 //         [--omit-scenery-cell TICK:CELL]
 //         [--rom-object-counts FILE] (pre-cull ROM geometry counts)
@@ -155,7 +156,7 @@ int main(int argc, char **argv) {
     std::optional<rt::StartRaceRequest> solo;
     std::optional<rt::RaceTransmission> transmission;
     std::optional<rt::RaceMode> race_mode;
-    bool link_sync = false, native_check = false;
+    bool link_sync = false, native_check = false, realtime = false;
     bool snapshot_stamps = false, scene_stamps = false;
     std::optional<uint64_t> scene_pair_from;
     std::optional<std::pair<uint64_t, uint8_t>> omit_cell;
@@ -176,6 +177,7 @@ int main(int argc, char **argv) {
         if (!std::strcmp(argv[i], "--hud-edges")) hud_edges = true;
         if (!std::strcmp(argv[i], "--stretch-backdrop")) stretch_backdrop = true;
         if (!std::strcmp(argv[i], "--link-sync")) link_sync = true;
+        if (!std::strcmp(argv[i], "--realtime")) realtime = true;
         if (!std::strcmp(argv[i], "--native-audio-check")) native_check = true;
         if (!std::strcmp(argv[i], "--draw-order-only")) rt::EnhanceDiagnostics::draw_order_only = true;
         if (!std::strcmp(argv[i], "--original-selection")) original_selection = true;
@@ -190,6 +192,7 @@ int main(int argc, char **argv) {
         if (i + 1 == argc) break;
         if (!std::strcmp(argv[i], "--hud-edges") || !std::strcmp(argv[i], "--stretch-backdrop") ||
             !std::strcmp(argv[i], "--link-sync") || !std::strcmp(argv[i], "--native-audio-check") ||
+            !std::strcmp(argv[i], "--realtime") ||
             !std::strcmp(argv[i], "--draw-order-only") || !std::strcmp(argv[i], "--original-selection")) { i--; continue; }
         if (!std::strcmp(argv[i], "--inputs")) inputs_path = argv[i + 1];
         else if (!std::strcmp(argv[i], "--rom-object-counts")) rom_object_counts_path = argv[i + 1];
@@ -407,7 +410,10 @@ int main(int argc, char **argv) {
         std::array<std::optional<rt::M2Board::DrawnScene>, 2> scene_pair;
         uint64_t drive_commands = 0, drive_kinds[16] = {}; // the force feedback drive board's commands, by type
         auto &scenery = *game.board().scenery();
+        const auto paced_from = std::chrono::steady_clock::now();
         for (uint64_t f = 0; f < frames; f++) {
+            if (realtime) // linked cabinets running at the arcade's pace, as players' games do
+                std::this_thread::sleep_until(paced_from + std::chrono::nanoseconds(int64_t(double(f) * 1e9 / 57.524)));
             const bool omit_this_tick = omit_cell && f == omit_cell->first;
             if (omit_this_tick) scenery.omit_cell = omit_cell->second;
             rt::Inputs inputs = script.at(game.board().frame());

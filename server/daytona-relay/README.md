@@ -98,7 +98,10 @@ The project's `m2run` joins a room as the game does:
     build-daytona/m2run build-daytona/rom_cache/daytona 6000 --relay 127.0.0.1 --relay-create test:2 --relay-name A
     build-daytona/m2run build-daytona/rom_cache/daytona 6000 --relay 127.0.0.1 --relay-join test --relay-name B
 
-and prints `link: up, cabinet N of 2` at the end.
+and prints `link: up, cabinet N of 2` at the end. For more than a few
+cabinets add `--realtime` to each, so they run at the arcade's pace as
+players' games do (free-running ones flood each other); `link: lost` on
+cabinets that end after another has closed is expected.
 
 ## Limits
 
