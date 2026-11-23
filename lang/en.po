@@ -763,6 +763,12 @@ msgstr "Native sound (experimental, reset)"
 msgid "Séquenceur et mixeur natifs ; le son de référence reste disponible pour comparer."
 msgstr "Native sequencer and mixer; the reference sound stays available for comparison."
 
+msgid "Le jeu n'a pas pu démarrer : "
+msgstr "The game could not start: "
+
+msgid "Choisissez d'abord le jeu de ROM Daytona Revision A dans Réglages."
+msgstr "First choose the Daytona Revision A ROM set in Settings."
+
 msgid "Jouez en réseau par Internet avec jusqu'à 8 joueurs, à travers un serveur daytona-relay."
 msgstr "Race over the Internet with up to 8 players, through a daytona-relay server."
 

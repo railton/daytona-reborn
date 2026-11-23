@@ -1264,7 +1264,7 @@ int main(int argc, char **argv) {
                     online_screen = true;
                     home_message.clear();
                 } else {
-                    home_message = launcher.error();
+                    home_message = std::string(TX("Le jeu n'a pas pu démarrer : ")) + launcher.error();
                     leave_online();
                 }
             } else if (online_game && !ready && !in_launcher) {
@@ -1897,6 +1897,10 @@ int main(int argc, char **argv) {
                 case app::OnlineMenu::Leave: leave_online(); home_message.clear(); break;
                 case app::OnlineMenu::Connect:
                     leave_online();
+                    if (!launcher.rom_ok()) { // the race starts as soon as the room fills: the ROM set first
+                        home_message = TX("Choisissez d'abord le jeu de ROM Daytona Revision A dans Réglages.");
+                        break;
+                    }
                     home_message.clear();
                     online_link = std::make_unique<app::RelayLink>(online_menu.server(), online_menu.hello());
                     break;

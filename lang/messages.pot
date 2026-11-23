@@ -681,6 +681,12 @@ msgstr ""
 msgid "Séquenceur et mixeur natifs ; le son de référence reste disponible pour comparer."
 msgstr ""
 
+msgid "Le jeu n'a pas pu démarrer : "
+msgstr ""
+
+msgid "Choisissez d'abord le jeu de ROM Daytona Revision A dans Réglages."
+msgstr ""
+
 msgid "Jouez en réseau par Internet avec jusqu'à 8 joueurs, à travers un serveur daytona-relay."
 msgstr ""
 
