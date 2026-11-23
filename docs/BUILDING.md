@@ -27,12 +27,11 @@ Official, more detailed guide (macOS too, and every option):
 
 ## Get the code
 
-The Online mode is on the `online-relay` branch of this fork. Replace
-`<your-user>` with the GitHub account that hosts the fork (whoever sent you
-this guide gives you the real address):
+The Online mode is on the `online-relay` branch of
+[railton/daytona-reborn](https://github.com/railton/daytona-reborn):
 
-    git clone -b online-relay https://github.com/<your-user>/Daytona-Reborn-Beta.git
-    cd Daytona-Reborn-Beta
+    git clone -b online-relay https://github.com/railton/daytona-reborn.git
+    cd daytona-reborn
 
 Already cloned? From the project folder:
 
