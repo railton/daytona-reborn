@@ -70,9 +70,9 @@ struct Screen {
         return action;
     }
     const char *focus() const {
-        auto *home = ImGui::FindWindowByName("Daytona accueil");
-        if (home) for (auto label : {"Jouer", "Reprendre", "Retour", "Automatique", "Manuelle", "01", "02", "03",
-                                     "Réglages", "Quitter", "Nouvelle course"})
+        auto *home = ImGui::FindWindowByName("Daytona home");
+        if (home) for (auto label : {"Play", "Resume", "Back", "Automatic", "Manual", "01", "02", "03",
+                                     "Settings", "Quit", "New race", "Online"})
             if (home->GetID(label) == ImGui::GetCurrentContext()->NavId) return label;
         return "(none)";
     }
@@ -101,10 +101,10 @@ int main() try {
             require(screen.press(key, button) == app::HomeMenu::Stay, "navigation launched an action");
         };
         auto confirm = [&]() { return screen.press(SDL_SCANCODE_RETURN, SDL_GAMEPAD_BUTTON_SOUTH); };
-        require(std::string_view(screen.focus()) == "Jouer", "home default action is not Play");
+        require(std::string_view(screen.focus()) == "Play", "home default action is not Play");
         expect_move(SDL_SCANCODE_UP, SDL_GAMEPAD_BUTTON_DPAD_UP);
-        if (std::string_view(screen.focus()) == "Automatique") expect_move(SDL_SCANCODE_RIGHT, SDL_GAMEPAD_BUTTON_DPAD_RIGHT);
-        require(std::string_view(screen.focus()) == "Manuelle", "cannot focus Manual");
+        if (std::string_view(screen.focus()) == "Automatic") expect_move(SDL_SCANCODE_RIGHT, SDL_GAMEPAD_BUTTON_DPAD_RIGHT);
+        require(std::string_view(screen.focus()) == "Manual", "cannot focus Manual");
         require(confirm() == app::HomeMenu::Stay && screen.menu.request().transmission == rt::RaceTransmission::Manual,
                 "Manual choice not applied");
         expect_move(SDL_SCANCODE_DOWN, SDL_GAMEPAD_BUTTON_DPAD_DOWN);

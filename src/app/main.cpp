@@ -359,22 +359,22 @@ private:
 
 // The launcher's link play status line.
 std::string link_status(const rt::CommBoard *board, const app::TcpLink *link, const app::Config &cfg) {
-    if (!cfg.link) return "coupé";
-    if (!board || !link) return "pas démarré";
+    if (!cfg.link) return TX("off");
+    if (!board || !link) return TX("not started");
     switch (board->link()) {
-    case rt::CommBoard::Link::Off: return "actif (le jeu n'a pas lancé la liaison : régler LINK ID en mode test)";
+    case rt::CommBoard::Link::Off: return TX("on (the game has not started the link: set LINK ID in test mode)");
     case rt::CommBoard::Link::Waiting: {
         // which half of the ring is missing
-        std::string s = "en attente : ";
-        s += link->tx_open() ? "borne suivante " + cfg.link_next + " jointe ; "
-                             : "borne suivante " + cfg.link_next + " pas encore jointe (écoute-t-elle sur ce port ?) ; ";
-        s += link->rx_open() ? "une borne est connectée au port " + std::to_string(cfg.link_port)
-                             : "aucune borne ne s'est encore connectée au port " + std::to_string(cfg.link_port);
+        std::string s = TX("waiting: ");
+        s += TX("next cabinet ") + cfg.link_next +
+             (link->tx_open() ? TX(" reached; ") : TX(" not reached yet (is it listening on that port?); "));
+        s += std::string(link->rx_open() ? TX("a cabinet is connected to port ") : TX("no cabinet has connected yet to port ")) +
+             std::to_string(cfg.link_port);
         return s;
     }
     case rt::CommBoard::Link::Up:
-        return "relié : borne " + std::to_string(board->id()) + " sur " + std::to_string(board->count());
-    case rt::CommBoard::Link::Lost: return "perdu (réinitialiser pour réessayer)";
+        return TX("linked: cabinet ") + std::to_string(board->id()) + TX(" of ") + std::to_string(board->count());
+    case rt::CommBoard::Link::Lost: return TX("lost (reset to try again)");
     }
     return "";
 }
@@ -1154,11 +1154,11 @@ int main(int argc, char **argv) {
     };
     auto begin_solo = [&](rt::StartRaceRequest request) {
         if (!rt::valid_course(request.course) || !rt::valid_transmission(request.transmission)) {
-            home_message = "Paramètres de course invalides.";
+            home_message = TX("Invalid race settings.");
             return false;
         }
         if (!launcher.rom_ok()) {
-            home_message = "Choisis une archive Daytona Revision A valide dans Réglages.";
+            home_message = TX("Choose a valid Daytona Revision A archive in Settings.");
             return false;
         }
         if (online_link) leave_online(); // a solo race: out of the online room
@@ -1179,7 +1179,7 @@ int main(int argc, char **argv) {
             game.reset();
             link.reset();
             have_audio = false;
-            home_message = "La demande de course a été refusée.";
+            home_message = TX("The race request was refused.");
             return false;
         }
         solo = true;
@@ -1277,7 +1277,7 @@ int main(int argc, char **argv) {
                     online_screen = true;
                     home_message.clear();
                 } else {
-                    home_message = std::string(TX("Le jeu n'a pas pu démarrer : ")) + launcher.error();
+                    home_message = std::string(TX("The game could not start: ")) + launcher.error();
                     leave_online();
                 }
             } else if (online_game && !ready && !in_launcher) {
@@ -1593,13 +1593,13 @@ int main(int argc, char **argv) {
                         reveal_at = now;
                     } else if (status != rt::RaceStatus::Starting) {
                         if (status == rt::RaceStatus::WrongCourse)
-                            home_message = "Le jeu a sélectionné un autre circuit.";
+                            home_message = TX("The game selected another course.");
                         else if (status == rt::RaceStatus::WrongMode)
-                            home_message = "Le jeu a sélectionné un autre mode.";
+                            home_message = TX("The game selected another mode.");
                         else if (status == rt::RaceStatus::WrongTransmission)
-                            home_message = "Le jeu a sélectionné une autre boîte de vitesses.";
+                            home_message = TX("The game selected another gearbox.");
                         else
-                            home_message = "Le jeu n’a pas confirmé le départ.";
+                            home_message = TX("The game did not confirm the start.");
                         cancel_start();
                         if (start_solo && max_frames) running = false;
                         break;
@@ -1937,7 +1937,7 @@ int main(int argc, char **argv) {
                 case app::OnlineMenu::Connect:
                     leave_online();
                     if (!launcher.rom_ok()) { // the race starts as soon as the room fills: the ROM set first
-                        home_message = TX("Choisissez d'abord le jeu de ROM Daytona Revision A dans Réglages.");
+                        home_message = TX("First choose the Daytona Revision A ROM set in Settings.");
                         break;
                     }
                     home_message.clear();

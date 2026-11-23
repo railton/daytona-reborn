@@ -40,18 +40,18 @@ void draw_online_players(const online::Status &room, float alpha, const std::arr
         standings &= ranks[car] >= 0;
     }
     if (standings) std::stable_sort(cars.begin(), cars.end(), [&](int a, int b) { return ranks[a] < ranks[b]; });
-    const char *title = standings ? TX("CLASSEMENT") : TX("JOUEURS");
+    const char *title = standings ? TX("STANDINGS") : TX("PLAYERS");
 
     // rows first, to size the panel to the longest name
     std::vector<std::string> rows;
     float width = font->CalcTextSizeA(title_size, FLT_MAX, 0.f, title).x;
     for (int car : cars) {
         char unnamed[64], place[16];
-        std::snprintf(unnamed, sizeof unnamed, TX("Joueur %d"), car);
+        std::snprintf(unnamed, sizeof unnamed, TX("Player %d"), car);
         std::snprintf(place, sizeof place, TX("%d."), ranks[car] + 1);
         std::string row = (standings ? std::string(place) : std::to_string(car)) + "  " +
                           (room.names[car - 1].empty() ? unnamed : room.names[car - 1]);
-        if (car == room.position) row += TX(" (vous)");
+        if (car == room.position) row += TX(" (you)");
         width = std::max(width, swatch + 10.f * scale + font->CalcTextSizeA(row_size, FLT_MAX, 0.f, row.c_str()).x);
         rows.push_back(std::move(row));
     }

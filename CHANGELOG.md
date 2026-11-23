@@ -65,6 +65,12 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
 
 ### Interface and languages
 
+- **English is the project's language.** Interface texts are written in
+  English in the code (the translation key); French moved to `lang/fr.po`,
+  Portuguese is keyed by English, `lang/en.po` is gone. English is also the
+  default when no language is chosen and the system's is not available.
+  The texts the original left untranslated (link status, home menu
+  messages) are translated too.
 - Brazilian Portuguese interface (`lang/pt.po`, every text).
 - The Online screen: labels above full-width fields, larger fields and
   buttons, create and join side by side.

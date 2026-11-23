@@ -47,7 +47,7 @@ OnlineMenu::Action OnlineMenu::draw(Config &cfg, const RelayLink *link, bool rac
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, {12.f * scale, 10.f * scale});
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 5.f * scale);
     ImGui::PushStyleVar(ImGuiStyleVar_GrabMinSize, 28.f * scale);
-    ImGui::Begin(TX("En ligne##online"), nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize |
+    ImGui::Begin(TX("Online##online"), nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize |
                  ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings);
     const ImVec4 warn(1, 0.74f, 0.45f, 1), good(0.48f, 0.98f, 0.79f, 1);
     const float full = ImGui::GetContentRegionAvail().x, button_h = 48.f * scale;
@@ -60,28 +60,28 @@ OnlineMenu::Action OnlineMenu::draw(Config &cfg, const RelayLink *link, bool rac
 
     if (!in_room) {
         ImGui::PushTextWrapPos(0);
-        ImGui::TextDisabled("%s", TX("Jouez en réseau par Internet avec jusqu'à 8 joueurs, à travers un serveur daytona-relay."));
+        ImGui::TextDisabled("%s", TX("Race over the Internet with up to 8 players, through a daytona-relay server."));
         ImGui::PopTextWrapPos();
         ImGui::Dummy({0, 4.f * scale});
-        if (text_field(TX("Votre nom"), "##name", name_, sizeof name_)) {
+        if (text_field(TX("Your name"), "##name", name_, sizeof name_)) {
             cfg.online_name = online::clean_name(name_);
             cfg.save();
         }
         auto create = [&] {
-            ImGui::SeparatorText(TX("Créer une salle"));
-            if (text_field(TX("Serveur (IP ou DNS)"), "##server", server_buf_, sizeof server_buf_)) {
+            ImGui::SeparatorText(TX("Create a room"));
+            if (text_field(TX("Server (IP or DNS)"), "##server", server_buf_, sizeof server_buf_)) {
                 cfg.online_server = server_buf_;
                 cfg.save();
             }
-            if (text_field(TX("Mot de passe du serveur (facultatif)"), "##password", password_, sizeof password_,
+            if (text_field(TX("Server password (optional)"), "##password", password_, sizeof password_,
                            ImGuiInputTextFlags_Password)) {
                 cfg.online_password = password_;
                 cfg.save();
             }
-            ImGui::TextUnformatted(TX("Joueurs"));
+            ImGui::TextUnformatted(TX("Players"));
             ImGui::SetNextItemWidth(-FLT_MIN);
             if (ImGui::SliderInt("##players", &cfg.online_players, online::kMinPlayers, online::kMaxPlayers)) cfg.save();
-            if (ImGui::Button(TX("Créer la salle"), {-FLT_MIN, button_h})) {
+            if (ImGui::Button(TX("Create the room"), {-FLT_MIN, button_h})) {
                 if (const auto server = online::normalize_server(server_buf_)) {
                     server_ = *server;
                     hello_ = {};
@@ -95,20 +95,20 @@ OnlineMenu::Action OnlineMenu::draw(Config &cfg, const RelayLink *link, bool rac
                     copied_ = false;
                     action = Connect;
                 } else {
-                    error_ = TX("Adresse du serveur invalide : IP ou nom, avec :port si ce n'est pas 7777.");
+                    error_ = TX("Invalid server address: an IP or name, with :port if it is not 7777.");
                 }
             }
         };
         auto join = [&] {
-            ImGui::SeparatorText(TX("Rejoindre une salle"));
-            text_field(TX("Code d'invitation"), "##invite", invite_, sizeof invite_);
+            ImGui::SeparatorText(TX("Join a room"));
+            text_field(TX("Invite code"), "##invite", invite_, sizeof invite_);
             const float avail = ImGui::GetContentRegionAvail().x;
             const float half_w = (avail - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
-            if (ImGui::Button(TX("Coller"), {half_w, button_h})) {
+            if (ImGui::Button(TX("Paste"), {half_w, button_h})) {
                 if (const char *clip = ImGui::GetClipboardText()) copy_to(invite_, sizeof invite_, clip);
             }
             ImGui::SameLine();
-            if (ImGui::Button(TX("Rejoindre"), {half_w, button_h})) {
+            if (ImGui::Button(TX("Join"), {half_w, button_h})) {
                 if (const auto invite = online::decode_invite(invite_)) {
                     server_ = *online::normalize_server(invite->server);
                     hello_ = {};
@@ -121,11 +121,11 @@ OnlineMenu::Action OnlineMenu::draw(Config &cfg, const RelayLink *link, bool rac
                     copied_ = false;
                     action = Connect;
                 } else {
-                    error_ = TX("Code d'invitation invalide : copiez-le en entier, il commence par DTN1.");
+                    error_ = TX("Invalid invite code: copy all of it, it starts with DTN1.");
                 }
             }
             ImGui::PushTextWrapPos(0);
-            ImGui::TextDisabled("%s", TX("Le code contient déjà le serveur, la salle et le mot de passe."));
+            ImGui::TextDisabled("%s", TX("The code already holds the server, the room and the password."));
             ImGui::PopTextWrapPos();
         };
         ImGui::Dummy({0, 6.f * scale});
@@ -148,51 +148,51 @@ OnlineMenu::Action OnlineMenu::draw(Config &cfg, const RelayLink *link, bool rac
             ImGui::PopTextWrapPos();
         }
     } else if (link->state() == State::Connecting) {
-        ImGui::Text(TX("Connexion à %s..."), link->server().c_str());
+        ImGui::Text(TX("Connecting to %s..."), link->server().c_str());
         ImGui::Dummy({0, 4.f * scale});
-        if (ImGui::Button(TX("Annuler"), {full, button_h})) action = Leave;
+        if (ImGui::Button(TX("Cancel"), {full, button_h})) action = Leave;
     } else {
         const auto &st = link->status();
-        ImGui::Text(TX("Salle %s : %d / %d joueurs"), link->room().c_str(), st.joined, st.size);
+        ImGui::Text(TX("Room %s: %d / %d players"), link->room().c_str(), st.joined, st.size);
 
-        section(TX("Code d'invitation"));
+        section(TX("Invite code"));
         // read-only field: the whole code shows, and it can be selected as well as copied
         std::string code = online::encode_invite({link->server(), link->room(), room_password_});
         ImGui::SetNextItemWidth(-FLT_MIN);
         ImGui::InputText("##code", code.data(), code.size() + 1, ImGuiInputTextFlags_ReadOnly);
-        if (ImGui::Button(copied_ ? TX("Copié !") : TX("Copier le code"), {full, button_h})) {
+        if (ImGui::Button(copied_ ? TX("Copied!") : TX("Copy the code"), {full, button_h})) {
             ImGui::SetClipboardText(code.c_str());
             copied_ = true;
         }
-        ImGui::TextDisabled("%s", TX("Envoyez-le à vos amis : ils le collent dans Rejoindre."));
+        ImGui::TextDisabled("%s", TX("Send it to your friends: they paste it under Join."));
 
-        section(TX("Joueurs"));
+        section(TX("Players"));
         for (int i = 0; i < int(st.names.size()); ++i) {
             const bool me = i + 1 == st.position;
             char unnamed[64];
-            std::snprintf(unnamed, sizeof unnamed, TX("Joueur %d"), i + 1);
+            std::snprintf(unnamed, sizeof unnamed, TX("Player %d"), i + 1);
             ImGui::TextColored(me ? good : ImVec4(0.91f, 0.97f, 1, 1), "%d. %s%s", i + 1,
-                               st.names[i].empty() ? unnamed : st.names[i].c_str(), me ? TX(" (vous)") : "");
+                               st.names[i].empty() ? unnamed : st.names[i].c_str(), me ? TX(" (you)") : "");
         }
-        for (int i = int(st.names.size()); i < st.size; ++i) ImGui::TextDisabled(TX("%d. en attente..."), i + 1);
+        for (int i = int(st.names.size()); i < st.size; ++i) ImGui::TextDisabled(TX("%d. waiting..."), i + 1);
         ImGui::Dummy({0, 4.f * scale});
         ImGui::PushTextWrapPos(0);
         if (link->state() == State::Waiting) {
-            ImGui::TextColored(warn, "%s", TX("En attente des autres joueurs ; la course démarre quand la salle est complète."));
+            ImGui::TextColored(warn, "%s", TX("Waiting for the other players; the race starts when the room is full."));
         } else {
-            ImGui::TextColored(good, "%s", racing ? TX("Course en ligne en cours.") : TX("Salle complète : démarrage..."));
-            ImGui::TextUnformatted(TX("Appuyez sur Start (Entrée) pour jouer. Échap revient à ce menu."));
+            ImGui::TextColored(good, "%s", racing ? TX("Online race in progress.") : TX("Room full: starting..."));
+            ImGui::TextUnformatted(TX("Press Start (Enter) to play. Esc comes back to this menu."));
         }
         if (!message.empty()) ImGui::TextColored(warn, "%s", message.c_str());
         ImGui::PopTextWrapPos();
         ImGui::Dummy({0, 4.f * scale});
-        if (racing && link->state() == State::Ready && ImGui::Button(TX("Reprendre la course"), {full, button_h}))
+        if (racing && link->state() == State::Ready && ImGui::Button(TX("Resume the race"), {full, button_h}))
             action = Resume;
-        if (ImGui::Button(TX("Quitter la salle"), {full, button_h})) action = Leave;
+        if (ImGui::Button(TX("Leave the room"), {full, button_h})) action = Leave;
     }
     ImGui::Dummy({0, 6.f * scale});
     ImGui::Separator();
-    if (ImGui::Button(TX("Retour"), {full, button_h})) action = Back;
+    if (ImGui::Button(TX("Back"), {full, button_h})) action = Back;
     if (action == Stay && ImGui::IsKeyPressed(ImGuiKey_Escape, false))
         action = racing && link && link->state() == RelayLink::State::Ready ? Resume : Back;
     ImGui::End();

@@ -32,10 +32,10 @@ constexpr uint64_t kRetryMs = 3000; // between tries to open a wheel's haptics
 } // namespace
 
 const char *ForceFeedback::device_kind() const {
-    if (haptic_) return TXR("volant (retour de force)");
-    if (wants_haptic_) return TXR("volant (retour de force non ouvert ; nouvel essai)");
-    if (joy_) return TXR("manette (vibrations)");
-    return TXR("aucun");
+    if (haptic_) return TXR("wheel (force feedback)");
+    if (wants_haptic_) return TXR("wheel (force feedback not opened; trying again)");
+    if (joy_) return TXR("gamepad (rumble)");
+    return TXR("none");
 }
 
 void ForceFeedback::open(SDL_Joystick *joy) {

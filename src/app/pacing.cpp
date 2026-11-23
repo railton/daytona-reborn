@@ -32,21 +32,21 @@ Pacing choose_pacing(double refresh_hz, const PacingSettings &s) {
 
 std::string Pacing::describe(double refresh_hz) const {
     char display[48] = "";
-    if (refresh_hz > 0) std::snprintf(display, sizeof display, TXR(" sur un écran à %.2f Hz"), refresh_hz);
+    if (refresh_hz > 0) std::snprintf(display, sizeof display, TXR(" on a %.2f Hz display"), refresh_hz);
     char s[160];
     switch (mode) {
-    case Mode::Clock: std::snprintf(s, sizeof s, TXR("vitesse de la borne, 57,52 images/s%s"), display); break;
+    case Mode::Clock: std::snprintf(s, sizeof s, TXR("cabinet speed, 57.52 frames/s%s"), display); break;
     case Mode::Display: {
         char each[64];
-        std::snprintf(each, sizeof each, "%s", TXR("à chaque rafraîchissement"));
-        if (every > 1) std::snprintf(each, sizeof each, TXR("tous les %d rafraîchissements"), every);
+        std::snprintf(each, sizeof each, "%s", TXR("at every refresh"));
+        if (every > 1) std::snprintf(each, sizeof each, TXR("every %d refreshes"), every);
         const double speed = (game_hz / kArcadeHz - 1.0) * 100.0;
         char change[32] = "";
-        if (std::fabs(speed) >= 0.05) std::snprintf(change, sizeof change, TXR(", vitesse %+.1f %%"), speed);
-        std::snprintf(s, sizeof s, TXR("calé, %.2f images/s, une image %s%s%s"), game_hz, each, display, change);
+        if (std::fabs(speed) >= 0.05) std::snprintf(change, sizeof change, TXR(", speed %+.1f %%"), speed);
+        std::snprintf(s, sizeof s, TXR("locked, %.2f frames/s, one frame %s%s%s"), game_hz, each, display, change);
         break;
     }
-    case Mode::Vrr: std::snprintf(s, sizeof s, TXR("VRR, 57,52 images/s, chacune tenue 17,38 ms%s"), display); break;
+    case Mode::Vrr: std::snprintf(s, sizeof s, TXR("VRR, 57.52 frames/s, each held 17.38 ms%s"), display); break;
     }
     return s;
 }

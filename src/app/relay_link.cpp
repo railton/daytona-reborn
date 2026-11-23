@@ -70,19 +70,19 @@ std::string server_error(const std::string &payload) {
     const auto nl = payload.find('\n');
     const std::string code = nl == std::string::npos ? std::string() : payload.substr(0, nl);
     const std::string text = nl == std::string::npos ? payload : payload.substr(nl + 1);
-    if (code == "not_found") return TXR("Cette salle n'existe pas : le code est-il complet ? Son créateur est-il encore connecté ?");
-    if (code == "exists") return TXR("Cette salle existe déjà.");
-    if (code == "full") return TXR("Cette salle est complète.");
-    if (code == "size") return TXR("Cette salle n'a pas ce nombre de joueurs.");
-    if (code == "password") return TXR("Mot de passe du serveur incorrect.");
-    if (code == "server_full") return TXR("Le serveur est plein : trop de salles ouvertes.");
-    if (code == "too_many") return TXR("Trop de connexions au serveur depuis votre adresse.");
-    if (code == "version") return TXR("Ce serveur n'est pas compatible avec cette version du jeu.");
-    if (code == "room") return TXR("Code de salle invalide.");
-    if (code == "players") return TXR("Nombre de joueurs invalide : de 2 à 8.");
+    if (code == "not_found") return TXR("This room does not exist: is the code complete? Is its creator still connected?");
+    if (code == "exists") return TXR("This room already exists.");
+    if (code == "full") return TXR("This room is full.");
+    if (code == "size") return TXR("This room is not for that number of players.");
+    if (code == "password") return TXR("Wrong server password.");
+    if (code == "server_full") return TXR("The server is full: too many rooms open.");
+    if (code == "too_many") return TXR("Too many connections to the server from your address.");
+    if (code == "version") return TXR("This server is not compatible with this version of the game.");
+    if (code == "room") return TXR("Invalid room code.");
+    if (code == "players") return TXR("Invalid number of players: 2 to 8.");
     if (code == "game_version")
-        return TXR("Cette salle a été créée par une autre version du jeu : tous les joueurs doivent avoir la même version.");
-    return std::string(TXR("Le serveur a refusé la connexion : ")) + text;
+        return TXR("This room was created by another version of the game: every player needs the same version.");
+    return std::string(TXR("The server refused the connection: ")) + text;
 }
 
 uint64_t now_ms() {
@@ -103,17 +103,17 @@ bool split_host_port(const std::string &s, std::string &host, std::string &port)
 long long connect_to(const std::string &server, std::string &error) {
     std::string host, port;
     if (!split_host_port(server, host, port)) {
-        error = TXR("Adresse du serveur invalide.");
+        error = TXR("Invalid server address.");
         return -1;
     }
     addrinfo hints{}, *res = nullptr;
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
     if (getaddrinfo(host.c_str(), port.c_str(), &hints, &res) != 0 || !res) {
-        error = std::string(TXR("Serveur introuvable : ")) + host;
+        error = std::string(TXR("Server not found: ")) + host;
         return -1;
     }
-    error = std::string(TXR("Connexion impossible au serveur (est-il en marche ? son port est-il ouvert ?) : ")) + server;
+    error = std::string(TXR("Cannot connect to the server (is it running? is its port open?): ")) + server;
     for (addrinfo *a = res; a; a = a->ai_next) {
         native_socket s = ::socket(a->ai_family, a->ai_socktype, a->ai_protocol);
         if (!valid(s)) continue;
@@ -212,7 +212,7 @@ void RelayLink::poll() {
     if (now - last_tx_ms_ >= kPingMs) online::append_frame(out_, online::kPing, 0, nullptr, 0);
     flush();
     if (state_ != State::Failed) receive();
-    if (state_ != State::Failed && now_ms() - last_rx_ms_ > kTimeoutMs) fail(TXR("Le serveur ne répond plus."));
+    if (state_ != State::Failed && now_ms() - last_rx_ms_ > kTimeoutMs) fail(TXR("The server stopped answering."));
 }
 
 void RelayLink::flush() {
@@ -224,10 +224,10 @@ void RelayLink::flush() {
             continue;
         }
         if (sent < 0 && would_block(last_error())) break;
-        fail(TXR("Connexion au serveur perdue."));
+        fail(TXR("Connection to the server lost."));
         return;
     }
-    if (out_.size() > kMaxQueued) fail(TXR("La connexion au serveur est trop lente."));
+    if (out_.size() > kMaxQueued) fail(TXR("The connection to the server is too slow."));
 }
 
 void RelayLink::receive() {
@@ -251,7 +251,7 @@ void RelayLink::receive() {
             }
             pos += online::kHeader + len;
         }
-        fail(TXR("Connexion au serveur perdue."));
+        fail(TXR("Connection to the server lost."));
         return;
     }
     size_t pos = 0;
@@ -259,7 +259,7 @@ void RelayLink::receive() {
         const auto *p = reinterpret_cast<const uint8_t *>(in_.data() + pos);
         const size_t len = size_t(p[5]) << 8 | p[6];
         if (len > online::kMaxPayload) {
-            fail(TXR("Réponse invalide du serveur."));
+            fail(TXR("Invalid answer from the server."));
             return;
         }
         if (in_.size() - pos < online::kHeader + len) break;
@@ -287,7 +287,7 @@ void RelayLink::frame(uint8_t type, uint32_t epoch, const std::string &payload) 
         break;
     case online::kData:
         if (state_ == State::Ready && epoch == epoch_) {
-            if (inbox_.size() - inbox_pos_ + payload.size() > kMaxQueued) fail(TXR("Le jeu ne lit pas les données reçues."));
+            if (inbox_.size() - inbox_pos_ + payload.size() > kMaxQueued) fail(TXR("The game is not reading the data it receives."));
             else inbox_ += payload;
         }
         break;

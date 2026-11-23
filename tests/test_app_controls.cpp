@@ -143,7 +143,7 @@ int main() {
     app::JoyInput missing = c.bind[app::Accelerate].joy;
     missing.guid = "00000000000000000000000000000000";
     check(missing.value(devices, 0.0f) == 0.0f, "unconnected device reads 0");
-    check(missing.describe(devices).find("non connecté") != std::string::npos, "unconnected device described");
+    check(missing.describe(devices).find("not connected") != std::string::npos, "unconnected device described");
 
     // The drive board, as its program (EPR-16488A) handles the commands: one
     // effect at a time, strength in the low 3 bits, only once the motor is on.
@@ -208,7 +208,7 @@ int main() {
     app::ForceFeedback ffb;
     ffb.update({0x07, 0x57}, devices, c, 1.0f, false); // motor on, the strongest pull right
     SDL_UpdateJoysticks();
-    check(std::string(ffb.device_kind()) == "manette (vibrations)", "rumble device chosen");
+    check(std::string(ffb.device_kind()) == "gamepad (rumble)", "rumble device chosen");
     check(rumble_low == 0xffff && rumble_high == 0, "the pull on the large motor");
     ffb.update({0x47}, devices, c, 1.0f, false); // uncentring
     SDL_UpdateJoysticks();
@@ -239,19 +239,19 @@ int main() {
     // unrelated id leaves the effect armed. The matching id requests neutral
     // while the handle is still valid, and the board's command stays.
     ffb.device_removed(pedals_id);
-    check(std::string(ffb.device_kind()) == "manette (vibrations)", "unrelated removal leaves the device");
+    check(std::string(ffb.device_kind()) == "gamepad (rumble)", "unrelated removal leaves the device");
     check(rumble_low == 0xffff && rumble_high == 0, "unrelated removal leaves the pull armed");
     check(SDL_GetJoystickFromID(rumbler_id) != nullptr, "unrelated removal leaves the joystick open");
     ffb.device_removed(rumbler_id);
     check(SDL_GetJoystickFromID(rumbler_id) != nullptr, "matching removal is before SDL closes the joystick");
     check(rumble_low == 0 && rumble_high == 0, "matching removal requests neutral while the handle is valid");
-    check(std::string(ffb.device_kind()) == "aucun", "matching removal releases the device");
+    check(std::string(ffb.device_kind()) == "none", "matching removal releases the device");
     check(ffb.state().force() == 1.0f, "matching removal keeps the board's pull");
     SDL_DetachVirtualJoystick(rumbler_id);
     pump(devices);
     check(SDL_GetJoystickFromID(rumbler_id) == nullptr, "SDL detach closes the joystick");
     check(rumble_low == 0 && rumble_high == 0, "detach does not re-arm rumble");
-    check(std::string(ffb.device_kind()) == "aucun", "detach leaves force feedback released");
+    check(std::string(ffb.device_kind()) == "none", "detach leaves force feedback released");
 
     const SDL_JoystickID rumbler_again = attach(SDL_JOYSTICK_TYPE_GAMEPAD, 2, 4, "Test rumbler", true);
     pump(devices);
@@ -263,7 +263,7 @@ int main() {
     }
     ffb.update({}, devices, c, 1.0f, false); // an attached device replays the kept pull
     SDL_UpdateJoysticks();
-    check(std::string(ffb.device_kind()) == "manette (vibrations)", "resume after removal reopens an attached device");
+    check(std::string(ffb.device_kind()) == "gamepad (rumble)", "resume after removal reopens an attached device");
     check(rumble_low == 0xffff && rumble_high == 0, "resume after removal replays the kept pull");
 
     ffb.reset();
@@ -271,7 +271,7 @@ int main() {
     SDL_UpdateJoysticks();
     check(rumble_low == 0 && rumble_high == 0, "reset: the motor off");
     ffb.update({}, devices, c, 0.0f, false); // strength 0: off, the device released
-    check(std::string(ffb.device_kind()) == "aucun", "strength 0 releases the device");
+    check(std::string(ffb.device_kind()) == "none", "strength 0 releases the device");
     ffb.close();
     SDL_DetachVirtualJoystick(rumbler_again);
     pump(devices);

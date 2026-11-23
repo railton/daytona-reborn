@@ -11,9 +11,9 @@ int main() {
                              "msgid \"A\\nB\"\nmsgstr \"\"\n\"C\\n\"\n\"D\"\n");
     CHECK(po.size() == 3);
     CHECK(po[2].first == "A\nB" && po[2].second == "C\nD");
-    // French is the source: no translation, the same pointer
-    const char *fr = "Plein écran";
-    CHECK(tr(fr) == fr);
+    // English is the source: no translation, the same pointer
+    const char *en = "Fullscreen";
+    CHECK(tr(en) == en);
     // salam (sin, lam, alef, mim): sin initial, lam-alef ligature (final),
     // mim isolated; shown right to left: mim, lam-alef, sin
     CHECK(shape_arabic("\xD8\xB3\xD9\x84\xD8\xA7\xD9\x85") ==

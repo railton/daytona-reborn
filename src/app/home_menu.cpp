@@ -46,7 +46,7 @@ HomeMenu::Action HomeMenu::draw(bool has_race, bool loading, const char *message
     ImGui::PushStyleVar(ImGuiStyleVar_Alpha, opacity);
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 5.f * scale);
-    ImGui::Begin("Daytona accueil", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+    ImGui::Begin("Daytona home", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
     auto *draw = ImGui::GetWindowDrawList();
     const auto color = [](ImVec4 value) { return ImGui::GetColorU32(value); };
@@ -72,10 +72,10 @@ HomeMenu::Action HomeMenu::draw(bool has_race, bool loading, const char *message
         return clicked;
     };
     draw->AddRectFilled(px(left,top), px(left+31*scale,top+3*scale), mint);
-    text(body_, 15, left+43*scale, top-7*scale, ice, TX("M O D E L   2    /    É D I T I O N   P C"));
+    text(body_, 15, left+43*scale, top-7*scale, ice, TX("M O D E L   2    /    P C   E D I T I O N"));
     text(display_, 94, left-4*scale, top+24*scale, cream, "DAYTONA");
     text(body_, 26, left, top+123*scale, mint, "A R C A D E   N A T I V E");
-    text(body_, 18, left, top+184*scale, cream, loading ? TX("Préparation de la course...") : TX("Course solo"));
+    text(body_, 18, left, top+184*scale, cream, loading ? TX("Preparing the race...") : TX("Solo race"));
     const char *tracks[] = {"Three Seven Speedway", "Dinosaur Canyon", "Seaside Street Galaxy"};
     const unsigned course = unsigned(course_);
     text(display_, 24, left, top+211*scale, ice, tracks[course]);
@@ -91,37 +91,37 @@ HomeMenu::Action HomeMenu::draw(bool has_race, bool loading, const char *message
         const float progress = phase * (panel_width - 68 * scale);
         draw->AddRectFilled(px(left+progress,row), px(left+progress+68*scale,row+4*scale), mint);
         if (focus_primary) ImGui::SetKeyboardFocusHere();
-        if (button(TX("Retour"),left,row+24*scale,panel_width,46*scale,false)) action = Cancel;
+        if (button(TX("Back"),left,row+24*scale,panel_width,46*scale,false)) action = Cancel;
         ImGui::SetItemDefaultFocus();
     } else {
         text(body_, 15, left, top+247*scale, subdued,
-             has_race ? TX("Mode de la prochaine course") : TX("Mode de jeu"));
-        if (button(TX("Course normale"),left,top+270*scale,174*scale,38*scale,
+             has_race ? TX("Mode for the next race") : TX("Game mode"));
+        if (button(TX("Normal race"),left,top+270*scale,174*scale,38*scale,
                    mode_==rt::RaceMode::Normal,16.f))
             mode_ = rt::RaceMode::Normal;
         if (button(TX("Time Attack"),left+189*scale,top+270*scale,174*scale,38*scale,
                    mode_==rt::RaceMode::TimeAttack,16.f))
             mode_ = rt::RaceMode::TimeAttack;
         text(body_, 15, left, top+319*scale, subdued,
-             has_race ? TX("Boîte de la prochaine course") : TX("Boîte de vitesses"));
-        if (button(TX("Automatique"),left,top+343*scale,174*scale,42*scale,
+             has_race ? TX("Gearbox for the next race") : TX("Gearbox"));
+        if (button(TX("Automatic"),left,top+343*scale,174*scale,42*scale,
                    transmission_==rt::RaceTransmission::Automatic,16.f))
             transmission_ = rt::RaceTransmission::Automatic;
-        if (button(TX("Manuelle"),left+189*scale,top+343*scale,174*scale,42*scale,
+        if (button(TX("Manual"),left+189*scale,top+343*scale,174*scale,42*scale,
                    transmission_==rt::RaceTransmission::Manual,16.f))
             transmission_ = rt::RaceTransmission::Manual;
         if (focus_primary) ImGui::SetKeyboardFocusHere();
-        if (button(has_race ? TX("Reprendre") : TX("Jouer"),left,row,panel_width,63*scale,true))
+        if (button(has_race ? TX("Resume") : TX("Play"),left,row,panel_width,63*scale,true))
             action = has_race ? Resume : Play;
         ImGui::SetItemDefaultFocus();
         if (button("01",left,row+76*scale,111*scale,42*scale,course==0)) course_ = Course::Beginner;
         if (button("02",left+126*scale,row+76*scale,111*scale,42*scale,course==1)) course_ = Course::Advanced;
         if (button("03",left+252*scale,row+76*scale,111*scale,42*scale,course==2)) course_ = Course::Expert;
-        if (button(TX("Réglages"),left,row+131*scale,174*scale,47*scale,false)) action = Settings;
-        if (button(TX("Quitter"),left+189*scale,row+131*scale,174*scale,47*scale,false)) action = Quit;
-        if (has_race && button(TX("Nouvelle course"),left,row+190*scale,panel_width,42*scale,false)) action = Play;
+        if (button(TX("Settings"),left,row+131*scale,174*scale,47*scale,false)) action = Settings;
+        if (button(TX("Quit"),left+189*scale,row+131*scale,174*scale,47*scale,false)) action = Quit;
+        if (has_race && button(TX("New race"),left,row+190*scale,panel_width,42*scale,false)) action = Play;
         // Online play through a daytona-relay server (app/online_menu.h)
-        if (button(TX("En ligne"),left,row+(has_race ? 240.f : 190.f)*scale,panel_width,42*scale,false)) action = Online;
+        if (button(TX("Online"),left,row+(has_race ? 240.f : 190.f)*scale,panel_width,42*scale,false)) action = Online;
     }
     if (message && *message) {
         at(left, row + (loading ? 85.f : has_race ? 293.f : 243.f)*scale);
@@ -133,7 +133,7 @@ HomeMenu::Action HomeMenu::draw(bool has_race, bool loading, const char *message
     }
     const float bottom = h - 51 * scale;
     draw->AddLine(px(left,bottom), px(w-left,bottom), color({0.72f,0.85f,0.91f,0.38f}), scale);
-    text(body_, 13, left, bottom+12*scale, subdued, TX("SOLO   /   JEU LIBRE"));
+    text(body_, 13, left, bottom+12*scale, subdued, TX("SOLO   /   FREE PLAY"));
     char display[80];
     const auto ratio = ImGui::GetIO().DisplayFramebufferScale;
     std::snprintf(display, sizeof display, TX("SDR   /   %d × %d"), int(w*ratio.x), int(h*ratio.y));

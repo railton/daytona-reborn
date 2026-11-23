@@ -1,8 +1,8 @@
-// Interface languages (23/11: English, French, Portuguese, Spanish,
-// Chinese, Japanese, Arabic). The French text is the key: T("Plein écran")
-// gives the current language's text from lang/<code>.po next to the game,
-// else English's, else the French itself. A "##id" suffix (ImGui) is kept
-// as is. Arabic is shaped (joined letter forms) and laid out right to left
+// Interface languages (English, French, Portuguese; Spanish, Chinese,
+// Japanese and Arabic listed for their translations). English is the source
+// and the key: TX("Fullscreen") gives the current language's text from
+// lang/<code>.po next to the game, else the English itself. A "##id"
+// suffix (ImGui) is kept as is. Arabic is shaped (joined letter forms) and laid out right to left
 // when its file is loaded, since ImGui draws neither.
 #pragma once
 
@@ -12,22 +12,22 @@
 namespace app::i18n {
 
 struct Language {
-    const char *code; // "fr", "en", ...
+    const char *code; // "en", "fr", ...
     const char *name; // in its own script: "Français", "English", ...
 };
 const std::vector<Language> &languages();
 
-// The language in use ("fr", "en", ...). set() loads its file (and
-// English's, the fallback); an unknown code means French.
+// The language in use ("en", "fr", ...). set() loads its file; English
+// needs none, and an unknown code means English.
 const std::string &current();
 void set(const std::string &code);
-// Whether `code` can be shown: French, or a lang/<code>.po next to the game.
+// Whether `code` can be shown: English, or a lang/<code>.po next to the game.
 bool available(const char *code);
 // The system's preferred language among ours, else English (the first run).
 std::string system_default();
 
 // The text in the current language (stable pointer, valid until set()).
-const char *tr(const char *french);
+const char *tr(const char *english);
 
 // The fonts the languages need, merged into the default font: CJK and
 // Arabic glyphs (Windows: the system's own fonts). Call once, before the

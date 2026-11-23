@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Collect the interface texts (TX("...") in src/app) into lang/messages.pot,
 and update each lang/<code>.po: new texts added with an empty translation,
-texts no longer used kept at the end as comments. The French text is the key
-(app/i18n.h)."""
+texts no longer used kept at the end as comments. The English text is the key
+(app/i18n.h); English itself needs no file."""
 
 import glob
 import os
@@ -97,7 +97,7 @@ def main():
     lang = os.path.join(ROOT, 'lang')
     os.makedirs(lang, exist_ok=True)
     write_po(os.path.join(lang, 'messages.pot'), keys, {},
-             '# Daytona Arcade Native: interface texts. The French text is the key.\n'
+             '# Daytona Arcade Native: interface texts. The English text is the key.\n'
              '# Copy to <code>.po and fill each msgstr. Keep %d, %s, %% and \\n.\n')
     for path in sorted(glob.glob(os.path.join(lang, '*.po'))):
         code = os.path.basename(path)[:-3]

@@ -15,8 +15,8 @@ namespace app::i18n {
 
 namespace {
 
-std::string g_current = "fr";
-std::unordered_map<std::string, std::string> g_text, g_english; // msgid -> msgstr
+std::string g_current = "en";
+std::unordered_map<std::string, std::string> g_text; // msgid (English) -> msgstr
 std::unordered_map<std::string, std::string> g_cache;           // composed "text##id" results
 
 std::string lang_dir() {
@@ -206,7 +206,7 @@ void unescape_into(const std::string &line, std::string &out) {
 const std::vector<Language> &languages() {
     static const std::string arabic = shape_arabic("العربية"); // drawn as it reads
     static const std::vector<Language> list = {
-        {"fr", "Français"}, {"en", "English"}, {"pt", "Português"}, {"es", "Español"},
+        {"en", "English"}, {"fr", "Français"}, {"pt", "Português"}, {"es", "Español"},
         {"zh", "中文"},      {"ja", "日本語"},   {"ar", arabic.c_str()},
     };
     return list;
@@ -217,20 +217,14 @@ const std::string &current() { return g_current; }
 void set(const std::string &code) {
     bool known = false;
     for (const auto &l : languages()) known = known || code == l.code;
-    g_current = known ? code : "fr";
+    g_current = known ? code : "en";
     g_cache.clear();
-    if (g_current == "fr") {
-        g_text.clear();
-        g_english.clear();
-        return;
-    }
-    load("en", g_english);
-    if (g_current == "en") g_text.clear();
+    if (g_current == "en") g_text.clear(); // the source language: the texts themselves
     else load(g_current, g_text);
 }
 
 bool available(const char *code) {
-    if (std::strcmp(code, "fr") == 0) return true;
+    if (std::strcmp(code, "en") == 0) return true;
     return std::ifstream(lang_dir() + code + ".po", std::ios::binary).good();
 }
 
@@ -251,15 +245,14 @@ std::string system_default() {
     return pick;
 }
 
-const char *tr(const char *french) {
-    if (g_current == "fr" || !french || !*french) return french;
-    const char *hash = std::strstr(french, "##");
-    const std::string key = hash ? std::string(french, size_t(hash - french)) : std::string(french);
+const char *tr(const char *english) {
+    if (g_current == "en" || !english || !*english) return english;
+    const char *hash = std::strstr(english, "##");
+    const std::string key = hash ? std::string(english, size_t(hash - english)) : std::string(english);
     const std::string *found = nullptr;
     if (auto it = g_text.find(key); it != g_text.end()) found = &it->second;
-    else if (auto e = g_english.find(key); e != g_english.end()) found = &e->second;
-    if (!hash) return found ? found->c_str() : french;
-    auto [it, added] = g_cache.try_emplace(french);
+    if (!hash) return found ? found->c_str() : english; // untranslated: the English
+    auto [it, added] = g_cache.try_emplace(english);
     if (added) it->second = (found ? *found : key) + hash;
     return it->second.c_str();
 }
