@@ -76,6 +76,7 @@ std::string server_error(const std::string &payload) {
     if (code == "size") return TXR("Cette salle n'a pas ce nombre de joueurs.");
     if (code == "password") return TXR("Mot de passe du serveur incorrect.");
     if (code == "server_full") return TXR("Le serveur est plein : trop de salles ouvertes.");
+    if (code == "too_many") return TXR("Trop de connexions au serveur depuis votre adresse.");
     if (code == "version") return TXR("Ce serveur n'est pas compatible avec cette version du jeu.");
     if (code == "room") return TXR("Code de salle invalide.");
     if (code == "players") return TXR("Nombre de joueurs invalide : de 2 à 8.");

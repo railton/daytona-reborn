@@ -75,8 +75,14 @@ type server struct {
 	rooms    map[string]*room
 	password string
 	maxRooms int
-	eeprom   []proto.Setting
-	anyStart bool
+
+	// connections: at most maxConns in all and maxPerIP from one address
+	connMu             sync.Mutex
+	perIP              map[string]int
+	conns              int
+	maxConns, maxPerIP int
+	eeprom             []proto.Setting
+	anyStart           bool
 }
 
 func (s *server) join(c *client, h proto.Hello) error {
@@ -190,6 +196,30 @@ func (s *server) forward(c *client, f proto.Frame) {
 	}
 }
 
+// admit counts a new connection in, or refuses it.
+func (s *server) admit(ip string) error {
+	s.connMu.Lock()
+	defer s.connMu.Unlock()
+	if s.conns >= s.maxConns {
+		return proto.Errf("server_full", "server full: %d connections at most", s.maxConns)
+	}
+	if s.perIP[ip] >= s.maxPerIP {
+		return proto.Errf("too_many", "too many connections from %s (%d at most)", ip, s.maxPerIP)
+	}
+	s.conns++
+	s.perIP[ip]++
+	return nil
+}
+
+func (s *server) release(ip string) {
+	s.connMu.Lock()
+	defer s.connMu.Unlock()
+	s.conns--
+	if s.perIP[ip]--; s.perIP[ip] <= 0 {
+		delete(s.perIP, ip)
+	}
+}
+
 func (s *server) handle(conn net.Conn) {
 	if tc, ok := conn.(*net.TCPConn); ok {
 		tc.SetNoDelay(true)
@@ -200,8 +230,8 @@ func (s *server) handle(conn net.Conn) {
 
 	br := bufio.NewReaderSize(conn, 32*1024)
 	conn.SetReadDeadline(time.Now().Add(handshakeTimeout))
-	line, err := br.ReadString('\n')
-	if err != nil || len(line) > 512 {
+	line, err := proto.ReadLine(br, proto.MaxHello)
+	if err != nil {
 		return
 	}
 	h, err := proto.ParseHello(strings.TrimSpace(line))
@@ -288,6 +318,8 @@ func main() {
 	port := flag.Int("port", envInt("DAYTONA_PORT", 7777), "TCP port to listen on (DAYTONA_PORT)")
 	password := flag.String("password", os.Getenv("DAYTONA_PASSWORD"), "password the players must give, optional (DAYTONA_PASSWORD)")
 	maxRooms := flag.Int("max-rooms", envInt("DAYTONA_MAX_ROOMS", 100), "rooms open at the same time, at most (DAYTONA_MAX_ROOMS)")
+	maxConns := flag.Int("max-connections", envInt("DAYTONA_MAX_CONNECTIONS", 1000), "connections at the same time, at most (DAYTONA_MAX_CONNECTIONS)")
+	maxPerIP := flag.Int("max-per-ip", envInt("DAYTONA_MAX_PER_IP", 16), "connections from one address, at most (DAYTONA_MAX_PER_IP)")
 	flag.Parse()
 
 	eeprom, desc, err := settings.FromEnv(os.Getenv)
@@ -305,7 +337,8 @@ func main() {
 	if start == "" {
 		start = "master"
 	}
-	s := &server{rooms: map[string]*room{}, password: *password, maxRooms: *maxRooms, eeprom: eeprom, anyStart: start == "anyone"}
+	s := &server{rooms: map[string]*room{}, password: *password, maxRooms: *maxRooms, eeprom: eeprom, anyStart: start == "anyone",
+		perIP: map[string]int{}, maxConns: *maxConns, maxPerIP: *maxPerIP}
 	log.Printf("daytona-relay listening on port %d (rooms of %d to %d players, password: %v)", *port, proto.MinPlayers, proto.MaxPlayers, *password != "")
 	log.Printf("race settings: %s start=%s", desc, start)
 	for {
@@ -315,6 +348,17 @@ func main() {
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
-		go s.handle(conn)
+		ip, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
+		if err := s.admit(ip); err != nil {
+			conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
+			proto.WriteFrame(conn, proto.Frame{Type: proto.TypeError, Payload: proto.ErrorPayload(err)})
+			conn.Close()
+			log.Printf("%s: refused: %v", conn.RemoteAddr(), err)
+			continue
+		}
+		go func() {
+			defer s.release(ip)
+			s.handle(conn)
+		}()
 	}
 }

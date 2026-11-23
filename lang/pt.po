@@ -904,6 +904,9 @@ msgstr "Senha do servidor incorreta."
 msgid "Le serveur est plein : trop de salles ouvertes."
 msgstr "O servidor está cheio: salas abertas demais."
 
+msgid "Trop de connexions au serveur depuis votre adresse."
+msgstr "Conexões demais com o servidor a partir do seu endereço."
+
 msgid "Ce serveur n'est pas compatible avec cette version du jeu."
 msgstr "Este servidor não é compatível com esta versão do jogo."
 

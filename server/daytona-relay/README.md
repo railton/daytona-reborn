@@ -30,6 +30,8 @@ Edit `docker-compose.yml`, or put them in a `.env` file beside it, then
 | `DAYTONA_PORT` | `7777` | TCP port |
 | `DAYTONA_PASSWORD` | empty | the server's password; it travels in the invite code |
 | `DAYTONA_MAX_ROOMS` | `100` | rooms open at the same time |
+| `DAYTONA_MAX_CONNECTIONS` | `1000` | connections at the same time |
+| `DAYTONA_MAX_PER_IP` | `16` | connections from one address (players behind one router share it) |
 | `DAYTONA_CABINET` | `twin` | `twin`, `uplight`, `deluxe` |
 | `DAYTONA_COUNTRY` | `usa` | `usa` (the game in English), `jpn` (in Japanese), `export` |
 | `DAYTONA_DIFFICULTY` | `normal` | `easy`, `normal`, `hard`, `hardest` |

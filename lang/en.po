@@ -904,6 +904,9 @@ msgstr "Wrong server password."
 msgid "Le serveur est plein : trop de salles ouvertes."
 msgstr "The server is full: too many rooms open."
 
+msgid "Trop de connexions au serveur depuis votre adresse."
+msgstr "Too many connections to the server from your address."
+
 msgid "Ce serveur n'est pas compatible avec cette version du jeu."
 msgstr "This server is not compatible with this version of the game."
 

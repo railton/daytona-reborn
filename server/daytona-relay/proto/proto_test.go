@@ -1,6 +1,7 @@
 package proto
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"reflect"
@@ -81,5 +82,15 @@ func TestErrorPayload(t *testing.T) {
 	}
 	if string(ErrorPayload(errors.New("x"))) != "other\nx" {
 		t.Fatal("uncoded error")
+	}
+}
+
+func TestReadLine(t *testing.T) {
+	r := bufio.NewReader(strings.NewReader("short\n" + strings.Repeat("x", 600) + "\n"))
+	if l, err := ReadLine(r, 512); err != nil || l != "short" {
+		t.Fatalf("%q %v", l, err)
+	}
+	if _, err := ReadLine(r, 512); err == nil {
+		t.Fatal("accepted a 600-byte line")
 	}
 }

@@ -28,6 +28,7 @@
 package proto
 
 import (
+	"bufio"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -59,7 +60,7 @@ var roomRe = regexp.MustCompile(`^[a-z0-9_-]{1,32}$`)
 // Error is a refusal with a code: an E frame's payload is "code\ntext", and
 // the game shows its own text for the code, in the player's language.
 // Codes: protocol, version, room, players, password, not_found, exists,
-// full, size, server_full, game_version.
+// full, size, server_full, game_version, too_many.
 type Error struct{ Code, Text string }
 
 func (e *Error) Error() string { return e.Text }
@@ -184,6 +185,28 @@ func ParseHello(line string) (Hello, error) {
 	}
 	h.Name = CleanName(h.Name)
 	return h, nil
+}
+
+// MaxHello is the longest greeting line the server reads.
+const MaxHello = 512
+
+// ReadLine reads one line of at most max bytes (without the newline); a
+// longer one is an error as soon as it passes max, not when it ends.
+func ReadLine(r *bufio.Reader, max int) (string, error) {
+	var b []byte
+	for {
+		c, err := r.ReadByte()
+		if err != nil {
+			return "", err
+		}
+		if c == '\n' {
+			return string(b), nil
+		}
+		if len(b) >= max {
+			return "", errors.New("line too long")
+		}
+		b = append(b, c)
+	}
 }
 
 type Frame struct {

@@ -822,6 +822,9 @@ msgstr ""
 msgid "Le serveur est plein : trop de salles ouvertes."
 msgstr ""
 
+msgid "Trop de connexions au serveur depuis votre adresse."
+msgstr ""
+
 msgid "Ce serveur n'est pas compatible avec cette version du jeu."
 msgstr ""
 
