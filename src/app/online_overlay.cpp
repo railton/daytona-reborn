@@ -12,9 +12,11 @@
 namespace app {
 
 uint32_t online_car_colour(int car) {
-    // CAR NUMBER 1..8: purple, orange, cyan, lime, black, white, yellow, blue
-    static const uint32_t colours[] = {0x6e46e6, 0xff8c1e, 0x1ec8d2, 0x8cd21e,
-                                       0x282828, 0xe6e1f5, 0xfadc28, 0x3c82f0};
+    // CAR NUMBER 1..8, the lit paint of each linked car (measured on an
+    // 8-cabinet race through the relay): violet, orange, cyan, lime,
+    // charcoal, lilac, yellow, light blue
+    static const uint32_t colours[] = {0x7048d8, 0xff8a1c, 0x2ce8f0, 0x9ad82a,
+                                       0x3c4044, 0xd8c4f0, 0xf2e21e, 0x5a9af0};
     return car >= 1 && car <= 8 ? colours[car - 1] : 0x808080;
 }
 
@@ -35,7 +37,11 @@ void outlined(ImDrawList *draw, ImFont *font, float size, ImVec2 at, ImU32 colou
     draw->AddText(font, size, {at.x + width * 0.5f, at.y}, colour, text); // a little bolder
 }
 
-// Dark car colours (5 black, 8 blue, 1 purple) take white figures, the others black.
+// The colour a car's name is written in: its paint, the charcoal car's lightened
+// to read on the dark bars.
+uint32_t name_colour(int car) { return car == 5 ? 0xa8b0b6 : online_car_colour(car); }
+
+// Dark car colours (5 charcoal, 1 violet) take white figures, the others black.
 bool light(uint32_t rgb) {
     const int r = (rgb >> 16) & 0xff, g = (rgb >> 8) & 0xff, b = rgb & 0xff;
     return r * 299 + g * 587 + b * 114 > 140000;
@@ -120,10 +126,10 @@ void draw_online_players(const online::Status &room, float alpha, const std::arr
         if (standings) outlined(draw, font, figure_size, fat, rgba(kLime), rgba(kBlack), 2.f * s, figure);
         else outlined(draw, font, figure_size, fat, rgba(light(colour) ? kBlack : kWhite),
                       rgba(light(colour) ? kWhite : kBlack, 0.6f), 1.f * s, figure);
-        // the name, white (the player's own in yellow), outlined
+        // the name in its car's colour, outlined (the player's own row is edged in yellow)
         const ImVec2 ns = font->CalcTextSizeA(name_size, FLT_MAX, 0.f, names[i].c_str());
         outlined(draw, font, name_size, {at.x + tab_w + stripe + 14.f * s, y + (row_h - ns.y) * 0.5f},
-                 rgba(me ? kYellow : kWhite), rgba(kBlack), 2.f * s, names[i].c_str());
+                 rgba(name_colour(car)), rgba(kBlack), 2.f * s, names[i].c_str());
         lean(draw, from, y + row_h, kLean);
     }
 }

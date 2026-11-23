@@ -34,7 +34,8 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
   player's car number and colour (as the course map shows them), name, and
   the player's own row highlighted; during the race it is the live standings,
   in race order. Drawn in an arcade style of its own: leaning bars, outlined
-  italic figures, a chequered strip, places in lime as the HUD's POSITION. Shown for the race's first 10 s and while Tab (or the
+  italic figures, a chequered strip, places in lime as the HUD's POSITION;
+  each name in its car's paint (measured on the eight linked cars). Shown for the race's first 10 s and while Tab (or the
   gamepad's left stick button) is held.
 - **Version check.** Each game sends its online version; a room only takes
   games of the version that created it.
