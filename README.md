@@ -3,6 +3,8 @@
 **Daytona USA (Sega Model 2, 1994) rebuilt as native code for the PC, with
 online play for up to 8 players.**
 
+![The home screen: a sunset speedway behind the menu](docs/images/home-screen.jpg)
+
 The arcade's programs are statically recompiled to portable C++: the i960
 game code, the TGP program it uploads and the sound board's 68000 code. The
 rest of the board (geometrizer, rasterizer, tilemaps, sound chips) is native
