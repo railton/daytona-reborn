@@ -50,4 +50,15 @@ int main() {
     CHECK(wheels.read(25, opcode, 18) == rt::MobileKey{});
     CHECK(rt::opponent_wheel_chassis_part(near_wheel.part) == 0x8808u);
     CHECK(rt::opponent_wheel_chassis_part(mid_wheel.part) == 0x8c00u);
+
+    // All 39 opponents are keyed (Beginner, 0x505480 to 0x50c680); the
+    // twentieth to the last were not, and shook when interpolated (23/11).
+    rt::MobileIdentity field;
+    constexpr uint32_t twentieth = 0x505480 + 19 * 0x300, last = 0x505480 + 38 * 0x300;
+    CHECK(twentieth == 0x508d80 && last == 0x50c680);
+    field.write_header(30, opcode, 0x17c10, 0x8808, twentieth, 20);
+    CHECK(field.read(30, opcode, 20) == (rt::MobileKey{0x8808, twentieth, 0}));
+    field.write_header(31, opcode, 0x17c10, 0x8808, last, 20);
+    CHECK(field.read(31, opcode, 20) == (rt::MobileKey{0x8808, last, 0}));
+    CHECK(!rt::MobileIdentity::slot_index(last + 0x300));
 }

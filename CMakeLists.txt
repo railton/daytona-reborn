@@ -37,6 +37,10 @@ add_library(softfloat STATIC ${SOFTFLOAT_SOURCES})
 # our portable one (cmake/softfloat-portable): same results, plain functions.
 # M2_SOFTFLOAT_PORTABLE forces it anywhere, to test that path off Windows.
 option(M2_SOFTFLOAT_PORTABLE "Build SoftFloat without GCC extensions" OFF)
+# Ray tracing (sun shadows, light shafts; Direct3D 12): still in the works,
+# so off unless asked for. Off, the launcher has no such option and the
+# M2_DXR_* variables do nothing.
+option(M2_RAY_TRACING "Build the experimental ray-traced lighting" OFF)
 if(MSVC OR M2_SOFTFLOAT_PORTABLE)
     set(SOFTFLOAT_PLATFORM ${CMAKE_SOURCE_DIR}/cmake/softfloat-portable)
     set(SOFTFLOAT_INLINE)
@@ -231,15 +235,18 @@ if(EXISTS ${CMAKE_SOURCE_DIR}/extern/sdl3/CMakeLists.txt)
         target_include_directories(m2sceneshot PRIVATE src)
         target_link_libraries(m2sceneshot PRIVATE ${M2_SDL_TARGET})
     endif()
-    add_library(gpurender STATIC src/app/gpu/gpu_renderer.cpp src/app/gpu/opponent_bodies.cpp)
+    add_library(gpurender STATIC src/app/gpu/gpu_renderer.cpp src/app/gpu/opponent_bodies.cpp src/app/gpu/dxr_scene.cpp)
     target_include_directories(gpurender PUBLIC src)
     target_link_libraries(gpurender PUBLIC runtime ${M2_SDL_TARGET})
-    add_library(daytona_app OBJECT src/app/main.cpp src/app/launcher.cpp src/app/config.cpp src/app/controls.cpp src/app/ffb.cpp src/app/link_socket.cpp src/app/pacing.cpp)
+    add_library(daytona_app OBJECT src/app/main.cpp src/app/launcher.cpp src/app/i18n.cpp src/app/config.cpp src/app/controls.cpp src/app/ffb.cpp src/app/link_socket.cpp src/app/pacing.cpp)
     if(NOT M2_MOBILE)
         target_sources(daytona_app PRIVATE src/app/home_menu.cpp src/app/gpu/home_scene.cpp)
         target_include_directories(daytona_app PRIVATE tools)
     endif()
     target_link_libraries(daytona_app PRIVATE runtime imgui gpurender ${M2_SDL_TARGET})
+    if(M2_RAY_TRACING)
+        target_compile_definitions(daytona_app PRIVATE M2_RAY_TRACING=1)
+    endif()
     if(WIN32)
         target_link_libraries(daytona_app PUBLIC ws2_32) # link play's sockets
     endif()
@@ -300,6 +307,9 @@ if(EXISTS ${GEN_DIR}/gen_table.cpp AND EXISTS ${TGP_GEN} AND EXISTS ${SND_GEN})
         if(WIN32)
             target_link_libraries(daytona PRIVATE ws2_32) # link play's sockets
         endif()
+        # Interface languages (app/i18n.h): lang/<code>.po next to the game
+        add_custom_command(TARGET daytona POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory
+                           ${CMAKE_SOURCE_DIR}/lang $<TARGET_FILE_DIR:daytona>/lang)
         # Headless frames through the hardware renderer, to compare with m2run's.
         add_executable(m2gpushot tools/m2gpushot/main.cpp ${GEN_SOURCES} ${TGP_GEN} ${SND_GEN})
         target_link_libraries(m2gpushot PRIVATE runtime gpurender)
@@ -529,10 +539,14 @@ if(TARGET SDL3::SDL3-static)
 endif()
 
 if(TARGET imgui AND WIN32 AND NOT M2_MOBILE)
-    add_executable(test_home_menu_navigation tests/test_home_menu_navigation.cpp src/app/home_menu.cpp)
+    add_executable(test_home_menu_navigation tests/test_home_menu_navigation.cpp src/app/home_menu.cpp src/app/i18n.cpp)
     target_include_directories(test_home_menu_navigation PRIVATE src)
     target_link_libraries(test_home_menu_navigation PRIVATE imgui)
     add_test(NAME home_menu_navigation COMMAND test_home_menu_navigation)
+    add_executable(test_i18n tests/test_i18n.cpp src/app/i18n.cpp)
+    target_include_directories(test_i18n PRIVATE src)
+    target_link_libraries(test_i18n PRIVATE imgui)
+    add_test(NAME i18n COMMAND test_i18n)
 endif()
 
 if(EXISTS ${CMAKE_SOURCE_DIR}/extern/sdl3/include/SDL3/SDL_audio.h)

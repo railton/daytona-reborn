@@ -43,8 +43,6 @@ $setupArgs = @($args | Where-Object { $_ -ne '--msvc' })
 $vsComponents = @('Microsoft.VisualStudio.Workload.VCTools',
                   'Microsoft.VisualStudio.Component.VC.Llvm.Clang',
                   'Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset')
-$vsAdd = ($vsComponents | ForEach-Object { "--add $_" }) -join ' '
-Install-Package 'Microsoft.VisualStudio.2022.BuildTools' "--wait --passive --norestart $vsAdd --includeRecommended"
 
 $installerDir = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer'
 $vswhere = Join-Path $installerDir 'vswhere.exe'
@@ -55,12 +53,26 @@ function Test-VsClang {
     return [bool]$found
 }
 
+$vsPath = if (Test-Path $vswhere) { & $vswhere -latest -version '[17,18)' -products * -property installationPath } else { $null }
+$clangReady = $false
+$msvcPath = $null
+if ($useMsvc) {
+    $msvcPath = if ($vsPath) {
+        & $vswhere -latest -version '[17,18)' -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+    }
+} elseif (Test-VsClang) {
+    $clangReady = $true
+}
+if ($msvcPath -or $clangReady) {
+    Write-Host '== Reusing the Visual Studio 2022 C++ tools already installed'
+} elseif ($useMsvc -or -not $vsPath) {
+    $vsAdd = ($vsComponents | ForEach-Object { "--add $_" }) -join ' '
+    Install-Package 'Microsoft.VisualStudio.2022.BuildTools' "--wait --passive --norestart $vsAdd --includeRecommended"
+}
+
 if (-not $useMsvc -and -not (Test-VsClang)) {
-    # winget leaves an existing Visual Studio 2022 or Build Tools install as it is:
-    # add the Clang tools to that version, never a newer side-by-side install.
-    # Changing an install needs administrator
-    # rights, so the Visual Studio Installer runs elevated (Windows asks).
-    $vsPath = if (Test-Path $vswhere) { & $vswhere -latest -version '[17,18)' -products * -property installationPath } else { $null }
+    # Add Clang to the existing Visual Studio 2022 installation if needed.
+    # The Visual Studio Installer asks for administrator permission.
     if ($vsPath) {
         Write-Host "== Adding the C++ and Clang tools to $vsPath (Windows will ask for permission)"
         $modify = @('modify', '--installPath', "`"$vsPath`"", '--passive', '--norestart', '--includeRecommended') +

@@ -1,0 +1,700 @@
+# Daytona Arcade Native: interface texts. The French text is the key.
+# Copy to <code>.po and fill each msgstr. Keep %d, %s, %% and \n.
+
+msgid "Tourner à gauche"
+msgstr ""
+
+msgid "Tourner à droite"
+msgstr ""
+
+msgid "Accélérer"
+msgstr ""
+
+msgid "Freiner"
+msgstr ""
+
+msgid "Vitesse 1"
+msgstr ""
+
+msgid "Vitesse 2"
+msgstr ""
+
+msgid "Vitesse 3"
+msgstr ""
+
+msgid "Vitesse 4"
+msgstr ""
+
+msgid "Monter un rapport"
+msgstr ""
+
+msgid "Descendre un rapport"
+msgstr ""
+
+msgid "Vue 1 (rouge)"
+msgstr ""
+
+msgid "Vue 2 (bleue)"
+msgstr ""
+
+msgid "Vue 3 (jaune)"
+msgstr ""
+
+msgid "Vue 4 (verte)"
+msgstr ""
+
+msgid "Pièce"
+msgstr ""
+
+msgid "Start"
+msgstr ""
+
+msgid "Test"
+msgstr ""
+
+msgid "Service"
+msgstr ""
+
+msgid "Bouton "
+msgstr ""
+
+msgid "Gâchette "
+msgstr ""
+
+msgid "Axe "
+msgstr ""
+
+msgid "Croix "
+msgstr ""
+
+msgid "haut"
+msgstr ""
+
+msgid "bas"
+msgstr ""
+
+msgid "gauche"
+msgstr ""
+
+msgid "droite"
+msgstr ""
+
+msgid " (non connecté)"
+msgstr ""
+
+msgid "volant (retour de force)"
+msgstr ""
+
+msgid "volant (retour de force non ouvert ; nouvel essai)"
+msgstr ""
+
+msgid "manette (vibrations)"
+msgstr ""
+
+msgid "aucun"
+msgstr ""
+
+msgid "M O D E L   2    /    É D I T I O N   P C"
+msgstr ""
+
+msgid "Préparation de la course..."
+msgstr ""
+
+msgid "Course solo"
+msgstr ""
+
+msgid "Retour"
+msgstr ""
+
+msgid "Mode de la prochaine course"
+msgstr ""
+
+msgid "Mode de jeu"
+msgstr ""
+
+msgid "Course normale"
+msgstr ""
+
+msgid "Time Attack"
+msgstr ""
+
+msgid "Boîte de la prochaine course"
+msgstr ""
+
+msgid "Boîte de vitesses"
+msgstr ""
+
+msgid "Automatique"
+msgstr ""
+
+msgid "Manuelle"
+msgstr ""
+
+msgid "Reprendre"
+msgstr ""
+
+msgid "Jouer"
+msgstr ""
+
+msgid "Réglages"
+msgstr ""
+
+msgid "Quitter"
+msgstr ""
+
+msgid "Nouvelle course"
+msgstr ""
+
+msgid "SOLO   /   JEU LIBRE"
+msgstr ""
+
+msgid "SDR   /   %d × %d"
+msgstr ""
+
+msgid "Choisissez de nouveau le jeu de ROM avec Parcourir."
+msgstr ""
+
+msgid "Choisissez le jeu de ROM %s (.zip ou .7z)."
+msgstr ""
+
+msgid "Les %d fichiers sont vérifiés."
+msgstr ""
+
+msgid "%d fichiers sur %d absents ou incorrects : ce n'est pas le jeu %s."
+msgstr ""
+
+msgid "Choix de la ROM : "
+msgstr ""
+
+msgid "Jeu de ROM (zip, 7z)"
+msgstr ""
+
+msgid "Tous les fichiers"
+msgstr ""
+
+msgid "Retour à l'accueil"
+msgstr ""
+
+msgid "  recompilation statique, moteur natif"
+msgstr ""
+
+msgid "Jeu"
+msgstr ""
+
+msgid "Jeu de ROM"
+msgstr ""
+
+msgid "Parcourir donne accès à votre ZIP/7z. Une copie vérifiée est gardée dans l'application."
+msgstr ""
+
+msgid "Parcourir..."
+msgstr ""
+
+msgid "Vérifier"
+msgstr ""
+
+msgid "Fichiers"
+msgstr ""
+
+msgid "Affichage"
+msgstr ""
+
+msgid "Arcade 4:3 (la borne d'origine)"
+msgstr ""
+
+msgid "21:9 (ultra-large)"
+msgstr ""
+
+msgid "Format de l'image"
+msgstr ""
+
+msgid ""
+"Arcade 4:3 : le cadrage de la borne, centré, avec des bandes sur les côtés d'un écran large.\n"
+"Automatique : la forme de la fenêtre en rendu natif, sinon le 4:3 d'origine.\n"
+"16:10, 16:9, 21:9 : la scène s'élargit sur les côtés, la voiture garde ses proportions."
+msgstr ""
+
+msgid "API graphique (redémarrer le jeu)"
+msgstr ""
+
+msgid "Logiciel (exact)"
+msgstr ""
+
+msgid "Matériel (expérimental)"
+msgstr ""
+
+msgid "Rendu"
+msgstr ""
+
+msgid ""
+"Logiciel : la 3D est calculée par le processeur, comme sur la carte d'arcade. Matériel :\n"
+"par la carte graphique ; en développement, très proche mais pas encore exact au pixel près."
+msgstr ""
+
+msgid "Plein écran"
+msgstr ""
+
+msgid "Cacher la souris pendant le jeu"
+msgstr ""
+
+msgid ""
+"Pas de pointeur de souris pendant la partie. Il revient quand ce lanceur\n"
+"s'ouvre (Échap) et disparaît de nouveau avec Reprendre."
+msgstr ""
+
+msgid "Bureau (sans bordure)"
+msgstr ""
+
+msgid "Mode plein écran"
+msgstr ""
+
+msgid ""
+"Bureau : plein écran à la résolution et à la fréquence du bureau.\n"
+"Un mode : plein écran exclusif à cette résolution et cette fréquence, par exemple\n"
+"un mode à 57,52 Hz créé dans les réglages du pilote graphique."
+msgstr ""
+
+msgid "Cadence d'affichage"
+msgstr ""
+
+msgid "(tout décoché : la vitesse de la borne sur tout écran)"
+msgstr ""
+
+msgid "Cadence fluide sur un écran à 57,52 Hz"
+msgstr ""
+
+msgid ""
+"Sur un écran réglé à 57,52 Hz (ou 115,05 Hz), une image du jeu par rafraîchissement (ou deux) :\n"
+"aucune image doublée ou sautée. La vitesse reste celle de la borne, à 1 %% près.\n"
+"Sans effet aux autres fréquences."
+msgstr ""
+
+msgid "Caler sur l'écran (change la vitesse du jeu)"
+msgstr ""
+
+msgid ""
+"Fait tourner le jeu à une cadence qui divise exactement celle de l'écran : chaque image\n"
+"reste affichée le même temps et le mouvement est parfaitement fluide. Sur un écran à\n"
+"60, 120, 180 ou 240 Hz, le jeu tourne à 60 images/s, environ 4 %% plus vite que la borne\n"
+"(57,52) ; avec le son de référence, le son est aussi un peu plus rapide. Sans effet\n"
+"sur un écran à 144 ou 165 Hz, qui ne peut pas caler une cadence proche de la borne :\n"
+"utilisez alors la cadence VRR si l'écran gère G-Sync ou FreeSync.\n"
+"Décoché : le jeu tourne toujours à la vitesse de la borne."
+msgstr ""
+
+msgid "Cadence VRR (G-Sync / FreeSync)"
+msgstr ""
+
+msgid ""
+"Pour un écran à fréquence variable : chaque image dure exactement 1/57,52 s, l'écran\n"
+"se rafraîchit au rythme du jeu et chaque image reste affichée le même temps.\n"
+"Le VRR doit être actif dans l'écran et le pilote graphique ; sur un écran à\n"
+"fréquence fixe, le résultat ressemble au réglage par défaut."
+msgstr ""
+
+msgid "Actuellement : %s."
+msgstr ""
+
+msgid "Passer le lanceur"
+msgstr ""
+
+msgid "(lance le jeu tout de suite ; Échap ouvre ce lanceur)"
+msgstr ""
+
+msgid "Double tampon"
+msgstr ""
+
+msgid "Simple tampon"
+msgstr ""
+
+msgid "Une image sur trois"
+msgstr ""
+
+msgid "Mode de dessin"
+msgstr ""
+
+msgid ""
+"Double tampon : chaque image est dessinée, comme dans le jeu. Simple tampon : une sur deux ;\n"
+"une image sur trois : une sur trois. Plus rapide ; le jeu lui-même n'est pas ralenti."
+msgstr ""
+
+msgid "Natif 2x"
+msgstr ""
+
+msgid "Désactivé"
+msgstr ""
+
+msgid "Natif direct"
+msgstr ""
+
+msgid "Résolution du rendu"
+msgstr ""
+
+msgid ""
+"Les modes natifs suivent la fenêtre sous Direct3D 12.\n"
+"2x à 4x agrandissent la résolution d'origine."
+msgstr ""
+
+msgid "Améliorations"
+msgstr ""
+
+msgid "Compteurs au bord de l'écran (expérimental)"
+msgstr ""
+
+msgid "Étirer le fond du ciel (expérimental)"
+msgstr ""
+
+msgid ""
+"Montre davantage de la scène sur les côtés. Les compteurs restent en 4:3 au centre, ou bien\n"
+"les temps au tour, la position et les cartes passent sur les bords. En course, le ciel\n"
+"des côtés est bleu uni, ou bien l'image du ciel du jeu étirée sur tout l'écran."
+msgstr ""
+
+msgid "La plus courte"
+msgstr ""
+
+msgid "Plus courte"
+msgstr ""
+
+msgid "Par défaut"
+msgstr ""
+
+msgid "Plus loin"
+msgstr ""
+
+msgid "Le plus loin"
+msgstr ""
+
+msgid "Distance d'affichage"
+msgstr ""
+
+msgid ""
+"Le décor autour du circuit. L'écran large ajoute aussi le décor sur les côtés.\n"
+"Plus court réduit la portée ; plus loin ajoute arbres et bâtiments, pas la route."
+msgstr ""
+
+msgid "Décor en volume"
+msgstr ""
+
+msgid ""
+"Sapins en volume, tribunes pleines, piliers sous le pont de Dinosaur Canyon.\n"
+"Pris en compte au prochain lancement du jeu."
+msgstr ""
+
+msgid "Voitures adverses toujours détaillées"
+msgstr ""
+
+msgid ""
+"Un seul modèle, le plus détaillé, à toutes les distances : plus de voitures\n"
+"qui changent d'aspect en approchant. Pris en compte au prochain lancement du jeu."
+msgstr ""
+
+msgid "Ombres du soleil (ray tracing, expérimental)"
+msgstr ""
+
+msgid ""
+"Ombres projetées par le soleil du jeu (Direct3D 12, carte compatible ray tracing,\n"
+"résolution native). Pris en compte au prochain lancement du jeu."
+msgstr ""
+
+msgid "Lumière du ciel (expérimental)"
+msgstr ""
+
+msgid ""
+"Le ciel éclaire de partout : plus sombre sous les voitures, sous le portique,\n"
+"au pied des murs. Pris en compte au prochain lancement du jeu."
+msgstr ""
+
+msgid "%d degrés"
+msgstr ""
+
+msgid "celle du jeu"
+msgstr ""
+
+msgid "Hauteur du soleil"
+msgstr ""
+
+msgid ""
+"La direction reste celle du soleil du jeu. Plus bas, les ombres s'allongent\n"
+"(comme en fin d'après-midi). Pris en compte au prochain lancement du jeu."
+msgstr ""
+
+msgid "Lissage 120 images/s (expérimental)"
+msgstr ""
+
+msgid ""
+"Images intermédiaires entre celles du jeu. Demande le rendu Matériel et le double\n"
+"tampon.\n"
+"Pris en compte au prochain lancement du jeu."
+msgstr ""
+
+msgid "PC (origine)"
+msgstr ""
+
+msgid "Borne %d,%d"
+msgstr ""
+
+msgid "Couleurs de l'écran (redémarrer le jeu)"
+msgstr ""
+
+msgid ""
+"PC : les couleurs du jeu comme avant (image d'origine).\n"
+"Borne 2,2 à 2,6 : les mêmes couleurs comme sur un écran de borne d'arcade,\n"
+"plus profondes et moins délavées. Conseillé : 2,4."
+msgstr ""
+
+msgid "Saturation des couleurs (redémarrer le jeu)"
+msgstr ""
+
+msgid "100 %% (origine)"
+msgstr ""
+
+msgid "Plus de 100 %% : des couleurs plus vives. 100 %% : les couleurs du jeu telles quelles."
+msgstr ""
+
+msgid "Personnalisé"
+msgstr ""
+
+msgid "Budget de polygones"
+msgstr ""
+
+msgid "Allocation personnalisée"
+msgstr ""
+
+msgid ""
+"Remplace l'allocation automatique. De 1 à 1 000 000.\n"
+"Trop bas, du décor peut manquer ; trop haut, le jeu peut ralentir."
+msgstr ""
+
+msgid ""
+"Allocation actuelle : %u. Elle suit l'écran large et la distance d'affichage.\n"
+"La résolution et le suréchantillonnage ne la changent pas."
+msgstr ""
+
+msgid "Jeu en réseau (expérimental, réinitialiser)"
+msgstr ""
+
+msgid "Relier à d'autres bornes"
+msgstr ""
+
+msgid "Port de cette borne"
+msgstr ""
+
+msgid "Borne suivante (hôte:port)"
+msgstr ""
+
+msgid "Synchroniser les images (chaque borne attend la principale)"
+msgstr ""
+
+msgid "Réseau : %s"
+msgstr ""
+
+msgid ""
+"Les bornes se relient en anneau par le réseau (Wi-Fi ou câble) : chacune écoute sur son\n"
+"port et se connecte à la suivante ; à deux, chacune a l'autre pour suivante. Tous les\n"
+"ordinateurs peuvent prendre le même port, par exemple 15112, et Borne suivante =\n"
+"adresse de l'autre ordinateur:15112. En mode test (F2) > GAME SYSTEM, régler LINK ID\n"
+"(une MASTER, les autres SLAVE) et un CAR NUMBER différent sur chacune. Le jeu de 1994\n"
+"(révision A) permet le jeu en réseau."
+msgstr ""
+
+msgid "Maintenir le bouton Test"
+msgstr ""
+
+msgid "Ouvre le menu de test : réglages des pièces, type de partie ; sans touche F2."
+msgstr ""
+
+msgid "(ouvre le menu de test : réglages des pièces, type de partie ; sans touche F2)"
+msgstr ""
+
+msgid ""
+"Cochez, puis Démarrer ou Reprendre : une fois le jeu lancé, le bouton Test est maintenu\n"
+"3 secondes, ce qui ouvre le menu de test, puis la case se décoche toute seule.\n"
+"F2, ou tout bouton affecté à Test, fonctionne toujours."
+msgstr ""
+
+msgid "Réinitialiser"
+msgstr ""
+
+msgid "Démarrer"
+msgstr ""
+
+msgid "Commandes"
+msgstr ""
+
+msgid "Manette : %s"
+msgstr ""
+
+msgid "aucune connectée"
+msgstr ""
+
+msgid "Volants et joysticks : %s"
+msgstr ""
+
+msgid "aucun connecté"
+msgstr ""
+
+msgid "Direction"
+msgstr ""
+
+msgid "Accélérateur"
+msgstr ""
+
+msgid "Frein"
+msgstr ""
+
+msgid "Zone morte"
+msgstr ""
+
+msgid "Inverser la direction"
+msgstr ""
+
+msgid "Zone morte du volant (expérimental)"
+msgstr ""
+
+msgid "Sensibilité du volant"
+msgstr ""
+
+msgid ""
+"100 %% : linéaire. Plus bas : plus doux près du centre. Plus haut : plus vif.\n"
+"Seulement pour l'axe de direction d'un volant ou joystick ; le braquage complet est conservé."
+msgstr ""
+
+msgid "Sensibilité du stick (manette)"
+msgstr ""
+
+msgid "Vitesse de braquage (manette)"
+msgstr ""
+
+msgid "Immédiate"
+msgstr ""
+
+msgid ""
+"Stick de la manette seulement. Sensibilité : plus bas, plus doux près du centre (braquage complet gardé).\n"
+"Vitesse : à quelle vitesse le volant du jeu suit le stick, par image (100 %% : aussitôt)."
+msgstr ""
+
+msgid ""
+"Gâchettes, sticks, volants et pédales sont analogiques. Pour affecter un axe de volant ou de pédale,\n"
+"cliquez sur son bouton, puis tournez le volant ou appuyez sur la pédale aussi loin que vous voulez\n"
+"le braquage ou la course complète, et relâchez : cela fixe sa plage."
+msgstr ""
+
+msgid "Ancienne prise en charge des volants Logitech (redémarrer le jeu)"
+msgstr ""
+
+msgid ""
+"Volants Logitech par le pilote du système : nécessaire pour un volant listé mais qui ne fait\n"
+"rien quand on l'affecte (le Driving Force d'origine). Décoché : le pilote de SDL, qui donne\n"
+"le retour de force aux volants récents sous macOS. Après un changement, redémarrez et\n"
+"affectez de nouveau les commandes du volant."
+msgstr ""
+
+msgid "Retour de force (expérimental)"
+msgstr ""
+
+msgid "Coupé"
+msgstr ""
+
+msgid "Inverser la force"
+msgstr ""
+
+msgid "Journal du retour de force"
+msgstr ""
+
+msgid "Centrage calculé par le jeu"
+msgstr ""
+
+msgid ""
+"Pour un volant qui pousse aux chocs mais ne se recentre pas dans les virages : son pilote\n"
+"Linux n'a pas d'effet de ressort (la 1re ligne du journal dit \"spring no\").\n"
+"Le recentrage du jeu est alors calculé ici d'après la position du volant et\n"
+"envoyé comme une force constante. Laissez décoché si le volant se recentre déjà."
+msgstr ""
+
+msgid ""
+"Le moteur du volant de la borne (recentrage, résistance, volant qui tire), sur l'appareil\n"
+"affecté à la direction ; une manette vibre quand la voiture est poussée. Actuellement : %s.\n"
+"Volants et retour de force ne sont pas encore testés sur du vrai matériel : avis bienvenus.\n"
+"Le journal va dans daytona.log, à côté de launcher.ini sous Windows, sinon dans le terminal."
+msgstr ""
+
+msgid "Commande"
+msgstr ""
+
+msgid "Clavier"
+msgstr ""
+
+msgid "Manette"
+msgstr ""
+
+msgid "Volant / joystick (expérimental)"
+msgstr ""
+
+msgid "Appuyez sur une touche..."
+msgstr ""
+
+msgid "Appuyez ou bougez..."
+msgstr ""
+
+msgid "effacer"
+msgstr ""
+
+msgid "Aussi loin que voulu, puis relâchez..."
+msgstr ""
+
+msgid "Appuyez, ou bougez à fond et relâchez..."
+msgstr ""
+
+msgid "Échap annule une affectation ; Retour arrière efface une touche."
+msgstr ""
+
+msgid "Remettre les réglages par défaut"
+msgstr ""
+
+msgid "Son"
+msgstr ""
+
+msgid "Volume"
+msgstr ""
+
+msgid "Muet"
+msgstr ""
+
+msgid "Musique"
+msgstr ""
+
+msgid "Effets"
+msgstr ""
+
+msgid ""
+"L'équilibre entre la musique et tout le reste (moteur, dérapages, chocs).\n"
+"100 %% et 100 %% : le mélange de la carte son de la borne."
+msgstr ""
+
+msgid "Son natif (expérimental, réinitialiser)"
+msgstr ""
+
+msgid "Séquenceur et mixeur natifs ; le son de référence reste disponible pour comparer."
+msgstr ""
+
+msgid " sur un écran à %.2f Hz"
+msgstr ""
+
+msgid "vitesse de la borne, 57,52 images/s%s"
+msgstr ""
+
+msgid "à chaque rafraîchissement"
+msgstr ""
+
+msgid "tous les %d rafraîchissements"
+msgstr ""
+
+msgid ", vitesse %+.1f %%"
+msgstr ""
+
+msgid "calé, %.2f images/s, une image %s%s%s"
+msgstr ""
+
+msgid "VRR, 57,52 images/s, chacune tenue 17,38 ms%s"
+msgstr ""

@@ -290,7 +290,24 @@ int main() {
     // Compare mesh identities only, never the NaN values themselves.
     if (nan_case(false) || nan_case(true)) return 1;
 
+    // Per-frame geometry never repeats: meshes no instance has drawn for
+    // more than kKeepFrames are forgotten, while one drawn every frame stays.
+    {
+        rt::SceneCache bounded;
+        auto kept = triangle(1);
+        for (uint64_t f = 1; f <= 1500; ++f) {
+            auto once = triangle(2);
+            once.v[0].ox = float(f);
+            bounded.frame({kept, once}, f, nullptr);
+        }
+        CHECK(bounded.unique_meshes() <= 1 + 1200 + 60);
+        CHECK(bounded.instances().size() == 2);
+        const auto kept_mesh = bounded.instances()[0].mesh;
+        bounded.frame({kept}, 1501, nullptr);
+        CHECK(bounded.instances()[0].mesh == kept_mesh);
+    }
+
     CHECK(reordered_frame_sequence() == 0);
 
-    std::puts("scene cache: repeated, coincident, linked, reordered, clipped, RAM, empty, zero and NaN cases passed");
+    std::puts("scene cache: repeated, coincident, linked, reordered, clipped, RAM, empty, zero, NaN and bounded cases passed");
 }

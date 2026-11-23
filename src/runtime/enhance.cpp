@@ -65,6 +65,16 @@ static bool near_model() {
     return on;
 }
 
+// M2_CAR_NEAR_MAX=K (experiment): only the K nearest listed cars get the near
+// model; the others keep their own. 0 = no limit.
+static int near_max() {
+    static const int k = [] {
+        const char *v = std::getenv("M2_CAR_NEAR_MAX");
+        return v ? std::atoi(v) : 0;
+    }();
+    return k;
+}
+
 void hook_car_list_lod(Cpu &c) {
     // 0x96b8: stob r9,0xd0(r6); r9 = the car's level of detail (0: not drawn).
     static std::FILE *lod_trace = [] {
@@ -81,6 +91,16 @@ void hook_car_list_lod(Cpu &c) {
 
 void hook_car_lod_counts(Cpu &c) {
     if (!near_model()) return;
+    if (near_max() > 0) {
+        // every listed car is stored at level 4 and takes the models in
+        // distance order (0x82dc), falling to the next level once a model's
+        // quota runs out: the K nearest get the near model, the others the mid
+        const uint32_t all = c.m_r[12] + c.m_r[13] + c.m_r[14] + c.m_r[15];
+        c.m_r[15] = std::min(all, uint32_t(near_max()));
+        c.m_r[14] = all - c.m_r[15];
+        c.m_r[12] = c.m_r[13] = 0;
+        return;
+    }
     c.m_r[15] += c.m_r[12] + c.m_r[13] + c.m_r[14]; // 0x96fc: r12..r15 = cars per level 1..4
     c.m_r[12] = c.m_r[13] = c.m_r[14] = 0;
 }

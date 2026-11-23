@@ -372,4 +372,21 @@ inline Pose mobile_pose(const Pose& d, const Pose& m_prev, const Pose& m_next, d
     return compose(rigid_power(d, alpha - 1), interp(compose(d, m_prev), m_next, alpha));
 }
 
+// The same, with the translation on a cubic Hermite curve between the two
+// poses (in m_next's frame): ta and tb are its velocities, per interval, at
+// the start and the end. With ta = tb = the step it is mobile_pose exactly.
+// Given the neighbouring snapshots, a pair's velocity at the shared tick
+// matches the next pair's, so a car no longer changes speed at each tick.
+inline Pose mobile_pose_hermite(const Pose& d, const Pose& m_prev, const Pose& m_next, double alpha,
+                                const std::array<double, 3>& ta, const std::array<double, 3>& tb) {
+    const Pose start = compose(d, m_prev);
+    Pose own = interp(start, m_next, alpha);
+    const double t = alpha, t2 = t * t, t3 = t2 * t;
+    const double h00 = 2 * t3 - 3 * t2 + 1, h10 = t3 - 2 * t2 + t, h01 = -2 * t3 + 3 * t2, h11 = t3 - t2;
+    for (int i = 0; i < 3; ++i)
+        own[9 + i] = alpha > 1 ? m_next[9 + i] + (alpha - 1) * tb[i] // past the end: along the last velocity
+                               : h00 * start[9 + i] + h10 * ta[i] + h01 * m_next[9 + i] + h11 * tb[i];
+    return compose(rigid_power(d, alpha - 1), own);
+}
+
 } // namespace rt

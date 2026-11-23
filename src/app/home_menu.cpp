@@ -1,4 +1,5 @@
 #include "app/home_menu.h"
+#include "app/i18n.h"
 
 #include "imgui.h"
 #include <SDL3/SDL_stdinc.h>
@@ -15,6 +16,7 @@ using Course = rt::RaceCourse;
 void HomeMenu::init() {
     auto *atlas = ImGui::GetIO().Fonts;
     auto *fallback = atlas->AddFontDefaultVector();
+    i18n::add_fonts(); // Chinese, Japanese, Arabic glyphs merged into it (the launcher's font)
     display_ = body_ = fallback;
 #ifdef _WIN32
     if (const char *windows = SDL_GetEnvironmentVariable(SDL_GetEnvironment(), "WINDIR")) {
@@ -23,7 +25,10 @@ void HomeMenu::init() {
         if (std::ifstream(headline, std::ios::binary))
             if (auto *font = atlas->AddFontFromFileTTF(headline.c_str())) display_ = font;
         if (std::ifstream(body, std::ios::binary))
-            if (auto *font = atlas->AddFontFromFileTTF(body.c_str())) body_ = font;
+            if (auto *font = atlas->AddFontFromFileTTF(body.c_str())) {
+                body_ = font;
+                i18n::add_fonts(); // and into the menu's text
+            }
     }
 #endif
 }
@@ -67,10 +72,10 @@ HomeMenu::Action HomeMenu::draw(bool has_race, bool loading, const char *message
         return clicked;
     };
     draw->AddRectFilled(px(left,top), px(left+31*scale,top+3*scale), mint);
-    text(body_, 15, left+43*scale, top-7*scale, ice, "M O D E L   2    /    É D I T I O N   P C");
+    text(body_, 15, left+43*scale, top-7*scale, ice, TX("M O D E L   2    /    É D I T I O N   P C"));
     text(display_, 94, left-4*scale, top+24*scale, cream, "DAYTONA");
     text(body_, 26, left, top+123*scale, mint, "A R C A D E   N A T I V E");
-    text(body_, 18, left, top+184*scale, cream, loading ? "Préparation de la course..." : "Course solo");
+    text(body_, 18, left, top+184*scale, cream, loading ? TX("Préparation de la course...") : TX("Course solo"));
     const char *tracks[] = {"Three Seven Speedway", "Dinosaur Canyon", "Seaside Street Galaxy"};
     const unsigned course = unsigned(course_);
     text(display_, 24, left, top+211*scale, ice, tracks[course]);
@@ -86,35 +91,35 @@ HomeMenu::Action HomeMenu::draw(bool has_race, bool loading, const char *message
         const float progress = phase * (panel_width - 68 * scale);
         draw->AddRectFilled(px(left+progress,row), px(left+progress+68*scale,row+4*scale), mint);
         if (focus_primary) ImGui::SetKeyboardFocusHere();
-        if (button("Retour",left,row+24*scale,panel_width,46*scale,false)) action = Cancel;
+        if (button(TX("Retour"),left,row+24*scale,panel_width,46*scale,false)) action = Cancel;
         ImGui::SetItemDefaultFocus();
     } else {
         text(body_, 15, left, top+247*scale, subdued,
-             has_race ? "Mode de la prochaine course" : "Mode de jeu");
-        if (button("Course normale",left,top+270*scale,174*scale,38*scale,
+             has_race ? TX("Mode de la prochaine course") : TX("Mode de jeu"));
+        if (button(TX("Course normale"),left,top+270*scale,174*scale,38*scale,
                    mode_==rt::RaceMode::Normal,16.f))
             mode_ = rt::RaceMode::Normal;
-        if (button("Time Attack",left+189*scale,top+270*scale,174*scale,38*scale,
+        if (button(TX("Time Attack"),left+189*scale,top+270*scale,174*scale,38*scale,
                    mode_==rt::RaceMode::TimeAttack,16.f))
             mode_ = rt::RaceMode::TimeAttack;
         text(body_, 15, left, top+319*scale, subdued,
-             has_race ? "Boîte de la prochaine course" : "Boîte de vitesses");
-        if (button("Automatique",left,top+343*scale,174*scale,42*scale,
+             has_race ? TX("Boîte de la prochaine course") : TX("Boîte de vitesses"));
+        if (button(TX("Automatique"),left,top+343*scale,174*scale,42*scale,
                    transmission_==rt::RaceTransmission::Automatic,16.f))
             transmission_ = rt::RaceTransmission::Automatic;
-        if (button("Manuelle",left+189*scale,top+343*scale,174*scale,42*scale,
+        if (button(TX("Manuelle"),left+189*scale,top+343*scale,174*scale,42*scale,
                    transmission_==rt::RaceTransmission::Manual,16.f))
             transmission_ = rt::RaceTransmission::Manual;
         if (focus_primary) ImGui::SetKeyboardFocusHere();
-        if (button(has_race ? "Reprendre" : "Jouer",left,row,panel_width,63*scale,true))
+        if (button(has_race ? TX("Reprendre") : TX("Jouer"),left,row,panel_width,63*scale,true))
             action = has_race ? Resume : Play;
         ImGui::SetItemDefaultFocus();
         if (button("01",left,row+76*scale,111*scale,42*scale,course==0)) course_ = Course::Beginner;
         if (button("02",left+126*scale,row+76*scale,111*scale,42*scale,course==1)) course_ = Course::Advanced;
         if (button("03",left+252*scale,row+76*scale,111*scale,42*scale,course==2)) course_ = Course::Expert;
-        if (button("Réglages",left,row+131*scale,174*scale,47*scale,false)) action = Settings;
-        if (button("Quitter",left+189*scale,row+131*scale,174*scale,47*scale,false)) action = Quit;
-        if (has_race && button("Nouvelle course",left,row+190*scale,panel_width,42*scale,false)) action = Play;
+        if (button(TX("Réglages"),left,row+131*scale,174*scale,47*scale,false)) action = Settings;
+        if (button(TX("Quitter"),left+189*scale,row+131*scale,174*scale,47*scale,false)) action = Quit;
+        if (has_race && button(TX("Nouvelle course"),left,row+190*scale,panel_width,42*scale,false)) action = Play;
     }
     if (message && *message) {
         at(left, row + (loading ? 85.f : 243.f)*scale);
@@ -126,10 +131,10 @@ HomeMenu::Action HomeMenu::draw(bool has_race, bool loading, const char *message
     }
     const float bottom = h - 51 * scale;
     draw->AddLine(px(left,bottom), px(w-left,bottom), color({0.72f,0.85f,0.91f,0.38f}), scale);
-    text(body_, 13, left, bottom+12*scale, subdued, "SOLO   /   JEU LIBRE");
+    text(body_, 13, left, bottom+12*scale, subdued, TX("SOLO   /   JEU LIBRE"));
     char display[80];
     const auto ratio = ImGui::GetIO().DisplayFramebufferScale;
-    std::snprintf(display, sizeof display, "SDR   /   %d × %d", int(w*ratio.x), int(h*ratio.y));
+    std::snprintf(display, sizeof display, TX("SDR   /   %d × %d"), int(w*ratio.x), int(h*ratio.y));
     text(body_, 13, w-left-150*scale, bottom+12*scale, cream, display);
     ImGui::End();
     ImGui::PopStyleVar(3);

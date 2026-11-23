@@ -22,6 +22,7 @@
 
 #include <SDL3/SDL.h>
 
+#include <array>
 #include <string>
 #include <vector>
 
@@ -46,7 +47,57 @@ public:
                 const rt::Video &video, int scale = 1, int pixel_w = 0, int pixel_h = 0,
                 bool sharp_textures = false, const std::vector<rt::GeoPoly> *pose_polys = nullptr);
 
+    // Ray tracing (app/gpu/dxr_scene.h): when set, each render fills `out`
+    // with the drawn polygons as camera-space triangles (9 floats each: x, y
+    // already times the focal length, z), in the fan order the GPU draws.
+    void collect_triangles(std::vector<float> *out) { triangles_ = out; }
+    // Polygons that only cast shadows (rt::Geo::shadow_casters: behind the
+    // camera, never drawn), added to the triangles of the next render.
+    void set_shadow_casters(const std::vector<rt::GeoPoly> *casters) { casters_ = casters; }
+
+    // Ray-traced sun shadows (app/gpu/dxr.hlsl). Once enabled, each render
+    // also writes the view z of the polygon that won each pixel (0 where a
+    // front layer covers the 3D) into a texture of the target's size; the
+    // DXR pass turns it into a light texture, and apply_shadow multiplies
+    // the target by it. Never enabled, nothing of this exists or runs.
+    bool enable_shadows();
+    struct ShadowFrame {
+        void *view_z = nullptr, *light = nullptr; // ID3D12Resource of each
+        int width = 0, height = 0;                // the target, in pixels
+        float to_screen[2] = {1, 1};              // screen units per pixel
+        float origin[2] = {0, 0};                 // screen position of the camera axis
+        float focus[2] = {1, 1};                  // the polygons' focal lengths
+        const std::vector<float> *cutout_xyz = nullptr;        // cut-out triangles (9 floats each)
+        const std::vector<uint32_t> *cutout_records = nullptr; // their texture: info.x, info.y, u0 v0 u1 v1 u2 v2
+        const void *tex0 = nullptr, *tex1 = nullptr;          // texture RAM sheets (0x80000 words each)
+        uint64_t tex_generation = 0;
+    };
+    // The last render's, or nullptr when it drew no shadow inputs.
+    const ShadowFrame *shadow_frame() const { return shadow_ready_ ? &shadow_frame_ : nullptr; }
+    // diagnostic: the frame's cameras (origin x y, focus x y, window: polygons)
+    const std::vector<std::pair<std::array<float, 5>, uint32_t>> &shadow_cameras() const { return cameras_; }
+    uint32_t shadow_main_camera() const { return main_camera_; }
+    bool apply_shadow(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *target);
+
 private:
+    std::vector<float> *triangles_ = nullptr;
+    const std::vector<rt::GeoPoly> *casters_ = nullptr;
+    bool shadows_ = false, shadow_ready_ = false;
+    SDL_GPUTextureFormat frame_format_ = SDL_GPU_TEXTUREFORMAT_INVALID;
+    SDL_GPUGraphicsPipeline *z_pipe_ = nullptr, *z_front_pipe_ = nullptr, *z_quad_pipe_ = nullptr,
+                            *shade_pipe_ = nullptr;
+    SDL_GPUTexture *view_z_ = nullptr, *light_ = nullptr;
+    ShadowFrame shadow_frame_;
+    int frame_w_ = 0, frame_h_ = 0;
+    std::vector<std::pair<std::array<float, 5>, uint32_t>> cameras_; // origin x, y, focus x, y, window: polygons
+    struct ShadowPoly { uint32_t first, count, batch, camera, tri_first, tri_count; bool cutout; }; // per drawn polygon
+    struct ZDraw { uint32_t first, count, batch; };                                    // view z pass runs
+    std::vector<ShadowPoly> shadow_polys_;
+    std::vector<float> cutout_xyz_;        // cut-out triangles, 9 floats each
+    std::vector<uint32_t> cutout_records_; // 8 words each: texture info.x, info.y, then u, v of each corner
+    std::vector<ZDraw> z_draws_;
+    uint32_t main_camera_ = ~0u;
+    bool ensure_shadow_targets(int pixel_w, int pixel_h);
     struct PolyVertex {
         float x, y, depth;
         float ooz, uoz, voz; // render_one's p[0..2]: 1/z, u/z, v/z

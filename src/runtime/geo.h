@@ -323,11 +323,34 @@ public:
 
     static uint16_t z_sort_value(float depth, int32_t z_adjust);
     int windows() const { return raster_.cur_window; } // after parse: the last window used
+    // The light vector (command 0A), camera space: faces are lit by
+    // dot(normal, light). Read by the ray-traced shadows (app/gpu/dxr_scene.h).
+    std::array<float, 3> light() const { return {geo_.light.x, geo_.light.y, geo_.light.p[0]}; }
+    // The Revision A HUD groups drawn as tiny objects just in front of the eye
+    // (minimap, rev needle...): the addresses is_camera_space_overlay checks
+    // (geo.cpp). Not part of the world: they cast and receive no shadow.
+    static bool hud_overlay_address(uint32_t address) {
+        switch (address & 0x1ffffffu) {
+        case 0x8d5da4u: case 0x8d5efau: case 0x8d5f4bu: case 0x8d5f9cu: case 0x8d60cdu:
+        case 0x8d61bfu: case 0x8d65eeu: case 0x8d6a0fu: case 0x94dd59u: return true;
+        default: return false;
+        }
+    }
     void zclip_w(uint32_t data) { raster_.master_z_clip = uint8_t(data); } // model2_3d_zclip_w
     // Widescreen (enhancement, 0 = off): a full-width viewport's left and right
     // clip planes move out by this many pixels, so polygons beyond the 4:3
     // edges survive for the wider screen. Applies from the next window command.
     void set_wide_margin(int pixels) { wide_margin_ = pixels; }
+    // Ray-traced shadows: full-screen viewports keep this many more pixels
+    // above their top edge and beside their sides (0 = off, the game's own clipping).
+    void set_top_margin(int pixels) { top_margin_ = pixels; }
+    // Ray-traced shadows (on with the top margin): the polygons wholly behind
+    // the camera, never drawn, only cast (the sun behind, a tree just passed
+    // still shades the road ahead: 23/11). The game's frame's, or the
+    // last presented (interpolated) scene's.
+    const std::vector<GeoPoly> &shadow_casters(bool presented) const {
+        return presented ? presented_casters_ : shadow_casters_;
+    }
 
 private:
     struct ReferencePrimitive {
@@ -353,10 +376,31 @@ private:
     };
     std::vector<SceneObject> current_scene_, previous_scene_;
     std::vector<GeoPoly> presented_polys_;
+    std::vector<GeoPoly> shadow_casters_, presented_casters_; // shadow_casters()
+    std::vector<GeoPoly> *replay_casters_ = nullptr;          // filled by replay_instance_reference
     std::vector<std::array<float, 12>> sampled_matrices_;
     std::vector<uint8_t> pose_branch_; // present_pose_scene: how each object's pose was chosen
     std::optional<SnapshotStamp> previous_stamp_, current_stamp_;
     std::optional<BackgroundMotion> background_motion_;
+    // The pair of ticks before the current one (n-2, n-1), kept whole so a
+    // presentation sampled before tick n-1 is interpolated there instead of
+    // being held at alpha 0: the third snapshot.
+    struct PosePair {
+        std::vector<SceneObject> previous_scene, current_scene;
+        std::vector<ReferencePrimitive> primitives;
+        SnapshotStamp previous_stamp, current_stamp;
+        BackgroundMotion motion;
+        // The tick before previous_stamp and the motion from it to
+        // previous_stamp: the speed at this pair's first tick (Hermite steps).
+        std::vector<SceneObject> before_scene;
+        std::array<double, 12> before_motion{};
+        bool before_valid = false;
+    };
+    std::optional<PosePair> older_pair_;
+    bool presenting_older_ = false; // M2_POSE_TRACE writes its alpha minus 1
+    void swap_pose_pair(PosePair &pair);
+    void rotate_pose_frame(); // a new tick: the current pair becomes the older one
+    const std::vector<GeoPoly> *present_pose_pair(uint64_t now_ns, uint64_t delay_ns);
     bool pose_presentation_ = false;
 
     bool instance_reference_ = false;
@@ -379,6 +423,7 @@ private:
     CameraLineage *camera_lineage_ = nullptr;
     const BufferWriteProvenance *camera_write_provenance_ = nullptr;
     int wide_margin_ = 0;
+    int top_margin_ = 0;
     std::vector<uint32_t> polygon_rom_;
     std::vector<uint16_t> texture_rom_;
     uint32_t *buffer_;

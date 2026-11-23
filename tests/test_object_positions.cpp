@@ -116,6 +116,49 @@ bool check_pose_presentation(rt::Geo &geo) {
     return geo.present_pose_scene(250, 100) == nullptr;
 }
 
+// The third snapshot: a presentation sampled before tick n-1 is interpolated
+// between n-2 and n-1 (the older pair) instead of being held at tick n-1.
+bool check_third_snapshot(rt::Geo &geo) {
+    rt::MobileIdentity identity;
+    geo.set_mobile_identity(&identity);
+    geo.enable_pose_presentation();
+    const rt::BackgroundTransform base{1,0,0, 0,1,0, 0,0,1, 0,0,10};
+    auto scene = [&](double car_x) {
+        std::vector<rt::Geo::SceneObject> objects;
+        for (unsigned i = 0; i < 3; ++i) {
+            rt::Geo::SceneObject scenery{{{0x800001u+i, 3, 0}, base}, {}};
+            scenery.geometry.model_view[9] = i;
+            objects.push_back(scenery);
+        }
+        rt::Geo::SceneObject car{{{0x800008, 1, 0}, base}, {0x93dc, 0x506680, 0}};
+        car.geometry.model_view[9] = car_x;
+        objects.push_back(car);
+        return objects;
+    };
+    // Ticks 8, 9, 10 at 0, 100 and 200 ns: the car at x = -2, 0, 2.
+    geo.previous_scene_ = scene(-2);
+    geo.current_scene_ = scene(0);
+    geo.reference_primitives_.clear();
+    geo.previous_stamp_ = rt::SnapshotStamp{8, 0, false, 7};
+    geo.set_tick(9);
+    geo.stamp_pose_scene(rt::SnapshotStamp{9, 100, false, 7});
+    if (!geo.background_motion_) return false;
+    geo.rotate_pose_frame();
+    geo.current_scene_ = scene(2);
+    geo.set_tick(10);
+    geo.stamp_pose_scene(rt::SnapshotStamp{10, 200, false, 7});
+    if (!geo.older_pair_ || !geo.background_motion_) return false;
+    // Sampled at 50 ns: halfway from tick 8 to tick 9.
+    if (!geo.present_pose_scene(150, 100) || geo.sampled_matrices_.size() != 4) return false;
+    const float older = geo.sampled_matrices_[3][9];
+    if (!(older > -1.01f && older < -0.99f)) return false;
+    // The current pair is back in place afterwards: 150 ns is x = 1.
+    if (geo.current_stamp_->tick != 10 || geo.current_scene_[3].geometry.model_view[9] != 2) return false;
+    if (!geo.present_pose_scene(250, 100)) return false;
+    const float current = geo.sampled_matrices_[3][9];
+    return current > 0.99f && current < 1.01f;
+}
+
 // Opponent wheels follow the sampled chassis with their native offset, also
 // when two wheel emissions share one key (review of #81, point 1).
 bool check_wheel_carry(rt::Geo &geo) {
@@ -365,6 +408,13 @@ int main() {
     if (!check_pose_presentation(geo)) {
         std::fprintf(stderr, "scene pose blending or discontinuity guard failed\n");
         return 1;
+    }
+    {
+        auto third = std::make_unique<rt::Geo>(polygons, textures, buffer.data());
+        if (!check_third_snapshot(*third)) {
+            std::fprintf(stderr, "a presentation before tick n-1 was not interpolated from n-2\n");
+            return 1;
+        }
     }
     if (!check_wheel_carry(geo)) {
         std::fprintf(stderr, "opponent wheels did not follow the sampled chassis\n");

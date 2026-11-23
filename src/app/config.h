@@ -35,13 +35,19 @@ struct Config {
     float effects_volume = 1.0f; // 0..1
     bool native_audio = false; // applies on reset; reference remains the default
     // Enhancements (off by default).
-    std::string aspect;        // widescreen: "" (original), "16:10", "16:9", "21:9"
+    std::string language;      // interface (app/i18n.h): "fr", "en", ...; "" the system's (first run)
+    std::string aspect;        // "4:3" (the cabinet's, in every mode), "" (automatic: the window's shape in the
+                               // native mode, else the original), "16:10", "16:9", "21:9"
+    bool arcade_43() const { return aspect == "4:3"; }
     bool hud_edges = false;    // with widescreen: lap times, position and maps at the screen edges
     bool stretch_backdrop = false; // with widescreen, in-game: the tile backdrop stretched across the width, else plain sky
     int draw_distance = 0;     // scenery: 0 = the game's own, -2..+2 (rt::Enhance)
     bool scenery_3d = false;   // fir trees in volume, filled stands, Dinosaur Canyon piers (next start)
     bool interpolate = false;  // pose smoothing between game frames, as --interpolate-poses (next start)
     bool cars_near_model = false; // every opponent drawn with its near model (next start)
+    bool sun_shadows = false;  // ray-traced sun shadows (Direct3D 12, ray tracing tier 1.1; next start)
+    bool sky_light = false;    // with the shadows: the sky's light, hidden under and between things (next start)
+    int sun_height = 0;        // the shadows' sun above the horizon, degrees (10..80); 0 = the game's own
     // Display curve (Direct3D 12): 0 = the PC sRGB curve (the reference);
     // 2.2..2.6 = the game's levels shown as on an arcade CRT. Restart required.
     float display_gamma = 0.0f;

@@ -1,4 +1,5 @@
 #include "app/ffb.h"
+#include "app/i18n_mark.h"
 
 #include <algorithm>
 #include <cinttypes>
@@ -31,10 +32,10 @@ constexpr uint64_t kRetryMs = 3000; // between tries to open a wheel's haptics
 } // namespace
 
 const char *ForceFeedback::device_kind() const {
-    if (haptic_) return "volant (retour de force)";
-    if (wants_haptic_) return "volant (retour de force non ouvert ; nouvel essai)";
-    if (joy_) return "manette (vibrations)";
-    return "aucun";
+    if (haptic_) return TXR("volant (retour de force)");
+    if (wants_haptic_) return TXR("volant (retour de force non ouvert ; nouvel essai)");
+    if (joy_) return TXR("manette (vibrations)");
+    return TXR("aucun");
 }
 
 void ForceFeedback::open(SDL_Joystick *joy) {

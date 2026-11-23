@@ -125,6 +125,7 @@ public:
         else geo_->discard_pose_history();
     }
     void discard_pose_history() { geo_->discard_pose_history(); }
+    std::array<float, 3> light() const { return geo_->light(); } // Geo::light
     const std::vector<GeoPoly> *present_pose_scene(uint64_t now_ns, uint64_t delay_ns) {
         return geo_->present_pose_scene(now_ns, delay_ns);
     }
@@ -132,6 +133,8 @@ public:
     Video &video() { return *video_; }
     // Widescreen (enhancement): pixels added to each side; 0 = the original screen.
     void set_wide_margin(int pixels);
+    void set_top_margin(int pixels) { geo_->set_top_margin(pixels); } // Geo::set_top_margin
+    const std::vector<GeoPoly> &shadow_casters(bool presented) const { return geo_->shadow_casters(presented); }
     // Draw mode (enhancement): draw the screen every (1 + skip)th frame; the
     // frames between keep the last picture. 0 = every frame, as the game does
     // (double buffered, a new 3D picture each frame); 1 = every 2nd; 2 = every

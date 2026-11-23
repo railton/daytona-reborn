@@ -481,6 +481,14 @@ inline bool Geo::check_culling(raster_state *raster, uint32_t attr, float min_z,
 	return false;
 }
 
+// Shadow casters behind the camera: how far back (camera units), and the
+// switch (M2_DXR_BEHIND=0 drops them). 700 such polygons a tick on Beginner.
+static constexpr float kCasterReach = 60.0f; // a high sun: shadows a third of a caster's height long
+static bool behind_casters_on() {
+	static const bool on = [] { const char *v = std::getenv("M2_DXR_BEHIND"); return !(v && v[0] == '0'); }();
+	return on;
+}
+
 template <unsigned NumVerts>
 void Geo::capture_rom_primitive(const raster_state &raster, GeoPtr16 tp, GeoPtr16 th)
 {
@@ -1044,6 +1052,38 @@ void Geo::model2_3d_process_polygon(raster_state *raster, uint32_t attr)
 	/* determine whether we can cull this polygon */
 	cull = check_culling(raster,attr,min_z,max_z);
 
+	// Ray-traced shadows: wholly behind the camera, it is still kept apart
+	// as a shadow caster (Geo::shadow_casters), whichever way it faces.
+	if (cull && top_margin_ && max_z < 0 && min_z > -kCasterReach && ((attr >> 8) & 3) != 0 && behind_casters_on())
+	{
+		GeoPoly &caster = shadow_casters_.emplace_back();
+#ifdef M2_FAST_GEO
+		{
+			GeoPtr16 tc = tp, hc = th;
+			uint16_t uv[NumVerts * 2];
+			tc.read(uv, NumVerts * 2);
+			for (uint32_t k = 0; k < NumVerts; k++)
+			{
+				object.v[k].pv = uv[2 * k];
+				object.v[k].pu = uv[2 * k + 1];
+			}
+			hc.read(object.texheader, 4);
+		}
+#endif
+		for (int k = 0; k < 4; k++) caster.texheader[k] = object.texheader[k];
+		caster.luma = object.luma;
+		for (int k = 0; k < 4; k++) caster.viewport[k] = raster->viewport[k];
+		caster.center[0] = raster->center[raster->center_sel][0];
+		caster.center[1] = raster->center[raster->center_sel][1];
+		caster.window = raster->cur_window;
+		caster.object_oba = cur_oba;
+		caster.mobile_key = current_mobile_key_;
+		caster.object_focus_x = cur_focus_x;
+		caster.object_focus_y = cur_focus_y;
+		caster.num_vertices = NumVerts;
+		for (unsigned k = 0; k < NumVerts; k++) caster.v[k] = object.v[k];
+	}
+
 	/* set the object's z value */
 	switch ((attr >> 10) & 3)
 	{
@@ -1311,6 +1351,20 @@ void Geo::bind_ram_emissions() {
 			if (std::abs(a[j] - b[j]) > 1e-4f) return false;
 		return true;
 	};
+	// The ROM primitives of one emission follow each other with the same
+	// command, part, window and matrix: compare against one of each run. With
+	// every opponent at the near model (40-car start) the full list made this
+	// pass quadratic: frames of 30 to 90 ms (22/11).
+	std::vector<const ReferencePrimitive *> roms;
+	for (const auto &rom : reference_primitives_) {
+		if (!rom.rom || !rom.command) continue;
+		if (!roms.empty()) {
+			const auto &last = *roms.back();
+			if (last.command == rom.command && last.mobile_key.part == rom.mobile_key.part &&
+			    last.window == rom.window && last.matrix == rom.matrix) continue;
+		}
+		roms.push_back(&rom);
+	}
 	unsigned ram = 0, bound = 0;
 	for (auto &p : reference_primitives_) {
 		if (p.rom || !p.command) continue;
@@ -1318,15 +1372,23 @@ void Geo::bind_ram_emissions() {
 		if (p.reflection_pose_command) { ++bound; continue; }
 		// A car's body and its other parts are emitted with one matrix: the
 		// body's command wins; otherwise the match must be unique.
-		uint32_t command = 0, body = 0;
-		bool unique = true;
-		for (const auto &rom : reference_primitives_) {
-			if (!rom.rom || !rom.command || rom.window != p.window || !same_matrix(rom.matrix, p.matrix)) continue;
+		uint32_t command = 0, body = 0, first = 0;
+		bool unique = true, all_unkeyed = true;
+		for (const auto *rom_entry : roms) {
+			const auto &rom = *rom_entry;
+			if (rom.window != p.window || !same_matrix(rom.matrix, p.matrix)) continue;
 			if (is_opponent_body_part(rom.mobile_key.part)) body = body && body != rom.command ? ~0u : rom.command;
+			if (rom.mobile_key.part) all_unkeyed = false;
 			if (command && command != rom.command) unique = false;
+			if (!first) first = rom.command;
 			command = rom.command;
 		}
 		if (body && body != ~0u) command = body, unique = true;
+		// A far car is not keyed: its body is several unkeyed ROM commands with
+		// one matrix, all drawn with the same scenery pose. Its reflection (oba
+		// 0x91) follows the first; left on its own it was drawn at the latest
+		// tick, 28 per tick over a 5-lap run: a windshield coming off (22/11).
+		else if (!unique && all_unkeyed) command = first, unique = true;
 		if (command && unique) {
 			p.reflection_pose_command = command;
 			++bound;
@@ -1458,6 +1520,21 @@ void Geo::replay_instance_reference(std::vector<GeoPoly> &output, bool recalcula
 			}
 			back_facing = !(dot_product(normal, camera_space[2]) >= 0);
 		}
+		if (replay_casters_ && max_z < 0 && min_z > -kCasterReach && ((entry.attributes >> 8) & 3) != 0) {
+			GeoPoly &caster = replay_casters_->emplace_back(); // Geo::shadow_casters, as in the game's frame
+			std::copy(entry.geometry.texture_header.begin(), entry.geometry.texture_header.end(), caster.texheader);
+			caster.luma = entry.luma;
+			std::copy_n(entry.viewport, 4, caster.viewport);
+			std::copy_n(entry.center, 2, caster.center);
+			caster.window = entry.window;
+			caster.object_oba = entry.oba;
+			caster.mobile_key = entry.mobile_key;
+			caster.object_focus_x = entry.focus_x;
+			caster.object_focus_y = entry.focus_y;
+			caster.num_vertices = uint8_t(count);
+			std::copy_n(verts, count, caster.v);
+			continue;
+		}
 		if (((entry.attributes & (1u << 17)) == 0 && back_facing) ||
 			((entry.attributes >> 8) & 3) == 0 ||
 			(entry.master_z_clip != 0xff && !far_clip_off() && int32_t(1.0 / min_z) > entry.master_z_clip) || max_z < 0)
@@ -1557,6 +1634,15 @@ bool is_camera_space_overlay(const BackgroundObject &object) {
 }
 
 auto mobile_key_tuple(const MobileKey &key) { return std::array{key.part, key.slot, key.generation}; }
+// Hermite steps for the keyed objects, and carrying on past a late tick
+// (M2_POSE_HERMITE=0: straight steps, held at the latest snapshot).
+bool pose_extrapolate() {
+	static const bool on = [] {
+		const char *v = std::getenv("M2_POSE_HERMITE");
+		return !(v && v[0] == '0');
+	}();
+	return on;
+}
 
 } // namespace
 
@@ -1596,10 +1682,85 @@ void Geo::discard_pose_history() {
 	previous_stamp_.reset();
 	current_stamp_.reset();
 	background_motion_.reset();
+	older_pair_.reset();
+}
+
+void Geo::rotate_pose_frame() {
+	// Reuse the buffers of the pair about to be dropped: rebuilt from empty
+	// every tick, the primitive list (tens of thousands of entries with every
+	// opponent at the near model) was regrown and copied, then freed, each
+	// tick (a fifth of the busy time in a profile, 22/11).
+	std::vector<ReferencePrimitive> spare_primitives;
+	std::vector<SceneObject> spare_previous, spare_current, before_scene;
+	std::array<double, 12> before_motion{};
+	std::optional<uint64_t> before_tick;
+	if (older_pair_) {
+		spare_primitives = std::move(older_pair_->primitives);
+		spare_previous = std::move(older_pair_->before_scene);
+		spare_current = std::move(older_pair_->current_scene);
+		// Its first tick is the one before the new older pair's: kept for
+		// the speed at that pair's first tick (Hermite steps).
+		before_scene = std::move(older_pair_->previous_scene);
+		before_motion = older_pair_->motion.transform;
+		if (older_pair_->current_stamp.session_id == (previous_stamp_ ? previous_stamp_->session_id : 0))
+			before_tick = older_pair_->previous_stamp.tick;
+	}
+	// Keep the finished pair (n-1, n) as the older one before it rotates.
+	if (background_motion_ && previous_stamp_ && current_stamp_) {
+		auto &older = older_pair_.emplace();
+		older.previous_scene = std::move(previous_scene_);
+		older.current_scene = std::move(spare_current);
+		older.current_scene.assign(current_scene_.begin(), current_scene_.end());
+		older.primitives = std::move(reference_primitives_);
+		older.previous_stamp = *previous_stamp_;
+		older.current_stamp = *current_stamp_;
+		older.motion = *background_motion_;
+		older.before_scene = std::move(before_scene);
+		older.before_motion = before_motion;
+		older.before_valid = before_tick && *before_tick + 1 == older.previous_stamp.tick;
+	} else {
+		older_pair_.reset();
+	}
+	if (spare_primitives.capacity() > reference_primitives_.capacity()) reference_primitives_.swap(spare_primitives);
+	reference_primitives_.clear();
+	previous_scene_.swap(current_scene_);
+	if (spare_previous.capacity() > current_scene_.capacity()) current_scene_.swap(spare_previous);
+	current_scene_.clear();
+	previous_stamp_ = current_stamp_;
+	current_stamp_.reset();
+	background_motion_.reset();
+}
+
+void Geo::swap_pose_pair(PosePair &pair) {
+	previous_scene_.swap(pair.previous_scene);
+	current_scene_.swap(pair.current_scene);
+	reference_primitives_.swap(pair.primitives);
+	std::swap(*previous_stamp_, pair.previous_stamp);
+	std::swap(*current_stamp_, pair.current_stamp);
+	std::swap(*background_motion_, pair.motion);
 }
 
 const std::vector<GeoPoly> *Geo::present_pose_scene(uint64_t now_ns, uint64_t delay_ns) {
 	if (!background_motion_ || !previous_stamp_ || !current_stamp_) return nullptr;
+	// Sampled before tick n-1: interpolate n-2 to n-1 (the older pair, which
+	// ends on this pair's first tick) rather than holding tick n-1. Held, the
+	// cars stood still on 11 to 30 % of the presentations, then jumped (22/11).
+	const uint64_t sample_ns = now_ns > delay_ns ? now_ns - delay_ns : 0;
+	if (older_pair_ && sample_ns < previous_stamp_->time_ns &&
+	    older_pair_->current_stamp.tick == previous_stamp_->tick &&
+	    older_pair_->current_stamp.session_id == previous_stamp_->session_id &&
+	    !current_stamp_->discontinuity_before) {
+		swap_pose_pair(*older_pair_);
+		presenting_older_ = true;
+		const auto *polys = present_pose_pair(now_ns, delay_ns);
+		presenting_older_ = false;
+		swap_pose_pair(*older_pair_);
+		return polys;
+	}
+	return present_pose_pair(now_ns, delay_ns);
+}
+
+const std::vector<GeoPoly> *Geo::present_pose_pair(uint64_t now_ns, uint64_t delay_ns) {
 	auto blend = sample_snapshots(*previous_stamp_, *current_stamp_, now_ns, delay_ns);
 	if (!blend.can_interpolate) return nullptr;
 	// Past the latest snapshot, draw it through this same replay (alpha 1 is
@@ -1608,6 +1769,17 @@ const std::vector<GeoPoly> *Geo::present_pose_scene(uint64_t now_ns, uint64_t de
 	// that other path, and alternating the two drew the cars differently from
 	// one refresh to the next.
 	blend.alpha = std::min(blend.alpha, 1.0);
+	// A tick late (0.3 to 0.6 % of the presentations at a 1.25 interval
+	// delay): held at the latest snapshot, the cars stopped for a refresh,
+	// then caught up, a slight vibration (23/11). With Hermite steps,
+	// carry on along the last step for up to a quarter interval instead.
+	if (blend.alpha >= 1.0 && pose_extrapolate()) {
+		const uint64_t sample_ns = now_ns > delay_ns ? now_ns - delay_ns : 0;
+		if (sample_ns > current_stamp_->time_ns && current_stamp_->time_ns > previous_stamp_->time_ns) {
+			const double span = double(current_stamp_->time_ns - previous_stamp_->time_ns);
+			blend.alpha = 1.0 + std::min(double(sample_ns - current_stamp_->time_ns) / span, 0.25);
+		}
+	}
 
 	using Key = std::array<uint32_t, 3>;
 	std::map<Key, const BackgroundObject *> previous_keys;
@@ -1644,6 +1816,78 @@ const std::vector<GeoPoly> *Geo::present_pose_scene(uint64_t now_ns, uint64_t de
 	};
 
 	const auto &d = background_motion_->transform;
+	// Hermite steps: each keyed object's velocity at a tick is its step into
+	// that tick, P(k) - P(k-1), fixed once the tick arrives. Two pairs
+	// meeting at a tick share it, so a car keeps its speed across ticks (with
+	// straight steps it changed speed at every tick: a shake seen at 120 Hz
+	// and not in a 60 frames/s recording, Grok Build's reading, 23/11), and
+	// a new tick does not change the curve already being drawn (a central
+	// difference did: a slight vibration, 23/11). The tick before this
+	// pair's first one: the older pair's first tick when drawing the current
+	// pair, the older pair's own before_scene when drawing the older pair.
+	// M2_POSE_HERMITE=0: straight steps.
+	const bool hermite = pose_extrapolate();
+	std::map<Key, Pose> neighbour_poses;
+	if (hermite && older_pair_) {
+		const bool drawing_older = presenting_older_; // older_pair_ then holds the current pair
+		const auto &scene = drawing_older ? older_pair_->before_scene : older_pair_->previous_scene;
+		const Pose to_here = drawing_older ? compose(d, older_pair_->before_motion)
+		                                   : compose(d, older_pair_->motion.transform);
+		const bool continuous = drawing_older ? older_pair_->before_valid
+		                                      : older_pair_->current_stamp.tick == previous_stamp_->tick;
+		if (continuous)
+			for (const auto &object : scene) {
+				if (!object.key.part || is_camera_space_overlay(object.geometry)) continue;
+				auto [it, added] = neighbour_poses.try_emplace(mobile_key_tuple(object.key),
+				                                               compose(to_here, object.geometry.model_view));
+				if (!added) it->second[0] = std::numeric_limits<double>::quiet_NaN(); // two: ambiguous
+			}
+	}
+	const auto moving_pose = [&](const Key &key, const Pose &m_prev, const Pose &latest) {
+		const Pose start = compose(d, m_prev);
+		std::array<double, 3> step, ta, tb;
+		for (int i = 0; i < 3; ++i) step[i] = latest[9 + i] - start[9 + i];
+		ta = tb = step;
+		const auto it = neighbour_poses.find(key);
+		if (it == neighbour_poses.end() || std::isnan(it->second[0])) return mobile_pose(d, m_prev, latest, blend.alpha);
+		const Pose &before = it->second;
+		// A previous step longer than 2 units is a jump: keep straight steps.
+		if (std::hypot(start[9] - before[9], start[10] - before[10], start[11] - before[11]) > 2.0)
+			return mobile_pose(d, m_prev, latest, blend.alpha);
+		for (int i = 0; i < 3; ++i) ta[i] = start[9 + i] - before[9 + i]; // the step into this pair's first tick
+		return mobile_pose_hermite(d, m_prev, latest, blend.alpha, ta, tb);
+	};
+	// The camera on the same Hermite steps. The scenery motion d moves it in
+	// straight steps from tick to tick; with the cars smoothed and not the
+	// camera, a car moving with the camera (alongside, ahead) jerked on the
+	// screen at each tick (Grok Build's review, 23/11). Its position, in this
+	// pair's latest frame: t_d at the first tick, 0 at the latest, entering
+	// with the previous step (the pair before's motion, carried into this
+	// frame) and leaving with this one. Every smoothed object moves by the
+	// difference from the straight path, seen from the camera's axes.
+	std::array<double, 3> camera_shift{};
+	if (hermite && older_pair_ && blend.alpha > 0.0 && blend.alpha < 1.0) {
+		const bool drawing_older = presenting_older_;
+		const bool continuous = drawing_older ? older_pair_->before_valid
+		                                      : older_pair_->current_stamp.tick == previous_stamp_->tick;
+		const auto &before_motion = drawing_older ? older_pair_->before_motion : older_pair_->motion.transform;
+		const std::array<double, 3> td = {d[9], d[10], d[11]};
+		std::array<double, 3> v0{}, v1{};
+		for (int r = 0; r < 3; ++r) {
+			v1[r] = -td[r];
+			v0[r] = -(d[r] * before_motion[9] + d[3 + r] * before_motion[10] + d[6 + r] * before_motion[11]);
+		}
+		if (continuous && std::hypot(v0[0], v0[1], v0[2]) <= 3.0 && std::hypot(v1[0], v1[1], v1[2]) <= 3.0) {
+			const double t = blend.alpha, t2 = t * t, t3 = t2 * t;
+			const double h10 = t3 - 2 * t2 + t, h11 = t3 - t2;
+			std::array<double, 3> delta; // Hermite minus straight (h00 + h01 = 1, h10 + h11 = t - straight's t)
+			for (int r = 0; r < 3; ++r) delta[r] = h10 * (v0[r] - v1[r]);
+			(void)h11;
+			const Pose turn = rigid_power(d, blend.alpha - 1);
+			for (int r = 0; r < 3; ++r)
+				camera_shift[r] = -(turn[r] * delta[0] + turn[3 + r] * delta[1] + turn[6 + r] * delta[2]);
+		}
+	}
 	sampled_matrices_.resize(current_scene_.size());
 	// How each object's pose was chosen (diagnostic M2_POSE_TRACE and the
 	// slot-part carry below): 0 latest (overlay, wheel, duplicate key),
@@ -1679,9 +1923,11 @@ const std::vector<GeoPoly> *Geo::present_pose_scene(uint64_t now_ns, uint64_t de
 			const Pose moved = compose(d, previous->second->model_view);
 			const double displacement = std::hypot(moved[9]-latest[9], moved[10]-latest[10], moved[11]-latest[11]);
 			// C6c puts ordinary self-motion below 1.44 units; the observed reset-like jump was 2.817.
-			pose = displacement <= 2.0 ? mobile_pose(d, previous->second->model_view, latest, blend.alpha) : latest;
+			pose = displacement <= 2.0 ? moving_pose(key, previous->second->model_view, latest) : latest;
 			pose_branch_[i] = displacement <= 2.0 ? 3 : 4;
 		}
+		if (pose_branch_[i] == 1 || pose_branch_[i] == 3)
+			for (int r = 0; r < 3; ++r) pose[9 + r] += camera_shift[r];
 		for (unsigned j = 0; j < pose.size(); ++j) sampled_matrices_[i][j] = float(pose[j]);
 	}
 	for (size_t i = 0; i < current_scene_.size(); ++i) {
@@ -1751,32 +1997,53 @@ const std::vector<GeoPoly> *Geo::present_pose_scene(uint64_t now_ns, uint64_t de
 		// with every mid body 0x8c00, at distance 0) belong to that car; as
 		// scenery they would stay behind while the body moves on: a doubled
 		// car. Carry them with that chassis.
+		// Each model's chassis sorted by x, with their order in current_parts:
+		// every unkeyed object used to look through all the parts of all the
+		// cars at each presentation (40 cars at the near model: millions of
+		// tests a pass, 22/11). Same choice: the first chassis in that order.
+		struct ChassisAt { double x; size_t order, index; };
+		std::array<std::vector<ChassisAt>, std::size(chassis_parts)> chassis_by_x;
+		{
+			size_t order = 0;
+			for (const auto &[key, info] : current_parts) {
+				++order;
+				if (info.count != 1) continue;
+				const auto cp = std::find(std::begin(chassis_parts), std::end(chassis_parts), key[0]);
+				if (cp == std::end(chassis_parts)) continue;
+				chassis_by_x[size_t(cp - std::begin(chassis_parts))].push_back(
+				    {current_scene_[info.index].geometry.model_view[9], order, info.index});
+			}
+			for (auto &list : chassis_by_x)
+				std::sort(list.begin(), list.end(), [](const ChassisAt &l, const ChassisAt &r) { return l.x < r.x; });
+		}
 		for (size_t i = 0; i < current_scene_.size(); ++i) {
 			const auto &object = current_scene_[i];
 			if (object.key.part || pose_branch_[i] == 3 || pose_branch_[i] == 5 ||
 			    is_camera_space_overlay(object.geometry))
 				continue;
 			const auto &mv = object.geometry.model_view;
-			for (const uint32_t cp : chassis_parts) {
-				bool carried_here = false;
-				for (const auto &[key, info] : current_parts) {
+			for (const auto &list : chassis_by_x) {
+				const ChassisAt *found = nullptr;
+				for (auto it = std::lower_bound(list.begin(), list.end(), mv[9] - 1e-4,
+				                                [](const ChassisAt &c, double x) { return c.x < x; });
+				     it != list.end() && it->x <= mv[9] + 1e-4; ++it) {
 					// Any chassis pose: after a jump (crash shake) the chassis is
 					// drawn at its latest pose and the stuck-on objects must be too.
-					if (key[0] != cp || info.count != 1) continue;
-					const auto &native_chassis = current_scene_[info.index].geometry.model_view;
+					const auto &native_chassis = current_scene_[it->index].geometry.model_view;
 					if (std::abs(native_chassis[9] - mv[9]) > 1e-4 || std::abs(native_chassis[10] - mv[10]) > 1e-4 ||
 					    std::abs(native_chassis[11] - mv[11]) > 1e-4 || !rigid_background_delta(native_chassis))
 						continue;
-					Pose sampled_chassis;
-					std::copy(sampled_matrices_[info.index].begin(), sampled_matrices_[info.index].end(),
-					          sampled_chassis.begin());
-					const auto carried = compose(sampled_chassis, compose(inverse(native_chassis), mv));
-					for (size_t j = 0; j < carried.size(); ++j) sampled_matrices_[i][j] = float(carried[j]);
-					pose_branch_[i] = 5;
-					carried_here = true;
-					break;
+					if (!found || it->order < found->order) found = &*it;
 				}
-				if (carried_here) break;
+				if (!found) continue;
+				const auto &native_chassis = current_scene_[found->index].geometry.model_view;
+				Pose sampled_chassis;
+				std::copy(sampled_matrices_[found->index].begin(), sampled_matrices_[found->index].end(),
+				          sampled_chassis.begin());
+				const auto carried = compose(sampled_chassis, compose(inverse(native_chassis), mv));
+				for (size_t j = 0; j < carried.size(); ++j) sampled_matrices_[i][j] = float(carried[j]);
+				pose_branch_[i] = 5;
+				break;
 			}
 		}
 	}
@@ -1786,20 +2053,34 @@ const std::vector<GeoPoly> *Geo::present_pose_scene(uint64_t now_ns, uint64_t de
 	}();
 	if (pose_trace) {
 		static unsigned long presentation = 0;
+		// M2_POSE_TRACE_CARS=1: the keyed objects only (the opponents' parts),
+		// light enough for a real race (diagnostic, 23/11).
+		static const bool cars_only = [] { const char *v = std::getenv("M2_POSE_TRACE_CARS"); return v && v[0] == '1'; }();
 		for (size_t i = 0; i < current_scene_.size(); ++i) {
 			const auto &o = current_scene_[i];
+			if (cars_only && (!o.key.part || o.key.slot == 0)) continue;
 			const auto &m = o.geometry.model_view;
-			std::fprintf(pose_trace, "%lu,%.3f,%x,%u,%u,%u,%x,%.2f,%.2f,%.2f", presentation, blend.alpha, o.key.part,
+			std::fprintf(pose_trace, "%lu,%.3f,%x,%u,%u,%u,%x,%.2f,%.2f,%.2f", presentation,
+			             presenting_older_ ? blend.alpha - 1 : blend.alpha, o.key.part,
 			             o.key.slot, o.key.generation, unsigned(pose_branch_[i]), o.geometry.geometry[0], m[9], m[10], m[11]);
 			static const bool full = [] { const char *v = std::getenv("M2_POSE_TRACE_FULL"); return v && v[0] == '1'; }();
 			if (full)
 				for (unsigned j = 0; j < 9; ++j) std::fprintf(pose_trace, ",%.5f", m[j]);
+			// The pose actually drawn this presentation (sampled), and the time
+			// it was sampled for, in ns: the columns that show a doubled car.
+			static const bool drawn = [] { const char *v = std::getenv("M2_POSE_TRACE_DRAWN"); return v && v[0] == '1'; }();
+			if (drawn)
+				std::fprintf(pose_trace, ",%.3f,%.3f,%.3f,%llu", sampled_matrices_[i][9], sampled_matrices_[i][10],
+				             sampled_matrices_[i][11], (unsigned long long)(now_ns > delay_ns ? now_ns - delay_ns : 0));
 			std::fputc('\n', pose_trace);
 		}
 		++presentation;
 		if (presentation % 120 == 0) std::fflush(pose_trace);
 	}
+	presented_casters_.clear();
+	if (top_margin_ && behind_casters_on()) replay_casters_ = &presented_casters_;
 	replay_instance_reference(presented_polys_, true, sampled_matrices_);
+	replay_casters_ = nullptr;
 	return &presented_polys_;
 }
 
@@ -1811,6 +2092,7 @@ void Geo::render_frame_start()
 	/* reset the polygon list index */
 	raster->poly_list_index = 0;
 	polys.clear();
+	shadow_casters_.clear();
 	cur_object_command = 0;
 	capturing_rom_object_ = false;
 	pushed.clear();
@@ -1946,6 +2228,16 @@ void Geo::model2_3d_push(raster_state *raster, uint32_t input)
 						right_plane += float(wide_margin_);
 					}
 					float top_plane = float(raster->viewport[3] - raster->center[i][1]);
+					// Ray-traced shadows: what is just above or beside a
+					// full-screen viewport (gantry and arch overhead, poles
+					// and panels at the sides) is kept for the shadows; the
+					// renderer's clip rectangle still hides it.
+					if (top_margin_ && raster->viewport[0] <= 0 && raster->viewport[2] >= 495)
+					{
+						top_plane += float(top_margin_);
+						left_plane += float(top_margin_);
+						right_plane += float(top_margin_);
+					}
 					float bottom_plane = float(raster->center[i][1] - raster->viewport[1]);
 
 					raster->clip_plane[i][0].normal.x = 1.0f / std::hypot(1.0f, left_plane);
@@ -3529,14 +3821,8 @@ void Geo::parse(uint32_t read_start)
 
 	// reset raster frame variables
 	render_frame_start();
-	if (instance_reference_ || pose_presentation_) reference_primitives_.clear();
-	if (pose_presentation_) {
-		previous_scene_.swap(current_scene_);
-		current_scene_.clear();
-		previous_stamp_ = current_stamp_;
-		current_stamp_.reset();
-		background_motion_.reset();
-	}
+	if (pose_presentation_) rotate_pose_frame();
+	else if (instance_reference_) reference_primitives_.clear();
 
 	while (end_code == false && input.i < 0x20000/4 && op_count++ < 0x8000)
 	{

@@ -144,6 +144,32 @@ int main() {
                   std::fabs(got[2] - step[2]) <= kTol,
               "scenery translation equidistant");
     }
+    // Hermite steps: with both velocities equal to the step it is mobile_pose;
+    // with the neighbours' central difference, two pairs meeting at a tick
+    // leave it at the same speed (no speed change at each tick, 23/11).
+    {
+        const std::array<double, 3> straight_step = {shift[9] - rt::compose(spin, placed)[9],
+                                                     shift[10] - rt::compose(spin, placed)[10],
+                                                     shift[11] - rt::compose(spin, placed)[11]};
+        for (double alpha : alphas)
+            check(near_pose(rt::mobile_pose_hermite(spin, placed, shift, alpha, straight_step, straight_step),
+                            rt::mobile_pose(spin, placed, shift, alpha), kTol),
+                  "hermite with straight velocities is mobile_pose");
+        // A car along x at 0, 1, 3 (it speeds up), the camera still.
+        const rt::Pose p0 = translation(0, 0, 10), p1 = translation(1, 0, 10), p2 = translation(3, 0, 10);
+        const std::array<double, 3> mid = {1.5, 0, 0}; // (p2 - p0) / 2, at p1
+        const std::array<double, 3> first = {1, 0, 0}, second = {2, 0, 0};
+        const double h = 1e-4;
+        const double before = (rt::mobile_pose_hermite(eye, p0, p1, 1, first, mid)[9] -
+                               rt::mobile_pose_hermite(eye, p0, p1, 1 - h, first, mid)[9]) / h;
+        const double after = (rt::mobile_pose_hermite(eye, p1, p2, h, mid, second)[9] -
+                              rt::mobile_pose_hermite(eye, p1, p2, 0, mid, second)[9]) / h;
+        check(std::fabs(before - 1.5) < 1e-3 && std::fabs(after - 1.5) < 1e-3, "hermite speed continuous at the tick");
+        const double straight_before = (rt::mobile_pose(eye, p0, p1, 1)[9] - rt::mobile_pose(eye, p0, p1, 1 - h)[9]) / h;
+        const double straight_after = (rt::mobile_pose(eye, p1, p2, h)[9] - rt::mobile_pose(eye, p1, p2, 0)[9]) / h;
+        check(std::fabs(straight_before - 1) < 1e-3 && std::fabs(straight_after - 2) < 1e-3,
+              "straight steps change speed at the tick");
+    }
     const rt::Pose mobile_start = translation(1, 2, 3);
     const rt::Pose mobile_end = translation(5, -2, 7);
     rt::Pose line[5];

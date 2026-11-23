@@ -2,6 +2,7 @@
 
 #include "app/gpu/m2_polygon_material.h"
 #include "app/gpu/shaders_gen.h"
+#include "app/gpu/dxr_shaders_gen.h"
 
 #include <algorithm>
 #include <cmath>
@@ -54,6 +55,7 @@ SDL_GPUShader *GpuRenderer::shader(const unsigned char *spv, size_t spv_len, con
 
 bool GpuRenderer::init(SDL_GPUDevice *dev, SDL_GPUTextureFormat format) {
     dev_ = dev;
+    frame_format_ = format;
     for (int i = 0; i < 256; i++) // the rasterizer's gamma (MAME video_start)
         gamma_[i] = uint8_t(std::max((double(i) - 64.0) * 255.0 / 191.0, 0.0));
 
@@ -191,6 +193,12 @@ void GpuRenderer::shutdown() {
     for (SDL_GPUGraphicsPipeline **p : {&quad_pipe_, &back_pipe_, &front_pipe_})
         if (*p) SDL_ReleaseGPUGraphicsPipeline(dev_, *p), *p = nullptr;
     if (sampler_) SDL_ReleaseGPUSampler(dev_, sampler_), sampler_ = nullptr;
+    for (SDL_GPUGraphicsPipeline **p : {&z_pipe_, &z_front_pipe_, &z_quad_pipe_, &shade_pipe_})
+        if (*p) SDL_ReleaseGPUGraphicsPipeline(dev_, *p), *p = nullptr;
+    if (view_z_) SDL_ReleaseGPUTexture(dev_, view_z_), view_z_ = nullptr;
+    if (light_) SDL_ReleaseGPUTexture(dev_, light_), light_ = nullptr;
+    shadows_ = shadow_ready_ = false;
+    shadow_frame_ = ShadowFrame{};
     if (front_) SDL_ReleaseGPUTexture(dev_, front_), front_ = nullptr;
     if (depth_) SDL_ReleaseGPUTexture(dev_, depth_), depth_ = nullptr;
     if (vbuf_) SDL_ReleaseGPUBuffer(dev_, vbuf_), vbuf_ = nullptr;
@@ -259,6 +267,13 @@ void GpuRenderer::build(const rt::Video &video, int w, int h, int scale, bool sh
                         const std::vector<rt::GeoPoly> &polys) {
     verts_.clear();
     batches_.clear();
+    if (triangles_) triangles_->clear();
+    cameras_.clear();
+    shadow_polys_.clear();
+    z_draws_.clear();
+    cutout_xyz_.clear();
+    cutout_records_.clear();
+    main_camera_ = ~0u;
     const rt::VideoMem &mem = video.gpu_mem();
     const int windows = video.gpu_windows();
     // widescreen: the screen is `margin` wider on each side; x shifts by it
@@ -391,12 +406,115 @@ void GpuRenderer::build(const rt::Video &video, int w, int h, int scale, bool sh
                     r, g, b, 1.0f, {material.info[0], material.info[1], material.info[2], material.info[3]},
                     {material.more[0], material.more[1]}};
         }
+        if (triangles_) {
+            // The shadows' camera is the most common one (window, centre,
+            // focal length); polygons drawn through another (the 3D minimap
+            // in its own window) neither cast nor receive shadows.
+            bool in_front = true;
+            for (int k = 0; k < poly.num_vertices; k++) in_front = in_front && poly.v[k].p[0] > 0.0f;
+            uint32_t camera_index = ~0u;
+            if (in_front && dx == 0 && !rt::Geo::hud_overlay_address(poly.object_oba)) {
+                const std::array<float, 5> camera{float(crtc_x + poly.center[0]), float((384 - poly.center[1]) + crtc_y),
+                                                  poly.object_focus_x, poly.object_focus_y, float(poly.window)};
+                auto it = std::find_if(cameras_.begin(), cameras_.end(), [&](const auto &c) { return c.first == camera; });
+                if (it == cameras_.end()) it = cameras_.insert(cameras_.end(), {camera, 0});
+                ++it->second;
+                camera_index = uint32_t(it - cameras_.begin());
+            }
+            // Cut-out textures (renderer 3: fir trees, fences) go apart, with
+            // their texture coordinates, so a ray passes through the holes.
+            const bool cutout = renderer == 3 && !poly.local_texture;
+            std::vector<float> &xyz = cutout ? cutout_xyz_ : *triangles_;
+            const uint32_t tri_first = uint32_t(xyz.size() / 9);
+            for (int k = 1; camera_index != ~0u && k + 1 < poly.num_vertices; k++) {
+                if (cutout) {
+                    cutout_records_.insert(cutout_records_.end(), {material.info[0], material.info[1]});
+                    for (int corner : {0, k, k + 1}) // u, v as m2.hlsl ps_poly reads them: p[1..2] / 8 * 256
+                        for (float t : {poly.v[corner].p[1] * 32.0f, poly.v[corner].p[2] * 32.0f}) {
+                            uint32_t bits;
+                            std::memcpy(&bits, &t, 4);
+                            cutout_records_.push_back(bits);
+                        }
+                }
+                for (int corner : {0, k, k + 1}) {
+                    const rt::GeoVertex &g = poly.v[corner];
+                    xyz.insert(xyz.end(), {g.x, g.y, g.p[0]});
+                }
+            }
+            shadow_polys_.push_back({uint32_t(verts_.size()), uint32_t(3 * (poly.num_vertices - 2)),
+                                     uint32_t(batches_.size() - 1), camera_index, tri_first,
+                                     uint32_t(xyz.size() / 9) - tri_first, cutout});
+        }
         for (int k = 1; k + 1 < poly.num_vertices; k++) {
             verts_.push_back(v[0]);
             verts_.push_back(v[k]);
             verts_.push_back(v[k + 1]);
         }
         batches_.back().count = uint32_t(verts_.size()) - batches_.back().first;
+    }
+    if (!triangles_) return;
+    // Keep the main camera's polygons: their triangles for the acceleration
+    // structure, their vertex runs (per clip batch) for the view z pass.
+    const auto main = std::max_element(cameras_.begin(), cameras_.end(),
+                                       [](const auto &a, const auto &b) { return a.second < b.second; });
+    main_camera_ = main == cameras_.end() ? ~0u : uint32_t(main - cameras_.begin());
+    size_t kept = 0, kept_cut = 0; // in triangles
+    for (const ShadowPoly &s : shadow_polys_) {
+        if (s.camera != main_camera_) continue;
+        if (s.cutout) {
+            if (kept_cut != s.tri_first) {
+                std::copy_n(cutout_xyz_.begin() + 9 * s.tri_first, 9 * s.tri_count, cutout_xyz_.begin() + 9 * kept_cut);
+                std::copy_n(cutout_records_.begin() + 8 * s.tri_first, 8 * s.tri_count,
+                            cutout_records_.begin() + 8 * kept_cut);
+            }
+            kept_cut += s.tri_count;
+        } else {
+            if (kept != s.tri_first)
+                std::copy_n(triangles_->begin() + 9 * s.tri_first, 9 * s.tri_count, triangles_->begin() + 9 * kept);
+            kept += s.tri_count;
+        }
+        if (!z_draws_.empty() && z_draws_.back().batch == s.batch &&
+            z_draws_.back().first + z_draws_.back().count == s.first)
+            z_draws_.back().count += s.count;
+        else
+            z_draws_.push_back({s.first, s.count, s.batch});
+    }
+    triangles_->resize(9 * kept);
+    cutout_xyz_.resize(9 * kept_cut);
+    cutout_records_.resize(8 * kept_cut);
+    // The shadow casters behind the camera, through the main camera only:
+    // in the acceleration structure, not in the view z pass.
+    if (casters_ && main_camera_ != ~0u) {
+        const auto &main_key = cameras_[main_camera_].first;
+        for (const rt::GeoPoly &poly : *casters_) {
+            if (poly.num_vertices < 3) continue;
+            const int renderer = (poly.texheader[0] >> 13) & 3;
+            if (renderer == 1) continue;
+            const std::array<float, 5> camera{float(crtc_x + poly.center[0]), float((384 - poly.center[1]) + crtc_y),
+                                              poly.object_focus_x, poly.object_focus_y, float(poly.window)};
+            if (camera != main_key || rt::Geo::hud_overlay_address(poly.object_oba)) continue;
+            const bool cutout = renderer == 3 && !poly.local_texture;
+            std::vector<float> &xyz = cutout ? cutout_xyz_ : *triangles_;
+            if (cutout) {
+                const uint16_t color = le16(mem.palram, m2gpu::polygon_palette_index(poly.texheader[3]));
+                const auto material = m2gpu::pack_polygon_material(
+                    poly.texheader[0], poly.texheader[1], poly.texheader[2], poly.luma, poly.texlod, lod_bias, color);
+                for (int k = 1; k + 1 < poly.num_vertices; k++) {
+                    cutout_records_.insert(cutout_records_.end(), {material.info[0], material.info[1]});
+                    for (int corner : {0, k, k + 1})
+                        for (float t : {poly.v[corner].p[1] * 32.0f, poly.v[corner].p[2] * 32.0f}) {
+                            uint32_t bits;
+                            std::memcpy(&bits, &t, 4);
+                            cutout_records_.push_back(bits);
+                        }
+                }
+            }
+            for (int k = 1; k + 1 < poly.num_vertices; k++)
+                for (int corner : {0, k, k + 1}) {
+                    const rt::GeoVertex &g = poly.v[corner];
+                    xyz.insert(xyz.end(), {g.x, g.y, g.p[0]});
+                }
+        }
     }
 }
 
@@ -570,7 +688,9 @@ bool GpuRenderer::render(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *target, int 
     dt.texture = depth_;
     dt.clear_depth = 1.0f;
     dt.load_op = SDL_GPU_LOADOP_CLEAR;
-    dt.store_op = SDL_GPU_STOREOP_DONT_CARE;
+    shadow_ready_ = false;
+    const bool shadow_inputs = shadows_ && !verts_.empty() && ensure_shadow_targets(pixel_w, pixel_h);
+    dt.store_op = shadow_inputs ? SDL_GPU_STOREOP_STORE : SDL_GPU_STOREOP_DONT_CARE; // the z pass reads it
     dt.stencil_load_op = SDL_GPU_LOADOP_DONT_CARE;
     dt.stencil_store_op = SDL_GPU_STOREOP_DONT_CARE;
     SDL_GPURenderPass *pass = SDL_BeginGPURenderPass(cmd, &ct, 1, &dt);
@@ -618,6 +738,235 @@ bool GpuRenderer::render(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *target, int 
         }
     }
     draw_quad(cpu_front ? quad_pipe_ : front_pipe_);
+    SDL_EndGPURenderPass(pass);
+    if (!shadow_inputs) return true;
+
+    // Shadow inputs (dxr.hlsl step 1): the view z of the polygon that won
+    // each pixel, by the depth test EQUAL against the pass above; 0 where a
+    // front layer covers the 3D, or where nothing was drawn.
+    SDL_GPUColorTargetInfo zt{};
+    zt.texture = view_z_;
+    zt.load_op = SDL_GPU_LOADOP_CLEAR;
+    zt.clear_color = SDL_FColor{0, 0, 0, 0};
+    zt.store_op = SDL_GPU_STOREOP_STORE;
+    dt.load_op = SDL_GPU_LOADOP_LOAD;
+    dt.store_op = SDL_GPU_STOREOP_DONT_CARE;
+    pass = SDL_BeginGPURenderPass(cmd, &zt, 1, &dt);
+    if (!pass) return true; // the frame itself is drawn
+    SDL_SetGPUViewport(pass, &viewport);
+    SDL_PushGPUVertexUniformData(cmd, 0, screen, sizeof screen);
+    SDL_BindGPUGraphicsPipeline(pass, z_pipe_);
+    SDL_GPUBufferBinding vb{vbuf_, 0};
+    SDL_BindGPUVertexBuffers(pass, 0, &vb, 1);
+    for (const ZDraw &d : z_draws_) { // the main camera's polygons only
+        const Batch &b = batches_[d.batch];
+        const int x0 = b.clip.x * pixel_w / w;
+        const int y0 = b.clip.y * pixel_h / h;
+        const int x1 = (b.clip.x + b.clip.w) * pixel_w / w;
+        const int y1 = (b.clip.y + b.clip.h) * pixel_h / h;
+        if (x1 <= x0 || y1 <= y0) continue;
+        const SDL_Rect clip{x0, y0, x1 - x0, y1 - y0};
+        SDL_SetGPUScissor(pass, &clip);
+        SDL_DrawGPUPrimitives(pass, d.count, 1, d.first, 0);
+    }
+    if (cpu_front) {
+        SDL_BindGPUGraphicsPipeline(pass, z_quad_pipe_);
+        SDL_GPUTextureSamplerBinding tsb{front_, sampler_};
+        SDL_BindGPUFragmentSamplers(pass, 0, &tsb, 1);
+    } else {
+        SDL_BindGPUGraphicsPipeline(pass, z_front_pipe_);
+        SDL_GPUBuffer *storage[2] = {tilepix_, tiledata_};
+        SDL_BindGPUFragmentStorageBuffers(pass, 0, storage, 2);
+    }
+    SDL_SetGPUScissor(pass, &full);
+    SDL_GPUBufferBinding qb{qbuf_, 0};
+    SDL_BindGPUVertexBuffers(pass, 0, &qb, 1);
+    SDL_DrawGPUPrimitives(pass, 6, 1, 0, 0);
+    SDL_EndGPURenderPass(pass);
+
+    shadow_frame_.width = pixel_w;
+    shadow_frame_.height = pixel_h;
+    shadow_frame_.to_screen[0] = float(w) / float(pixel_w);
+    shadow_frame_.to_screen[1] = float(h) / float(pixel_h);
+    if (main_camera_ >= cameras_.size()) return true;
+    const auto camera = cameras_.begin() + main_camera_;
+    shadow_frame_.origin[0] = camera->first[0];
+    shadow_frame_.origin[1] = camera->first[1];
+    shadow_frame_.focus[0] = camera->first[2];
+    shadow_frame_.focus[1] = camera->first[3];
+    shadow_frame_.cutout_xyz = &cutout_xyz_;
+    shadow_frame_.cutout_records = &cutout_records_;
+    shadow_frame_.tex0 = have_mem ? mem.tex0 : nullptr;
+    shadow_frame_.tex1 = have_mem ? mem.tex1 : nullptr;
+    shadow_frame_.tex_generation = mem.tex_generation;
+    frame_w_ = w, frame_h_ = h;
+    shadow_ready_ = true;
+    return true;
+}
+
+bool GpuRenderer::enable_shadows() {
+    if (shadows_) return true;
+    if (!ok() || !(SDL_GetGPUShaderFormats(dev_) & SDL_GPU_SHADERFORMAT_DXIL)) return false;
+    auto dxil = [&](const unsigned char *code, size_t size, const char *entry, SDL_GPUShaderStage stage,
+                    int uniforms, int samplers, int storage_buffers) {
+        SDL_GPUShaderCreateInfo si{};
+        si.stage = stage;
+        si.format = SDL_GPU_SHADERFORMAT_DXIL;
+        si.code = code;
+        si.code_size = size;
+        si.entrypoint = entry;
+        si.num_uniform_buffers = Uint32(uniforms);
+        si.num_samplers = Uint32(samplers);
+        si.num_storage_buffers = Uint32(storage_buffers);
+        return SDL_CreateGPUShader(dev_, &si);
+    };
+    SDL_GPUShader *vs_poly = dxil(k_vs_poly_dxil, sizeof k_vs_poly_dxil, "vs_poly", SDL_GPU_SHADERSTAGE_VERTEX, 1, 0, 0);
+    SDL_GPUShader *vs_quad = dxil(k_vs_quad_dxil, sizeof k_vs_quad_dxil, "vs_quad", SDL_GPU_SHADERSTAGE_VERTEX, 1, 0, 0);
+    SDL_GPUShader *ps_z = dxil(k_ps_view_z_dxil, sizeof k_ps_view_z_dxil, "ps_view_z", SDL_GPU_SHADERSTAGE_FRAGMENT, 0, 0, 0);
+    SDL_GPUShader *ps_front = dxil(k_ps_front_z_dxil, sizeof k_ps_front_z_dxil, "ps_front_z",
+                                   SDL_GPU_SHADERSTAGE_FRAGMENT, 0, 0, 2);
+    SDL_GPUShader *ps_quad = dxil(k_ps_quad_z_dxil, sizeof k_ps_quad_z_dxil, "ps_quad_z", SDL_GPU_SHADERSTAGE_FRAGMENT, 0, 1, 0);
+    SDL_GPUShader *ps_shade = dxil(k_ps_shade_dxil, sizeof k_ps_shade_dxil, "ps_shade", SDL_GPU_SHADERSTAGE_FRAGMENT, 0, 1, 0);
+    const bool shaders = vs_poly && vs_quad && ps_z && ps_front && ps_quad && ps_shade;
+
+    SDL_GPUColorTargetDescription z_color{};
+    z_color.format = SDL_GPU_TEXTUREFORMAT_R32_FLOAT;
+    SDL_GPUVertexBufferDescription pvb{0, sizeof(PolyVertex), SDL_GPU_VERTEXINPUTRATE_VERTEX, 0};
+    SDL_GPUVertexAttribute pattr[6] = {
+        {0, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2, Uint32(offsetof(PolyVertex, x))},
+        {1, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT, Uint32(offsetof(PolyVertex, depth))},
+        {2, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3, Uint32(offsetof(PolyVertex, ooz))},
+        {3, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4, Uint32(offsetof(PolyVertex, r))},
+        {4, 0, SDL_GPU_VERTEXELEMENTFORMAT_UINT4, Uint32(offsetof(PolyVertex, info))},
+        {5, 0, SDL_GPU_VERTEXELEMENTFORMAT_UINT2, Uint32(offsetof(PolyVertex, more))},
+    };
+    SDL_GPUGraphicsPipelineCreateInfo pi{};
+    pi.vertex_shader = vs_poly;
+    pi.fragment_shader = ps_z;
+    pi.vertex_input_state.vertex_buffer_descriptions = &pvb;
+    pi.vertex_input_state.num_vertex_buffers = 1;
+    pi.vertex_input_state.vertex_attributes = pattr;
+    pi.vertex_input_state.num_vertex_attributes = 6;
+    pi.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
+    pi.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_NONE;
+    pi.depth_stencil_state.enable_depth_test = true;
+    pi.depth_stencil_state.enable_depth_write = false;
+    pi.depth_stencil_state.compare_op = SDL_GPU_COMPAREOP_EQUAL; // only the polygon that won the pixel
+    pi.target_info.color_target_descriptions = &z_color;
+    pi.target_info.num_color_targets = 1;
+    pi.target_info.depth_stencil_format = SDL_GPU_TEXTUREFORMAT_D16_UNORM;
+    pi.target_info.has_depth_stencil_target = true;
+    if (shaders) z_pipe_ = SDL_CreateGPUGraphicsPipeline(dev_, &pi);
+
+    SDL_GPUVertexBufferDescription qvb{0, sizeof(QuadVertex), SDL_GPU_VERTEXINPUTRATE_VERTEX, 0};
+    SDL_GPUVertexAttribute qattr[2] = {
+        {0, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2, Uint32(offsetof(QuadVertex, x))},
+        {1, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2, Uint32(offsetof(QuadVertex, u))},
+    };
+    SDL_GPUGraphicsPipelineCreateInfo qi{};
+    qi.vertex_shader = vs_quad;
+    qi.vertex_input_state.vertex_buffer_descriptions = &qvb;
+    qi.vertex_input_state.num_vertex_buffers = 1;
+    qi.vertex_input_state.vertex_attributes = qattr;
+    qi.vertex_input_state.num_vertex_attributes = 2;
+    qi.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
+    qi.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_NONE;
+    qi.target_info.color_target_descriptions = &z_color;
+    qi.target_info.num_color_targets = 1;
+    qi.target_info.depth_stencil_format = SDL_GPU_TEXTUREFORMAT_D16_UNORM;
+    qi.target_info.has_depth_stencil_target = true; // same pass as the z of the polygons
+    if (shaders) {
+        qi.fragment_shader = ps_front;
+        z_front_pipe_ = SDL_CreateGPUGraphicsPipeline(dev_, &qi);
+        qi.fragment_shader = ps_quad;
+        z_quad_pipe_ = SDL_CreateGPUGraphicsPipeline(dev_, &qi);
+    }
+    // the frame times the light, plus the light shafts: src.rgb + dst * src.a
+    // (dxr.hlsl ps_shade), its own pass (no depth); without shafts src.rgb
+    // is 0 and this is dst * light as before
+    SDL_GPUColorTargetDescription shade{};
+    shade.format = frame_format_;
+    shade.blend_state.enable_blend = true;
+    shade.blend_state.src_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE;
+    shade.blend_state.dst_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
+    shade.blend_state.color_blend_op = SDL_GPU_BLENDOP_ADD;
+    shade.blend_state.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ZERO;
+    shade.blend_state.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE;
+    shade.blend_state.alpha_blend_op = SDL_GPU_BLENDOP_ADD;
+    qi.target_info.color_target_descriptions = &shade;
+    qi.target_info.has_depth_stencil_target = false;
+    qi.target_info.depth_stencil_format = SDL_GPU_TEXTUREFORMAT_INVALID;
+    if (shaders) {
+        qi.fragment_shader = ps_shade;
+        shade_pipe_ = SDL_CreateGPUGraphicsPipeline(dev_, &qi);
+    }
+    for (SDL_GPUShader *s : {vs_poly, vs_quad, ps_z, ps_front, ps_quad, ps_shade})
+        if (s) SDL_ReleaseGPUShader(dev_, s);
+    if (!z_pipe_ || !z_front_pipe_ || !z_quad_pipe_ || !shade_pipe_) {
+        error_ = std::string("shadow pipelines: ") + SDL_GetError();
+        for (SDL_GPUGraphicsPipeline **p : {&z_pipe_, &z_front_pipe_, &z_quad_pipe_, &shade_pipe_})
+            if (*p) SDL_ReleaseGPUGraphicsPipeline(dev_, *p), *p = nullptr;
+        return false;
+    }
+    shadows_ = true;
+    return true;
+}
+
+// The view z and light textures, the target's size; their D3D12 resources
+// come back through the creation properties (patch 0002).
+bool GpuRenderer::ensure_shadow_targets(int pixel_w, int pixel_h) {
+    if (view_z_ && pixel_w == shadow_frame_.width && pixel_h == shadow_frame_.height && shadow_frame_.view_z &&
+        shadow_frame_.light)
+        return true;
+    if (view_z_) SDL_ReleaseGPUTexture(dev_, view_z_), view_z_ = nullptr;
+    if (light_) SDL_ReleaseGPUTexture(dev_, light_), light_ = nullptr;
+    shadow_frame_ = ShadowFrame{};
+    auto make = [&](SDL_GPUTextureFormat format, SDL_GPUTextureUsageFlags usage, void *&resource) {
+        SDL_GPUTextureCreateInfo ti{};
+        ti.type = SDL_GPU_TEXTURETYPE_2D;
+        ti.format = format;
+        ti.usage = usage;
+        ti.width = Uint32(pixel_w);
+        ti.height = Uint32(pixel_h);
+        ti.layer_count_or_depth = 1;
+        ti.num_levels = 1;
+        ti.props = SDL_CreateProperties();
+        SDL_GPUTexture *texture = SDL_CreateGPUTexture(dev_, &ti);
+        resource = SDL_GetPointerProperty(ti.props, "SDL.gpu.texture.d3d12.resource", nullptr);
+        SDL_DestroyProperties(ti.props);
+        return texture;
+    };
+    // both stay in SDL's default state for a sampled texture (all shader resource)
+    view_z_ = make(SDL_GPU_TEXTUREFORMAT_R32_FLOAT, SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER,
+                   shadow_frame_.view_z);
+    light_ = make(SDL_GPU_TEXTUREFORMAT_R8G8_UNORM, // light, light shafts
+                  SDL_GPU_TEXTUREUSAGE_SAMPLER | SDL_GPU_TEXTUREUSAGE_COMPUTE_STORAGE_WRITE, shadow_frame_.light);
+    shadow_frame_.width = pixel_w;
+    shadow_frame_.height = pixel_h;
+    return view_z_ && light_ && shadow_frame_.view_z && shadow_frame_.light;
+}
+
+// dxr.hlsl step 3: the target times the light the DXR pass wrote.
+bool GpuRenderer::apply_shadow(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *target) {
+    if (!shadows_ || !light_ || !frame_w_) return false;
+    SDL_GPUColorTargetInfo ct{};
+    ct.texture = target;
+    ct.load_op = SDL_GPU_LOADOP_LOAD;
+    ct.store_op = SDL_GPU_STOREOP_STORE;
+    SDL_GPURenderPass *pass = SDL_BeginGPURenderPass(cmd, &ct, 1, nullptr);
+    if (!pass) return false;
+    const SDL_GPUViewport viewport{0, 0, float(shadow_frame_.width), float(shadow_frame_.height), 0, 1};
+    SDL_SetGPUViewport(pass, &viewport);
+    const SDL_Rect full{0, 0, shadow_frame_.width, shadow_frame_.height};
+    SDL_SetGPUScissor(pass, &full);
+    const float screen[4] = {float(frame_w_), float(frame_h_), 0, 0};
+    SDL_PushGPUVertexUniformData(cmd, 0, screen, sizeof screen);
+    SDL_BindGPUGraphicsPipeline(pass, shade_pipe_);
+    SDL_GPUBufferBinding qb{qbuf_, 0};
+    SDL_BindGPUVertexBuffers(pass, 0, &qb, 1);
+    SDL_GPUTextureSamplerBinding tsb{light_, sampler_};
+    SDL_BindGPUFragmentSamplers(pass, 0, &tsb, 1);
+    SDL_DrawGPUPrimitives(pass, 6, 1, 0, 0);
     SDL_EndGPURenderPass(pass);
     return true;
 }

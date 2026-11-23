@@ -65,7 +65,11 @@ struct MobileKey {
 // header through RAM or rewriting it with identical data cannot keep its key.
 class MobileIdentity {
 public:
-    static constexpr unsigned word_count = 0x8000, slot_count = 19;
+    // 39 opponents on Beginner, 0x505480 to 0x50c680 (M2_CAR_LOD_TRACE, 23/11).
+    // With 19, the last twenty were never keyed: drawn as scenery in the
+    // interpolated frames, each one moved back and forth by half a tick of
+    // its own speed at 60 Hz (the shaking car of a 240 frame/s phone video).
+    static constexpr unsigned word_count = 0x8000, slot_count = 39;
 
     explicit MobileIdentity(bool opponent_wheels = false) : opponent_wheels_(opponent_wheels) {}
 

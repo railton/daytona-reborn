@@ -53,6 +53,7 @@ public:
         uint32_t key_obc = 0;
         uint8_t key_mode = 0;
         uint32_t first_frame = 0;
+        uint64_t last_used = 0; // cache frame count when an instance last drew it
         uint32_t vertices = 0;
         std::vector<Primitive> primitives;
     };
@@ -164,6 +165,7 @@ public:
                     reference_priority_.push_back({uint32_t(poly->window), uint32_t(poly->z),
                                                    uint32_t(poly - polys.data())});
             }
+            it->second.last_used = frames_;
             inst.mesh = it->second.id;
             inst.command = list[0]->object_command;
             std::copy(std::begin(list[0]->object_matrix), std::end(list[0]->object_matrix), std::begin(inst.matrix));
@@ -171,6 +173,22 @@ public:
             inst.focus_y = list[0]->object_focus_y;
             last_instances_.push_back(std::move(inst));
             ++instances;
+        }
+        // Geometry the game builds per frame (moving shadows, bent trunks,
+        // canyon fill) never repeats, so a cache that only grows reached
+        // 15 000 meshes and about 280 MB over a five-lap race. Forget what
+        // no instance has drawn for kKeepFrames; the frame's own instances
+        // are always kept, so exports are unchanged.
+        if (frames_ % kSweepFrames == 0) {
+            for (auto it = meshes_.begin(); it != meshes_.end();) {
+                if (frames_ - it->second.last_used > kKeepFrames) {
+                    resident_vertices_ -= it->second.vertices;
+                    resident_primitives_ -= it->second.primitives.size();
+                    it = meshes_.erase(it);
+                } else {
+                    ++it;
+                }
+            }
         }
         if (log_path && *log_path) {
             std::FILE *f = std::fopen(log_path, "ab");
@@ -385,6 +403,8 @@ private:
                uint64_t(poly.object_mode & 3);
     }
 
+    static constexpr uint64_t kKeepFrames = 1200; // 20 s at 60 Hz, a little over one Beginner lap
+    static constexpr uint64_t kSweepFrames = 60;
     std::unordered_multimap<uint64_t, Mesh> meshes_;
     std::vector<Instance> last_instances_;
     uint64_t frames_ = 0, polys_ = 0, reused_polys_ = 0;

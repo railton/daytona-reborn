@@ -166,9 +166,15 @@ display** runs the game at 60 frames/s on a 60, 120 or 240 Hz display,
 perfectly smooth but about 4% faster than the arcade. Hover over each for
 details; the line under them says what is in effect.
 
-**Widescreen** (optional): in the launcher, under **Enhancements**, set
-**Widescreen** to 16:10, 16:9 or 21:9. You see more of the scene at the
-sides, nothing is stretched, and the HUD stays 4:3 in the centre; tick **HUD
+**Language**: the **Langue / Language** menu at the top of the launcher
+switches the interface between French and English (more languages to
+come); the choice is kept.
+
+**Picture format**: first under **Display**. **Arcade 4:3** is the
+cabinet's picture, centred with bars on a wide screen; **Automatic** takes
+the window's shape; 16:10, 16:9 or 21:9 keep their own. In the wide formats
+you see more of the scene at the sides, nothing is stretched, and the HUD
+stays 4:3 in the centre; tick **HUD
 at the screen edges (Experimental)** to move the lap times, position and maps out to the
 sides. In a race the sky at the sides is plain blue; tick **Stretch tile
 background (Experimental)** to stretch the game's own sky picture across

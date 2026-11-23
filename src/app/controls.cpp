@@ -1,4 +1,5 @@
 #include "app/controls.h"
+#include "app/i18n_mark.h"
 
 #include <algorithm>
 #include <cmath>
@@ -11,27 +12,27 @@ namespace {
 const struct {
     const char *name, *key;
 } kActions[kNumActions] = {
-    {"Tourner à gauche", "steer_left"}, {"Tourner à droite", "steer_right"}, {"Accélérer", "accelerate"}, {"Freiner", "brake"},
-    {"Vitesse 1", "gear1"},          {"Vitesse 2", "gear2"},            {"Vitesse 3", "gear3"},           {"Vitesse 4", "gear4"},
-    {"Monter un rapport", "gear_up"},      {"Descendre un rapport", "gear_down"},    {"Vue 1 (rouge)", "view1"},    {"Vue 2 (bleue)", "view2"},
-    {"Vue 3 (jaune)", "view3"}, {"Vue 4 (verte)", "view4"},    {"Pièce", "coin"},              {"Start", "start"},
-    {"Test", "test"},             {"Service", "service"},
+    {TXR("Tourner à gauche"), "steer_left"}, {TXR("Tourner à droite"), "steer_right"}, {TXR("Accélérer"), "accelerate"}, {TXR("Freiner"), "brake"},
+    {TXR("Vitesse 1"), "gear1"},          {TXR("Vitesse 2"), "gear2"},            {TXR("Vitesse 3"), "gear3"},           {TXR("Vitesse 4"), "gear4"},
+    {TXR("Monter un rapport"), "gear_up"},      {TXR("Descendre un rapport"), "gear_down"},    {TXR("Vue 1 (rouge)"), "view1"},    {TXR("Vue 2 (bleue)"), "view2"},
+    {TXR("Vue 3 (jaune)"), "view3"}, {TXR("Vue 4 (verte)"), "view4"},    {TXR("Pièce"), "coin"},              {TXR("Start"), "start"},
+    {TXR("Test"), "test"},             {TXR("Service"), "service"},
 };
 } // namespace
 
-const char *action_name(Action a) { return kActions[a].name; }
+const char *action_name(Action a) { return TXR(kActions[a].name); }
 const char *action_key(Action a) { return kActions[a].key; }
 
 std::string PadInput::describe() const {
     switch (kind) {
     case Button: {
         const char *n = SDL_GetGamepadStringForButton(SDL_GamepadButton(index));
-        return std::string("Bouton ") + (n ? n : "?");
+        return std::string(TXR("Bouton ")) + (n ? n : "?");
     }
     case Axis: {
         const char *n = SDL_GetGamepadStringForAxis(SDL_GamepadAxis(index));
         const bool trigger = index == SDL_GAMEPAD_AXIS_LEFT_TRIGGER || index == SDL_GAMEPAD_AXIS_RIGHT_TRIGGER;
-        return std::string(trigger ? "Gâchette " : "Axe ") + (n ? n : "?") + (trigger ? "" : (dir > 0 ? " +" : " -"));
+        return std::string(trigger ? TXR("Gâchette ") : TXR("Axe ")) + (n ? n : "?") + (trigger ? "" : (dir > 0 ? " +" : " -"));
     }
     default: return "-";
     }
@@ -124,11 +125,11 @@ std::string JoyInput::describe(const Devices &d) const {
     if (kind == None) return "-";
     SDL_Joystick *j = d.find(guid);
     std::string what;
-    if (kind == Button) what = "Bouton " + std::to_string(index + 1);
-    else if (kind == Hat) what = std::string("Croix ") + (mask == SDL_HAT_UP ? "haut" : mask == SDL_HAT_DOWN ? "bas" : mask == SDL_HAT_LEFT ? "gauche" : "droite");
-    else what = "Axe " + std::to_string(index + 1) + (full > rest ? " +" : " -");
+    if (kind == Button) what = TXR("Bouton ") + std::to_string(index + 1);
+    else if (kind == Hat) what = std::string(TXR("Croix ")) + (mask == SDL_HAT_UP ? TXR("haut") : mask == SDL_HAT_DOWN ? TXR("bas") : mask == SDL_HAT_LEFT ? TXR("gauche") : TXR("droite"));
+    else what = TXR("Axe ") + std::to_string(index + 1) + (full > rest ? " +" : " -");
     const char *name = j ? SDL_GetJoystickName(j) : nullptr;
-    return what + (j ? std::string(" (") + (name ? name : "joystick") + ")" : " (non connecté)");
+    return what + (j ? std::string(" (") + (name ? name : "joystick") + ")" : TXR(" (non connecté)"));
 }
 
 std::string JoyInput::save() const {

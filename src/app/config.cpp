@@ -41,12 +41,19 @@ void Config::read(std::istream &f) {
         else if (k == "fullscreen") fullscreen = v == "1";
         else if (k == "skip_launcher") skip_launcher = v == "1";
         else if (k == "aspect") aspect = v;
+        else if (k == "language") language = v;
         else if (k == "hud_edges") hud_edges = v == "1";
         else if (k == "stretch_backdrop") stretch_backdrop = v == "1";
         else if (k == "draw_distance") draw_distance = std::clamp(std::atoi(v.c_str()), -2, 2);
         else if (k == "scenery_3d") scenery_3d = v == "1";
         else if (k == "interpolate") interpolate = v == "1";
         else if (k == "cars_near_model") cars_near_model = v == "1";
+        else if (k == "sun_shadows") sun_shadows = v == "1";
+        else if (k == "sky_light") sky_light = v == "1";
+        else if (k == "sun_height") {
+            const int value = std::atoi(v.c_str());
+            sun_height = value <= 0 ? 0 : std::clamp(value, 10, 80);
+        }
         else if (k == "display_gamma") {
             const float value = std::strtof(v.c_str(), nullptr);
             display_gamma = std::isfinite(value) && value >= 2.0f ? std::clamp(value, 2.0f, 2.8f) : 0.0f;
@@ -124,12 +131,16 @@ void Config::write(std::ostream &f) const {
     f << "fullscreen=" << (fullscreen ? 1 : 0) << "\n";
     f << "skip_launcher=" << (skip_launcher ? 1 : 0) << "\n";
     f << "aspect=" << aspect << "\n";
+    f << "language=" << language << "\n";
     f << "hud_edges=" << (hud_edges ? 1 : 0) << "\n";
     f << "stretch_backdrop=" << (stretch_backdrop ? 1 : 0) << "\n";
     f << "draw_distance=" << draw_distance << "\n";
     f << "scenery_3d=" << (scenery_3d ? 1 : 0) << "\n";
     f << "interpolate=" << (interpolate ? 1 : 0) << "\n";
     f << "cars_near_model=" << (cars_near_model ? 1 : 0) << "\n";
+    f << "sun_shadows=" << (sun_shadows ? 1 : 0) << "\n";
+    f << "sun_height=" << sun_height << "\n";
+    f << "sky_light=" << (sky_light ? 1 : 0) << "\n";
     f << "display_gamma=" << display_gamma << "\n";
     f << "display_saturation=" << display_saturation << "\n";
     f << "draw_budget=" << draw_budget << "\n";

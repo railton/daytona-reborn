@@ -74,6 +74,13 @@ choisissez le mode de jeu, la boîte de vitesses, puis **Jouer**.
 
 ### Les réglages (bouton « Réglages »)
 
+Dans **Réglages**, le menu **Langue / Language** en haut de la fenêtre
+change la langue de l'interface.
+
+Dans la partie **Affichage**, **Format de l'image** : **Arcade 4:3** pour
+l'image de la borne (centrée, avec des bandes sur un écran large),
+**Automatique** pour la forme de la fenêtre, ou 16:10, 16:9, 21:9.
+
 Pour profiter des améliorations, choisissez d'abord **Rendu : Matériel**
 dans les réglages d'affichage. Le réglage par défaut, **Logiciel**, calcule
 la 3D exactement comme la carte d'arcade ; les améliorations sont prévues
@@ -81,8 +88,6 @@ et vérifiées avec le rendu **Matériel** (Direct3D 12).
 
 Dans la partie **Améliorations** :
 
-- **Écran large** : 16:10, 16:9 ou 21:9. Le jeu montre davantage de la scène
-  sur les côtés.
 - **Distance d'affichage** : plus loin, le décor apparaît plus tôt.
 - **Décor en volume** : sapins en volume, tribunes pleines, piliers sous le
   pont de Dinosaur Canyon. Pris en compte au prochain lancement.
@@ -93,8 +98,7 @@ Dans la partie **Améliorations** :
 - **Lissage 120 images/s (expérimental)** : images intermédiaires entre
   celles du jeu, pour un mouvement plus fluide sur un écran à 120 Hz ou
   plus. Demande le rendu Matériel et le mode de dessin « Double tampon ».
-  Des voitures adverses peuvent encore trembler ou se dédoubler : c'est en
-  cours de correction. Pris en compte au prochain lancement.
+  Pris en compte au prochain lancement.
 - **Couleurs de l'écran** : les couleurs telles qu'une borne à tube les
   montrait (rendu Matériel).
 

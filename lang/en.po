@@ -1,0 +1,782 @@
+# Daytona Arcade Native: en
+
+msgid "Tourner à gauche"
+msgstr "Steer left"
+
+msgid "Tourner à droite"
+msgstr "Steer right"
+
+msgid "Accélérer"
+msgstr "Accelerate"
+
+msgid "Freiner"
+msgstr "Brake"
+
+msgid "Vitesse 1"
+msgstr "Gear 1"
+
+msgid "Vitesse 2"
+msgstr "Gear 2"
+
+msgid "Vitesse 3"
+msgstr "Gear 3"
+
+msgid "Vitesse 4"
+msgstr "Gear 4"
+
+msgid "Monter un rapport"
+msgstr "Shift up"
+
+msgid "Descendre un rapport"
+msgstr "Shift down"
+
+msgid "Vue 1 (rouge)"
+msgstr "View 1 (red)"
+
+msgid "Vue 2 (bleue)"
+msgstr "View 2 (blue)"
+
+msgid "Vue 3 (jaune)"
+msgstr "View 3 (yellow)"
+
+msgid "Vue 4 (verte)"
+msgstr "View 4 (green)"
+
+msgid "Pièce"
+msgstr "Coin"
+
+msgid "Start"
+msgstr "Start"
+
+msgid "Test"
+msgstr "Test"
+
+msgid "Service"
+msgstr "Service"
+
+msgid "Bouton "
+msgstr "Button "
+
+msgid "Gâchette "
+msgstr "Trigger "
+
+msgid "Axe "
+msgstr "Axis "
+
+msgid "Croix "
+msgstr "D-pad "
+
+msgid "haut"
+msgstr "up"
+
+msgid "bas"
+msgstr "down"
+
+msgid "gauche"
+msgstr "left"
+
+msgid "droite"
+msgstr "right"
+
+msgid " (non connecté)"
+msgstr " (not connected)"
+
+msgid "volant (retour de force)"
+msgstr "wheel (force feedback)"
+
+msgid "volant (retour de force non ouvert ; nouvel essai)"
+msgstr "wheel (force feedback not opened; trying again)"
+
+msgid "manette (vibrations)"
+msgstr "gamepad (rumble)"
+
+msgid "aucun"
+msgstr "none"
+
+msgid "M O D E L   2    /    É D I T I O N   P C"
+msgstr "M O D E L   2    /    P C   E D I T I O N"
+
+msgid "Préparation de la course..."
+msgstr "Preparing the race..."
+
+msgid "Course solo"
+msgstr "Solo race"
+
+msgid "Retour"
+msgstr "Back"
+
+msgid "Mode de la prochaine course"
+msgstr "Mode for the next race"
+
+msgid "Mode de jeu"
+msgstr "Game mode"
+
+msgid "Course normale"
+msgstr "Normal race"
+
+msgid "Time Attack"
+msgstr "Time Attack"
+
+msgid "Boîte de la prochaine course"
+msgstr "Gearbox for the next race"
+
+msgid "Boîte de vitesses"
+msgstr "Gearbox"
+
+msgid "Automatique"
+msgstr "Automatic"
+
+msgid "Manuelle"
+msgstr "Manual"
+
+msgid "Reprendre"
+msgstr "Resume"
+
+msgid "Jouer"
+msgstr "Play"
+
+msgid "Réglages"
+msgstr "Settings"
+
+msgid "Quitter"
+msgstr "Quit"
+
+msgid "Nouvelle course"
+msgstr "New race"
+
+msgid "SOLO   /   JEU LIBRE"
+msgstr "SOLO   /   FREE PLAY"
+
+msgid "SDR   /   %d × %d"
+msgstr "SDR   /   %d × %d"
+
+msgid "Choisissez de nouveau le jeu de ROM avec Parcourir."
+msgstr "Choose the ROM set again with Browse."
+
+msgid "Choisissez le jeu de ROM %s (.zip ou .7z)."
+msgstr "Choose the %s ROM set (.zip or .7z)."
+
+msgid "Les %d fichiers sont vérifiés."
+msgstr "All %d files are verified."
+
+msgid "%d fichiers sur %d absents ou incorrects : ce n'est pas le jeu %s."
+msgstr "%d of %d files missing or wrong: this is not the %s set."
+
+msgid "Choix de la ROM : "
+msgstr "ROM choice: "
+
+msgid "Jeu de ROM (zip, 7z)"
+msgstr "ROM set (zip, 7z)"
+
+msgid "Tous les fichiers"
+msgstr "All files"
+
+msgid "Retour à l'accueil"
+msgstr "Back to the home screen"
+
+msgid "  recompilation statique, moteur natif"
+msgstr "  static recompilation, native engine"
+
+msgid "Jeu"
+msgstr "Game"
+
+msgid "Jeu de ROM"
+msgstr "ROM set"
+
+msgid "Parcourir donne accès à votre ZIP/7z. Une copie vérifiée est gardée dans l'application."
+msgstr "Browse gives access to your ZIP/7z. A verified copy is kept in the app."
+
+msgid "Parcourir..."
+msgstr "Browse..."
+
+msgid "Vérifier"
+msgstr "Check"
+
+msgid "Fichiers"
+msgstr "Files"
+
+msgid "Affichage"
+msgstr "Display"
+
+msgid "Arcade 4:3 (la borne d'origine)"
+msgstr "Arcade 4:3 (the original cabinet)"
+
+msgid "21:9 (ultra-large)"
+msgstr "21:9 (ultrawide)"
+
+msgid "Format de l'image"
+msgstr "Picture format"
+
+msgid ""
+"Arcade 4:3 : le cadrage de la borne, centré, avec des bandes sur les côtés d'un écran large.\n"
+"Automatique : la forme de la fenêtre en rendu natif, sinon le 4:3 d'origine.\n"
+"16:10, 16:9, 21:9 : la scène s'élargit sur les côtés, la voiture garde ses proportions."
+msgstr ""
+"Arcade 4:3: the cabinet's framing, centred, with bars at the sides of a wide screen.\n"
+"Automatic: the window's shape with the native renderer, else the original 4:3.\n"
+"16:10, 16:9, 21:9: the scene widens at the sides, the car keeps its proportions."
+
+msgid "API graphique (redémarrer le jeu)"
+msgstr "Graphics API (restart the game)"
+
+msgid "Logiciel (exact)"
+msgstr "Software (exact)"
+
+msgid "Matériel (expérimental)"
+msgstr "Hardware (experimental)"
+
+msgid "Rendu"
+msgstr "Renderer"
+
+msgid ""
+"Logiciel : la 3D est calculée par le processeur, comme sur la carte d'arcade. Matériel :\n"
+"par la carte graphique ; en développement, très proche mais pas encore exact au pixel près."
+msgstr ""
+"Software: the 3D is computed by the processor, as on the arcade board. Hardware:\n"
+"by the graphics card; in development, very close but not yet pixel exact."
+
+msgid "Plein écran"
+msgstr "Fullscreen"
+
+msgid "Cacher la souris pendant le jeu"
+msgstr "Hide the mouse during play"
+
+msgid ""
+"Pas de pointeur de souris pendant la partie. Il revient quand ce lanceur\n"
+"s'ouvre (Échap) et disparaît de nouveau avec Reprendre."
+msgstr ""
+"No mouse pointer during the race. It comes back when this launcher\n"
+"opens (Esc) and hides again with Resume."
+
+msgid "Bureau (sans bordure)"
+msgstr "Desktop (borderless)"
+
+msgid "Mode plein écran"
+msgstr "Fullscreen mode"
+
+msgid ""
+"Bureau : plein écran à la résolution et à la fréquence du bureau.\n"
+"Un mode : plein écran exclusif à cette résolution et cette fréquence, par exemple\n"
+"un mode à 57,52 Hz créé dans les réglages du pilote graphique."
+msgstr ""
+"Desktop: fullscreen at the desktop's resolution and refresh rate.\n"
+"A mode: exclusive fullscreen at that resolution and rate, for example\n"
+"a 57.52 Hz mode created in the graphics driver's settings."
+
+msgid "Cadence d'affichage"
+msgstr "Display pacing"
+
+msgid "(tout décoché : la vitesse de la borne sur tout écran)"
+msgstr "(all unchecked: the cabinet's speed on any display)"
+
+msgid "Cadence fluide sur un écran à 57,52 Hz"
+msgstr "Smooth pacing on a 57.52 Hz display"
+
+msgid ""
+"Sur un écran réglé à 57,52 Hz (ou 115,05 Hz), une image du jeu par rafraîchissement (ou deux) :\n"
+"aucune image doublée ou sautée. La vitesse reste celle de la borne, à 1 %% près.\n"
+"Sans effet aux autres fréquences."
+msgstr ""
+"On a display set to 57.52 Hz (or 115.05 Hz), one game frame per refresh (or two):\n"
+"no doubled or skipped frame. The speed stays the cabinet's, within 1 %%.\n"
+"No effect at other rates."
+
+msgid "Caler sur l'écran (change la vitesse du jeu)"
+msgstr "Lock to the display (changes the game's speed)"
+
+msgid ""
+"Fait tourner le jeu à une cadence qui divise exactement celle de l'écran : chaque image\n"
+"reste affichée le même temps et le mouvement est parfaitement fluide. Sur un écran à\n"
+"60, 120, 180 ou 240 Hz, le jeu tourne à 60 images/s, environ 4 %% plus vite que la borne\n"
+"(57,52) ; avec le son de référence, le son est aussi un peu plus rapide. Sans effet\n"
+"sur un écran à 144 ou 165 Hz, qui ne peut pas caler une cadence proche de la borne :\n"
+"utilisez alors la cadence VRR si l'écran gère G-Sync ou FreeSync.\n"
+"Décoché : le jeu tourne toujours à la vitesse de la borne."
+msgstr ""
+"Runs the game at a rate that divides the display's exactly: each frame\n"
+"stays on screen the same time and motion is perfectly smooth. On a\n"
+"60, 120, 180 or 240 Hz display, the game runs at 60 frames/s, about 4 %% faster than the cabinet\n"
+"(57.52); with the reference sound, the sound is a little faster too. No effect\n"
+"on a 144 or 165 Hz display, which cannot lock a rate close to the cabinet's:\n"
+"use VRR pacing then if the display supports G-Sync or FreeSync.\n"
+"Unchecked: the game always runs at the cabinet's speed."
+
+msgid "Cadence VRR (G-Sync / FreeSync)"
+msgstr "VRR pacing (G-Sync / FreeSync)"
+
+msgid ""
+"Pour un écran à fréquence variable : chaque image dure exactement 1/57,52 s, l'écran\n"
+"se rafraîchit au rythme du jeu et chaque image reste affichée le même temps.\n"
+"Le VRR doit être actif dans l'écran et le pilote graphique ; sur un écran à\n"
+"fréquence fixe, le résultat ressemble au réglage par défaut."
+msgstr ""
+"For a variable refresh display: each frame lasts exactly 1/57.52 s, the display\n"
+"refreshes at the game's pace and each frame stays on screen the same time.\n"
+"VRR must be on in the display and the graphics driver; on a fixed\n"
+"rate display, the result looks like the default setting."
+
+msgid "Actuellement : %s."
+msgstr "Currently: %s."
+
+msgid "Passer le lanceur"
+msgstr "Skip the launcher"
+
+msgid "(lance le jeu tout de suite ; Échap ouvre ce lanceur)"
+msgstr "(starts the game right away; Esc opens this launcher)"
+
+msgid "Double tampon"
+msgstr "Double buffer"
+
+msgid "Simple tampon"
+msgstr "Single buffer"
+
+msgid "Une image sur trois"
+msgstr "One frame in three"
+
+msgid "Mode de dessin"
+msgstr "Draw mode"
+
+msgid ""
+"Double tampon : chaque image est dessinée, comme dans le jeu. Simple tampon : une sur deux ;\n"
+"une image sur trois : une sur trois. Plus rapide ; le jeu lui-même n'est pas ralenti."
+msgstr ""
+"Double buffer: every frame is drawn, as in the game. Single buffer: one in two;\n"
+"one frame in three: one in three. Faster; the game itself is not slowed down."
+
+msgid "Natif 2x"
+msgstr "Native 2x"
+
+msgid "Désactivé"
+msgstr "Off"
+
+msgid "Natif direct"
+msgstr "Native direct"
+
+msgid "Résolution du rendu"
+msgstr "Render resolution"
+
+msgid ""
+"Les modes natifs suivent la fenêtre sous Direct3D 12.\n"
+"2x à 4x agrandissent la résolution d'origine."
+msgstr ""
+"The native modes follow the window under Direct3D 12.\n"
+"2x to 4x enlarge the original resolution."
+
+msgid "Améliorations"
+msgstr "Enhancements"
+
+msgid "Compteurs au bord de l'écran (expérimental)"
+msgstr "Gauges at the screen edges (experimental)"
+
+msgid "Étirer le fond du ciel (expérimental)"
+msgstr "Stretch the sky backdrop (experimental)"
+
+msgid ""
+"Montre davantage de la scène sur les côtés. Les compteurs restent en 4:3 au centre, ou bien\n"
+"les temps au tour, la position et les cartes passent sur les bords. En course, le ciel\n"
+"des côtés est bleu uni, ou bien l'image du ciel du jeu étirée sur tout l'écran."
+msgstr ""
+"Shows more of the scene at the sides. The gauges stay in 4:3 in the centre, or else\n"
+"lap times, position and maps move to the edges. In the race, the sky\n"
+"at the sides is plain blue, or else the game's sky picture stretched across the screen."
+
+msgid "La plus courte"
+msgstr "Shortest"
+
+msgid "Plus courte"
+msgstr "Shorter"
+
+msgid "Par défaut"
+msgstr "Default"
+
+msgid "Plus loin"
+msgstr "Farther"
+
+msgid "Le plus loin"
+msgstr "Farthest"
+
+msgid "Distance d'affichage"
+msgstr "Draw distance"
+
+msgid ""
+"Le décor autour du circuit. L'écran large ajoute aussi le décor sur les côtés.\n"
+"Plus court réduit la portée ; plus loin ajoute arbres et bâtiments, pas la route."
+msgstr ""
+"The scenery around the track. Widescreen also adds the scenery at the sides.\n"
+"Shorter reduces the range; farther adds trees and buildings, not the road."
+
+msgid "Décor en volume"
+msgstr "3D scenery"
+
+msgid ""
+"Sapins en volume, tribunes pleines, piliers sous le pont de Dinosaur Canyon.\n"
+"Pris en compte au prochain lancement du jeu."
+msgstr ""
+"Fir trees in 3D, full grandstands, pillars under the Dinosaur Canyon bridge.\n"
+"Applies the next time the game starts."
+
+msgid "Voitures adverses toujours détaillées"
+msgstr "Opponent cars always detailed"
+
+msgid ""
+"Un seul modèle, le plus détaillé, à toutes les distances : plus de voitures\n"
+"qui changent d'aspect en approchant. Pris en compte au prochain lancement du jeu."
+msgstr ""
+"One model, the most detailed, at every distance: no more cars\n"
+"changing look as they come closer. Applies the next time the game starts."
+
+msgid "Ombres du soleil (ray tracing, expérimental)"
+msgstr "Sun shadows (ray tracing, experimental)"
+
+msgid ""
+"Ombres projetées par le soleil du jeu (Direct3D 12, carte compatible ray tracing,\n"
+"résolution native). Pris en compte au prochain lancement du jeu."
+msgstr ""
+"Shadows cast by the game's sun (Direct3D 12, ray tracing capable card,\n"
+"native resolution). Applies the next time the game starts."
+
+msgid "Lumière du ciel (expérimental)"
+msgstr "Sky light (experimental)"
+
+msgid ""
+"Le ciel éclaire de partout : plus sombre sous les voitures, sous le portique,\n"
+"au pied des murs. Pris en compte au prochain lancement du jeu."
+msgstr ""
+"The sky lights from everywhere: darker under the cars, under the gantry,\n"
+"at the foot of walls. Applies the next time the game starts."
+
+msgid "%d degrés"
+msgstr "%d degrees"
+
+msgid "celle du jeu"
+msgstr "the game's own"
+
+msgid "Hauteur du soleil"
+msgstr "Sun height"
+
+msgid ""
+"La direction reste celle du soleil du jeu. Plus bas, les ombres s'allongent\n"
+"(comme en fin d'après-midi). Pris en compte au prochain lancement du jeu."
+msgstr ""
+"The direction stays the game's sun's. Lower, the shadows get longer\n"
+"(as in late afternoon). Applies the next time the game starts."
+
+msgid "Lissage 120 images/s (expérimental)"
+msgstr "120 frames/s smoothing (experimental)"
+
+msgid ""
+"Images intermédiaires entre celles du jeu. Demande le rendu Matériel et le double\n"
+"tampon.\n"
+"Pris en compte au prochain lancement du jeu."
+msgstr ""
+"In-between frames between the game's. Needs the Hardware renderer and the double\n"
+"buffer.\n"
+"Applies the next time the game starts."
+
+msgid "PC (origine)"
+msgstr "PC (original)"
+
+msgid "Borne %d,%d"
+msgstr "Cabinet %d.%d"
+
+msgid "Couleurs de l'écran (redémarrer le jeu)"
+msgstr "Screen colours (restart the game)"
+
+msgid ""
+"PC : les couleurs du jeu comme avant (image d'origine).\n"
+"Borne 2,2 à 2,6 : les mêmes couleurs comme sur un écran de borne d'arcade,\n"
+"plus profondes et moins délavées. Conseillé : 2,4."
+msgstr ""
+"PC: the game's colours as before (original picture).\n"
+"Cabinet 2.2 to 2.6: the same colours as on an arcade cabinet's screen,\n"
+"deeper and less washed out. Recommended: 2.4."
+
+msgid "Saturation des couleurs (redémarrer le jeu)"
+msgstr "Colour saturation (restart the game)"
+
+msgid "100 %% (origine)"
+msgstr "100 %% (original)"
+
+msgid "Plus de 100 %% : des couleurs plus vives. 100 %% : les couleurs du jeu telles quelles."
+msgstr "Above 100 %%: livelier colours. 100 %%: the game's colours as they are."
+
+msgid "Personnalisé"
+msgstr "Custom"
+
+msgid "Budget de polygones"
+msgstr "Polygon budget"
+
+msgid "Allocation personnalisée"
+msgstr "Custom allowance"
+
+msgid ""
+"Remplace l'allocation automatique. De 1 à 1 000 000.\n"
+"Trop bas, du décor peut manquer ; trop haut, le jeu peut ralentir."
+msgstr ""
+"Replaces the automatic allowance. From 1 to 1,000,000.\n"
+"Too low, scenery may be missing; too high, the game may slow down."
+
+msgid ""
+"Allocation actuelle : %u. Elle suit l'écran large et la distance d'affichage.\n"
+"La résolution et le suréchantillonnage ne la changent pas."
+msgstr ""
+"Current allowance: %u. It follows widescreen and the draw distance.\n"
+"Resolution and supersampling do not change it."
+
+msgid "Jeu en réseau (expérimental, réinitialiser)"
+msgstr "Link play (experimental, reset)"
+
+msgid "Relier à d'autres bornes"
+msgstr "Link to other cabinets"
+
+msgid "Port de cette borne"
+msgstr "This cabinet's port"
+
+msgid "Borne suivante (hôte:port)"
+msgstr "Next cabinet (host:port)"
+
+msgid "Synchroniser les images (chaque borne attend la principale)"
+msgstr "Synchronise frames (each cabinet waits for the master)"
+
+msgid "Réseau : %s"
+msgstr "Network: %s"
+
+msgid ""
+"Les bornes se relient en anneau par le réseau (Wi-Fi ou câble) : chacune écoute sur son\n"
+"port et se connecte à la suivante ; à deux, chacune a l'autre pour suivante. Tous les\n"
+"ordinateurs peuvent prendre le même port, par exemple 15112, et Borne suivante =\n"
+"adresse de l'autre ordinateur:15112. En mode test (F2) > GAME SYSTEM, régler LINK ID\n"
+"(une MASTER, les autres SLAVE) et un CAR NUMBER différent sur chacune. Le jeu de 1994\n"
+"(révision A) permet le jeu en réseau."
+msgstr ""
+"The cabinets link in a ring over the network (Wi-Fi or cable): each listens on its\n"
+"port and connects to the next one; with two, each has the other as next. All the\n"
+"computers can take the same port, for example 15112, and Next cabinet =\n"
+"the other computer's address:15112. In test mode (F2) > GAME SYSTEM, set LINK ID\n"
+"(one MASTER, the others SLAVE) and a different CAR NUMBER on each. The 1994 game\n"
+"(revision A) supports link play."
+
+msgid "Maintenir le bouton Test"
+msgstr "Hold the Test button"
+
+msgid "Ouvre le menu de test : réglages des pièces, type de partie ; sans touche F2."
+msgstr "Opens the test menu: coin settings, game type; without an F2 key."
+
+msgid "(ouvre le menu de test : réglages des pièces, type de partie ; sans touche F2)"
+msgstr "(opens the test menu: coin settings, game type; without an F2 key)"
+
+msgid ""
+"Cochez, puis Démarrer ou Reprendre : une fois le jeu lancé, le bouton Test est maintenu\n"
+"3 secondes, ce qui ouvre le menu de test, puis la case se décoche toute seule.\n"
+"F2, ou tout bouton affecté à Test, fonctionne toujours."
+msgstr ""
+"Check, then Start or Resume: once the game runs, the Test button is held\n"
+"for 3 seconds, which opens the test menu, then the box unchecks itself.\n"
+"F2, or any button assigned to Test, still works."
+
+msgid "Réinitialiser"
+msgstr "Reset"
+
+msgid "Démarrer"
+msgstr "Start"
+
+msgid "Commandes"
+msgstr "Controls"
+
+msgid "Manette : %s"
+msgstr "Gamepad: %s"
+
+msgid "aucune connectée"
+msgstr "none connected"
+
+msgid "Volants et joysticks : %s"
+msgstr "Wheels and joysticks: %s"
+
+msgid "aucun connecté"
+msgstr "none connected"
+
+msgid "Direction"
+msgstr "Steering"
+
+msgid "Accélérateur"
+msgstr "Accelerator"
+
+msgid "Frein"
+msgstr "Brake"
+
+msgid "Zone morte"
+msgstr "Dead zone"
+
+msgid "Inverser la direction"
+msgstr "Invert steering"
+
+msgid "Zone morte du volant (expérimental)"
+msgstr "Wheel dead zone (experimental)"
+
+msgid "Sensibilité du volant"
+msgstr "Wheel sensitivity"
+
+msgid ""
+"100 %% : linéaire. Plus bas : plus doux près du centre. Plus haut : plus vif.\n"
+"Seulement pour l'axe de direction d'un volant ou joystick ; le braquage complet est conservé."
+msgstr ""
+"100 %%: linear. Lower: gentler near the centre. Higher: sharper.\n"
+"Only for the steering axis of a wheel or joystick; full lock is kept."
+
+msgid "Sensibilité du stick (manette)"
+msgstr "Stick sensitivity (gamepad)"
+
+msgid "Vitesse de braquage (manette)"
+msgstr "Steering speed (gamepad)"
+
+msgid "Immédiate"
+msgstr "Immediate"
+
+msgid ""
+"Stick de la manette seulement. Sensibilité : plus bas, plus doux près du centre (braquage complet gardé).\n"
+"Vitesse : à quelle vitesse le volant du jeu suit le stick, par image (100 %% : aussitôt)."
+msgstr ""
+"Gamepad stick only. Sensitivity: lower, gentler near the centre (full lock kept).\n"
+"Speed: how fast the game's wheel follows the stick, per frame (100 %%: at once)."
+
+msgid ""
+"Gâchettes, sticks, volants et pédales sont analogiques. Pour affecter un axe de volant ou de pédale,\n"
+"cliquez sur son bouton, puis tournez le volant ou appuyez sur la pédale aussi loin que vous voulez\n"
+"le braquage ou la course complète, et relâchez : cela fixe sa plage."
+msgstr ""
+"Triggers, sticks, wheels and pedals are analogue. To assign a wheel or pedal axis,\n"
+"click its button, then turn the wheel or press the pedal as far as you want\n"
+"full lock or full travel, and let go: that sets its range."
+
+msgid "Ancienne prise en charge des volants Logitech (redémarrer le jeu)"
+msgstr "Legacy Logitech wheel support (restart the game)"
+
+msgid ""
+"Volants Logitech par le pilote du système : nécessaire pour un volant listé mais qui ne fait\n"
+"rien quand on l'affecte (le Driving Force d'origine). Décoché : le pilote de SDL, qui donne\n"
+"le retour de force aux volants récents sous macOS. Après un changement, redémarrez et\n"
+"affectez de nouveau les commandes du volant."
+msgstr ""
+"Logitech wheels through the system driver: needed for a wheel that is listed but does\n"
+"nothing when assigned (the original Driving Force). Unchecked: SDL's driver, which gives\n"
+"force feedback to recent wheels under macOS. After a change, restart and\n"
+"assign the wheel's controls again."
+
+msgid "Retour de force (expérimental)"
+msgstr "Force feedback (experimental)"
+
+msgid "Coupé"
+msgstr "Off"
+
+msgid "Inverser la force"
+msgstr "Invert the force"
+
+msgid "Journal du retour de force"
+msgstr "Force feedback log"
+
+msgid "Centrage calculé par le jeu"
+msgstr "Centring computed by the game"
+
+msgid ""
+"Pour un volant qui pousse aux chocs mais ne se recentre pas dans les virages : son pilote\n"
+"Linux n'a pas d'effet de ressort (la 1re ligne du journal dit \"spring no\").\n"
+"Le recentrage du jeu est alors calculé ici d'après la position du volant et\n"
+"envoyé comme une force constante. Laissez décoché si le volant se recentre déjà."
+msgstr ""
+"For a wheel that kicks on impacts but does not recentre in bends: its\n"
+"Linux driver has no spring effect (the log's first line says \"spring no\").\n"
+"The game's recentring is then computed here from the wheel's position and\n"
+"sent as a constant force. Leave unchecked if the wheel already recentres."
+
+msgid ""
+"Le moteur du volant de la borne (recentrage, résistance, volant qui tire), sur l'appareil\n"
+"affecté à la direction ; une manette vibre quand la voiture est poussée. Actuellement : %s.\n"
+"Volants et retour de force ne sont pas encore testés sur du vrai matériel : avis bienvenus.\n"
+"Le journal va dans daytona.log, à côté de launcher.ini sous Windows, sinon dans le terminal."
+msgstr ""
+"The cabinet wheel's motor (recentring, resistance, wheel pulling), on the device\n"
+"assigned to steering; a gamepad rumbles when the car is pushed. Currently: %s.\n"
+"Wheels and force feedback are not yet tested on real hardware: feedback welcome.\n"
+"The log goes to daytona.log, next to launcher.ini under Windows, else to the terminal."
+
+msgid "Commande"
+msgstr "Control"
+
+msgid "Clavier"
+msgstr "Keyboard"
+
+msgid "Manette"
+msgstr "Gamepad"
+
+msgid "Volant / joystick (expérimental)"
+msgstr "Wheel / joystick (experimental)"
+
+msgid "Appuyez sur une touche..."
+msgstr "Press a key..."
+
+msgid "Appuyez ou bougez..."
+msgstr "Press or move..."
+
+msgid "effacer"
+msgstr "clear"
+
+msgid "Aussi loin que voulu, puis relâchez..."
+msgstr "As far as wanted, then let go..."
+
+msgid "Appuyez, ou bougez à fond et relâchez..."
+msgstr "Press, or move all the way and let go..."
+
+msgid "Échap annule une affectation ; Retour arrière efface une touche."
+msgstr "Esc cancels an assignment; Backspace clears a key."
+
+msgid "Remettre les réglages par défaut"
+msgstr "Reset the default settings"
+
+msgid "Son"
+msgstr "Sound"
+
+msgid "Volume"
+msgstr "Volume"
+
+msgid "Muet"
+msgstr "Mute"
+
+msgid "Musique"
+msgstr "Music"
+
+msgid "Effets"
+msgstr "Effects"
+
+msgid ""
+"L'équilibre entre la musique et tout le reste (moteur, dérapages, chocs).\n"
+"100 %% et 100 %% : le mélange de la carte son de la borne."
+msgstr ""
+"The balance between the music and everything else (engine, skids, impacts).\n"
+"100 %% and 100 %%: the cabinet sound board's mix."
+
+msgid "Son natif (expérimental, réinitialiser)"
+msgstr "Native sound (experimental, reset)"
+
+msgid "Séquenceur et mixeur natifs ; le son de référence reste disponible pour comparer."
+msgstr "Native sequencer and mixer; the reference sound stays available for comparison."
+
+msgid " sur un écran à %.2f Hz"
+msgstr " on a %.2f Hz display"
+
+msgid "vitesse de la borne, 57,52 images/s%s"
+msgstr "cabinet speed, 57.52 frames/s%s"
+
+msgid "à chaque rafraîchissement"
+msgstr "at every refresh"
+
+msgid "tous les %d rafraîchissements"
+msgstr "every %d refreshes"
+
+msgid ", vitesse %+.1f %%"
+msgstr ", speed %+.1f %%"
+
+msgid "calé, %.2f images/s, une image %s%s%s"
+msgstr "locked, %.2f frames/s, one frame %s%s%s"
+
+msgid "VRR, 57,52 images/s, chacune tenue 17,38 ms%s"
+msgstr "VRR, 57.52 frames/s, each held 17.38 ms%s"

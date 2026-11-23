@@ -24,6 +24,7 @@
 // toggles fullscreen. Controls are set in the launcher and saved.
 
 #include "app/config.h"
+#include "app/i18n_mark.h"
 #include "app/gpu_device.h"
 #include "app/hdr10_choice.h"
 #ifndef M2_MOBILE
@@ -34,8 +35,10 @@
 #include "app/pacing.h"
 #include "runtime/test_hold.h"
 #include "app/link_socket.h"
+#include "app/gpu/dxr_scene.h"
 #include "app/gpu/gpu_renderer.h"
 #include "app/launcher.h"
+#include "app/i18n.h"
 #include "app/native_audio.h"
 #include "app/player_input_trace.h"
 #include <ostream>
@@ -443,6 +446,8 @@ int main(int argc, char **argv) {
     open_log();
     app::Config cfg;
     cfg.load();
+    app::i18n::set(cfg.language.empty() ? app::i18n::system_default() : cfg.language); // before the fonts
+    app::i18n::translate = &app::i18n::tr; // pacing, controls, force feedback (app/i18n_mark.h)
     // Launcher enhancements the runtime reads from the environment once, on
     // first use; a variable the player set by hand wins.
     if (cfg.scenery_3d)
@@ -744,6 +749,8 @@ int main(int argc, char **argv) {
     }
     if (!dev) return fail("SDL_CreateGPUDevice");
     if (!SDL_ClaimWindowForGPUDevice(dev, window)) return fail("SDL_ClaimWindowForGPUDevice");
+    if (const char *v = std::getenv("M2_FRAMES_IN_FLIGHT")) // experiment: 1 = each pass waits for the refresh
+        SDL_SetGPUAllowedFramesInFlight(dev, Uint32(std::clamp(std::atoi(v), 1, 3)));
     std::printf("daytona: GPU driver %s\n", SDL_GetGPUDeviceDriver(dev));
 #ifndef M2_MOBILE
     const float paper_white = hdr10_paper_white.value_or(app::kHdr10PaperWhiteNits);
@@ -882,6 +889,9 @@ int main(int argc, char **argv) {
         ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
         home_menu.init();
         if (start_solo) home_menu.select(*start_solo);
+    } else {
+        ImGui::GetIO().Fonts->AddFontDefaultVector(); // the launcher's, with the other scripts merged in
+        app::i18n::add_fonts();
     }
     bool settings = false, pc_race = false;
     bool solo = false;
@@ -906,6 +916,60 @@ int main(int argc, char **argv) {
     app::GpuRenderer gpu;
     if (!gpu.init(dev, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM))
         std::fprintf(stderr, "daytona: hardware renderer unavailable: %s\n", gpu.error().c_str());
+    // The experimental ray-tracing options are both off by
+    // default. M2_DXR_SCENE=1 builds the frame's acceleration structure after
+    // each hardware render (nothing reads it; the image is unchanged).
+    // M2_DXR_SHADOWS=1 also casts sun shadows on the native-resolution path:
+    // the frame is drawn in its own command buffer, submitted, the DXR pass
+    // runs on the same queue, then the frame is multiplied by its light.
+    // M2_DXR_SUN=x,y,z replaces the game's light vector (camera space),
+    // M2_DXR_STRENGTH the light left in shadow (0.6). The GPU time is
+    // reported at exit, where it is released before SDL destroys the device
+    // (and unloads d3d12.dll: releasing after that crashed).
+    app::DxrScene dxr_scene;
+    std::vector<float> dxr_triangles;
+    bool dxr_shadows = false;
+    constexpr int kShadowTopMargin = 384; // Geo::set_top_margin, pixels above full-screen viewports
+    float dxr_strength = 0.6f;
+    std::array<float, 3> dxr_sun_override{};
+    // sky light: its share of the light (M2_DXR_SKY, 0..1) and reach (M2_DXR_SKY_RADIUS)
+    float dxr_sky = cfg.sky_light ? 0.45f : 0.0f, dxr_sky_radius = 3.0f;
+    // the sun's disc, degrees across (the real one 0.53: slightly soft edges; M2_DXR_SUN_SIZE)
+    float dxr_sun_size = 0.53f;
+    // light shafts: sunlit air between shadows (M2_DXR_SHAFTS strength, 0 = off,
+    // M2_DXR_SHAFT_DIST how far the eye ray is marched, camera units)
+    float dxr_shafts = 0.8f, dxr_shaft_dist = 60.0f; // on with the sun shadows (23/11); weighted by the angle to the sun
+    int dxr_sun_height = cfg.sun_height; // degrees, 0 = the game's own (M2_DXR_SUN_HEIGHT overrides)
+    bool dxr_sun_fixed = false;
+    const char *dxr_scene_env = std::getenv("M2_DXR_SCENE");
+    const char *dxr_shadows_env = std::getenv("M2_DXR_SHADOWS");
+    // the launcher's "Ombres du soleil" (sun_shadows), unless the variable says otherwise
+    const bool dxr_shadows_wanted = dxr_shadows_env ? dxr_shadows_env[0] == '1' : cfg.sun_shadows;
+#ifdef M2_RAY_TRACING
+    const bool dxr_wanted = (dxr_scene_env && dxr_scene_env[0] == '1') || dxr_shadows_wanted;
+#else
+    const bool dxr_wanted = false; // built without ray tracing (CMake M2_RAY_TRACING)
+    (void)dxr_scene_env;
+#endif
+    if (dxr_wanted && gpu.ok()) {
+        if (dxr_scene.init(dev)) {
+            gpu.collect_triangles(&dxr_triangles);
+            dxr_shadows = dxr_shadows_wanted && gpu.enable_shadows();
+            if (const char *v = std::getenv("M2_DXR_SUN_SIZE")) dxr_sun_size = std::clamp(float(std::atof(v)), 0.0f, 10.0f);
+            if (const char *v = std::getenv("M2_DXR_SKY")) dxr_sky = std::clamp(float(std::atof(v)), 0.0f, 1.0f);
+            if (const char *v = std::getenv("M2_DXR_SKY_RADIUS")) dxr_sky_radius = std::max(float(std::atof(v)), 0.1f);
+            if (const char *v = std::getenv("M2_DXR_SHAFTS")) dxr_shafts = std::clamp(float(std::atof(v)), 0.0f, 1.0f);
+            if (const char *v = std::getenv("M2_DXR_SHAFT_DIST")) dxr_shaft_dist = std::max(float(std::atof(v)), 1.0f);
+            if (const char *v = std::getenv("M2_DXR_SUN_HEIGHT")) dxr_sun_height = std::clamp(std::atoi(v), 0, 89);
+            if (const char *v = std::getenv("M2_DXR_STRENGTH")) dxr_strength = std::clamp(float(std::atof(v)), 0.0f, 1.0f);
+            if (const char *v = std::getenv("M2_DXR_SUN"))
+                dxr_sun_fixed = std::sscanf(v, "%f,%f,%f", &dxr_sun_override[0], &dxr_sun_override[1],
+                                            &dxr_sun_override[2]) == 3;
+            std::printf("daytona: DXR scene on (ray tracing tier 1.1), shadows %s\n", dxr_shadows ? "on" : "off");
+        } else {
+            std::fprintf(stderr, "daytona: DXR scene unavailable: %s\n", dxr_scene.error().c_str());
+        }
+    }
 #ifndef M2_MOBILE
     if (hardware_trace_path) {
         if (!gpu.ok()) return 1;
@@ -953,6 +1017,18 @@ int main(int argc, char **argv) {
     std::unique_ptr<rt::GameLoop> game;
     bool pose_session = false, last_render_was_pose = false;
     uint64_t pose_interval_ns = 0;
+    double pose_lag_mean = 0, pose_lag_dev = 0; // snapshot availability after its due instant, ns
+    double pose_sample_ns = 0;          // the drawn instant, on its own steady clock
+    double pose_shown_ns = 0, pose_shown_lead = 0; // when the pass will be shown (fixed refresh)
+    uint64_t pose_presentations = 0, pose_fallbacks = 0;
+    struct PoseReport { // printed at exit: how often smoothing gave up for the latest tick
+        const uint64_t &total, &fallbacks;
+        ~PoseReport() {
+            if (total) std::printf("daytona: smoothing fell back to the latest tick on %llu of %llu presentations\n",
+                                   (unsigned long long)fallbacks, (unsigned long long)total);
+            std::fflush(stdout);
+        }
+    } pose_report{pose_presentations, pose_fallbacks};
     bool pose_discontinuity = true;
     const std::string eeprom_path = pref_file("ioboard_eeprom.bin"), backup_path = pref_file("backup_ram.bin");
     auto save_nv = [&] {
@@ -963,6 +1039,7 @@ int main(int argc, char **argv) {
     auto start_game = [&](bool solo_mode = false) {
         save_nv();
         pose_session = last_render_was_pose = false;
+        pose_sample_ns = pose_shown_ns = pose_shown_lead = 0;
         pose_discontinuity = true;
         ffb.reset(); // a new game: the drive board as at power-on
         native_audio.close(); // joins callback before replacing its ROMs/engine
@@ -1298,11 +1375,28 @@ int main(int argc, char **argv) {
 #endif
         if (game && !in_launcher) {
 #ifndef M2_MOBILE
-            game->set_aspect(native_resolution ? double(pixel_width) / pixel_height : cfg.aspect_ratio());
+            // "4:3": the cabinet's picture in every mode, centred with bars. In the
+            // native mode, "" (automatic) takes the window's shape, as before, and
+            // 16:10, 16:9, 21:9 their own, centred with bars on a wider window
+            // (a narrower one keeps its own shape: no bars above and below).
+            {
+                const double window = native_resolution ? double(pixel_width) / pixel_height : 0.0;
+                const double chosen = cfg.aspect_ratio();
+                game->set_aspect(cfg.arcade_43() ? 0.0
+                                 : !native_resolution ? chosen
+                                 : chosen > 0 ? std::min(chosen, window) : window);
+            }
 #else
-            game->set_aspect(cfg.aspect_ratio());
+            game->set_aspect(cfg.arcade_43() ? 0.0 : cfg.aspect_ratio());
 #endif
             game->set_hud_edges(cfg.hud_edges);
+            // shadows: a screen height above the top edge stays in the scene
+            // (gantry, arch overhead), hidden by the clip rectangle
+            static const int top_margin = [] { // M2_DXR_TOP_MARGIN: pixels (diagnostic)
+                const char *v = std::getenv("M2_DXR_TOP_MARGIN");
+                return v && *v ? std::atoi(v) : kShadowTopMargin;
+            }();
+            game->board().set_top_margin(dxr_shadows && native_resolution ? top_margin : 0);
             game->set_frame_skip(cfg.draw_mode);
             game->board().video().set_external_3d(cfg.renderer == "hardware" && gpu.ok(), true);
             game->set_stretch_backdrop(cfg.stretch_backdrop);
@@ -1345,6 +1439,20 @@ int main(int argc, char **argv) {
                         stamp->discontinuity_before |= pose_discontinuity || !pc_race || solo;
                         game->board().stamp_pose_scene(*stamp);
                         pose_discontinuity = !pc_race || solo;
+                        // How long after its due instant this snapshot became
+                        // available (the loop waits on vsync: about 7 ms at
+                        // 119 Hz). Sampling exactly one interval back ran past
+                        // the latest snapshot for that long every tick: 38% of
+                        // the presentations froze at alpha 1, then the cars
+                        // jumped ahead, a car doubled forward (22/11). Sample
+                        // that much further back: the mean lag (the
+                        // deviation is measured, not added).
+                        if (frames == 1) {
+                            const double lag = double(SDL_GetTicksNS() - std::min(SDL_GetTicksNS(), tick_time));
+                            const double clamped = std::min(lag, double(pose_interval_ns));
+                            pose_lag_mean += (clamped - pose_lag_mean) * 0.05;
+                            pose_lag_dev += (std::abs(clamped - pose_lag_mean) - pose_lag_dev) * 0.05;
+                        }
                     }
                 }
 #endif
@@ -1468,8 +1576,51 @@ int main(int argc, char **argv) {
         }
         const std::vector<rt::GeoPoly> *pose_polys = nullptr;
 #ifndef M2_MOBILE
-        if (pose_session && hardware && pc_race && !in_launcher && cfg.draw_mode == 0)
-            pose_polys = game->board().present_pose_scene(SDL_GetTicksNS(), pose_interval_ns);
+        if (pose_session && hardware && pc_race && !in_launcher && cfg.draw_mode == 0) {
+            // The drawn instant is the real time of this pass minus a fixed
+            // delay: 1.25 intervals plus the measured lag (1.5 before the display clock: centred, 23/11). Snapshots n-2, n-1
+            // and n are kept (the third snapshot), so the instant stays
+            // between n-2 and n with half an interval of margin either side.
+            // The passes are not locked to the refresh (4 to 17 ms apart,
+            // about 60 per second in heavy traffic): a clock stepping one
+            // refresh per pass fell behind there, then caught up in jumps,
+            // sometimes backwards, a car moving back and forth (5-lap runs,
+            // 22/11). The real time is also what a variable-refresh screen shows.
+            //
+            // On a fixed-refresh screen the passes are not shown when they run
+            // but one per refresh: with every opponent at the near model they
+            // came in pairs 3 then 14 ms apart, shown 8.3 ms apart at 120 Hz,
+            // so a car moved a small step then a large one, every other
+            // refresh: it was seen to shake in play, not in a 60 frames/s video
+            // (23/11). Sample for when the pass will be shown instead: the
+            // refresh after the previous one shown, or the next one after now
+            // if the queue ran dry, at most two ahead (frames in flight).
+            // Its mean lead on the real time is taken off, so the delay to the
+            // snapshots stays as measured. M2_POSE_DISPLAY_CLOCK=0: real time.
+            const uint64_t present_now = SDL_GetTicksNS();
+            static const bool display_clock = [] {
+                const char *v = std::getenv("M2_POSE_DISPLAY_CLOCK");
+                return !(v && v[0] == '0');
+            }();
+            double shown = double(present_now);
+            if (display_clock && refresh > 1.0 && !cfg.pace_vrr) {
+                const double period = 1e9 / refresh;
+                const double next = std::ceil(double(present_now) / period) * period;
+                pose_shown_ns = std::min(std::max(pose_shown_ns + period, next), double(present_now) + 2.0 * period);
+                pose_shown_lead += (pose_shown_ns - double(present_now) - pose_shown_lead) * 0.02;
+                shown = pose_shown_ns - pose_shown_lead;
+            }
+            static const double delay_intervals = [] { // M2_POSE_DELAY (experiment): intervals before the lag
+                const char *v = std::getenv("M2_POSE_DELAY");
+                return v && *v ? std::clamp(std::atof(v), 0.0, 2.0) : 1.25;
+            }();
+            const double delay = delay_intervals * double(pose_interval_ns) + std::min(pose_lag_mean, double(pose_interval_ns));
+            const double target = shown - delay;
+            pose_sample_ns = std::max(pose_sample_ns, target); // never back
+            ++pose_presentations;
+            pose_polys = game->board().present_pose_scene(uint64_t(std::max(pose_sample_ns, 0.0)), 0);
+            if (!pose_polys) ++pose_fallbacks; // the game's own latest tick instead
+        }
         const bool hardware_rasterized = hardware && (new_frame || pose_polys || last_render_was_pose);
 #else
         const bool hardware_rasterized = hardware && new_frame;
@@ -1521,10 +1672,94 @@ int main(int argc, char **argv) {
                     std::printf("daytona: native raster %ux%u, output %ux%u, drawable %ux%u\n",
                                 info.width, info.height, w, h, sw, sh);
                 }
-                if (!gpu.render(cmd, raster_target, screen_w, H, game->board().video(),
+                // With shadows the frame goes in its own command buffer:
+                // the DXR pass must run after it and before what reads it.
+                SDL_GPUCommandBuffer *frame_cmd = dxr_shadows ? SDL_AcquireGPUCommandBuffer(dev) : nullptr;
+                gpu.set_shadow_casters(&game->board().shadow_casters(pose_polys != nullptr)); // behind the camera
+                if (!gpu.render(frame_cmd ? frame_cmd : cmd, raster_target, screen_w, H, game->board().video(),
                                 1, int(w * aa), int(h * aa), aa > 1, pose_polys)) {
+                    if (frame_cmd) SDL_SubmitGPUCommandBuffer(frame_cmd);
                     SDL_SubmitGPUCommandBuffer(cmd);
                     return fail("native resolution render");
+                }
+                if (frame_cmd) {
+                    SDL_SubmitGPUCommandBuffer(frame_cmd);
+                    const auto *frame = gpu.shadow_frame();
+                    bool lit = false;
+                    if (frame) {
+                        app::DxrScene::Shade shade;
+                        shade.view_z = frame->view_z;
+                        shade.light = frame->light;
+                        shade.width = frame->width;
+                        shade.height = frame->height;
+                        std::copy(std::begin(frame->to_screen), std::end(frame->to_screen), shade.to_screen);
+                        std::copy(std::begin(frame->origin), std::end(frame->origin), shade.origin);
+                        shade.cutout_xyz = frame->cutout_xyz;
+                        shade.cutout_records = frame->cutout_records;
+                        shade.tex0 = frame->tex0;
+                        shade.tex1 = frame->tex1;
+                        shade.tex_generation = frame->tex_generation;
+                        // towards the sun in the polygons' scaled camera space:
+                        // the game's light vector is where the light goes (it
+                        // points down, y -0.94 on Beginner), so the opposite
+                        auto light = dxr_sun_fixed ? dxr_sun_override : game->board().light();
+                        if (dxr_sun_height > 0) {
+                            // the game's direction, another height: keep the horizontal
+                            // part, set the angle above it. Up is taken as the camera's y
+                            // (a level camera; banked turns tilt it a little).
+                            const float h = std::hypot(light[0], light[2]);
+                            if (h > 1e-6f) {
+                                const float e = float(dxr_sun_height) * 3.14159265f / 180.0f;
+                                light = {light[0] / h * std::cos(e), -std::sin(e), light[2] / h * std::cos(e)};
+                            }
+                        }
+                        const float sun[3] = {-light[0] * frame->focus[0], -light[1] * frame->focus[1], -light[2]};
+                        const float length = std::sqrt(sun[0] * sun[0] + sun[1] * sun[1] + sun[2] * sun[2]);
+                        if (length > 0) {
+                            for (int k = 0; k < 3; ++k) shade.sun[k] = sun[k] / length;
+                            // what the pass works with, whenever it changes (40 lines at most)
+                            static std::array<float, 7> told{};
+                            static int told_lines = 0;
+                            const std::array<float, 7> now{light[0], light[1], light[2], frame->focus[0],
+                                                           frame->focus[1], frame->origin[0], frame->origin[1]};
+                            if (const char *path = std::getenv("M2_DXR_SCENE_REPORT");
+                                now != told && told_lines < 40 && path && *path)
+                                if (std::FILE *f = std::fopen(path, "a")) {
+                                    std::fprintf(f, "daytona: DXR frame %llu light %.4f %.4f %.4f focus %.2f %.2f"
+                                                 " origin %.1f %.1f to_screen %.4f %.4f size %dx%d\n",
+                                                 (unsigned long long)game->board().frame(), light[0], light[1], light[2],
+                                                 frame->focus[0], frame->focus[1], frame->origin[0], frame->origin[1],
+                                                 frame->to_screen[0], frame->to_screen[1], frame->width, frame->height);
+                                    std::fclose(f);
+                                    told = now;
+                                    ++told_lines;
+                                }
+                            // diagnostic: M2_DXR_CAMERAS=FILE lists the frame's cameras every 30 frames
+                            if (const char *path = std::getenv("M2_DXR_CAMERAS");
+                                path && *path && game->board().frame() % 30 == 0)
+                                if (std::FILE *f = std::fopen(path, "a")) {
+                                    const auto &cams = gpu.shadow_cameras();
+                                    for (size_t c = 0; c < cams.size(); ++c)
+                                        std::fprintf(f, "%llu,%s,%.1f,%.1f,%.2f,%.2f,%.0f,%u\n",
+                                                     (unsigned long long)game->board().frame(),
+                                                     c == gpu.shadow_main_camera() ? "main" : "other",
+                                                     cams[c].first[0], cams[c].first[1], cams[c].first[2],
+                                                     cams[c].first[3], cams[c].first[4], cams[c].second);
+                                    std::fclose(f);
+                                }
+                            shade.strength = dxr_strength;
+                            shade.sky = dxr_sky;
+                            shade.sky_radius = dxr_sky_radius;
+                            shade.sun_radius = dxr_sun_size * 0.5f * 3.14159265f / 180.0f;
+                            shade.shaft = dxr_shafts;
+                            shade.shaft_dist = dxr_shaft_dist;
+                            shade.focus[0] = frame->focus[0];
+                            shade.focus[1] = frame->focus[1];
+                            lit = dxr_scene.build(dxr_triangles, &shade);
+                        }
+                    }
+                    if (!frame) dxr_scene.build(dxr_triangles);
+                    if (lit) gpu.apply_shadow(cmd, raster_target);
                 }
                 if (aa > 1) SDL_GenerateMipmapsForGPUTexture(cmd, raster_target);
                 shown = raster_target;
@@ -1547,6 +1782,7 @@ int main(int argc, char **argv) {
 #endif
                 shown = screen, shown_scale = 1;
             }
+            if (dxr_scene.ok() && !dxr_shadows) dxr_scene.build(dxr_triangles);
             last_render_was_pose = pose_polys != nullptr;
             new_frame = false;
         }
@@ -1712,6 +1948,17 @@ int main(int argc, char **argv) {
                     blit.destination.x = (sw - blit.destination.w) / 2;
                     blit.destination.y = (sh - blit.destination.h) / 2;
                 }
+#endif
+                if (cfg.arcade_43()) {
+                    // Present the original raster on a 4:3 canvas without changing
+                    // its logical resolution or the view used to render the scene.
+                    constexpr double arcade_aspect = 4.0 / 3.0;
+                    blit.destination.w = Uint32(std::lround(std::min(double(sw), sh * arcade_aspect)));
+                    blit.destination.h = Uint32(std::lround(std::min(double(sh), sw / arcade_aspect)));
+                    blit.destination.x = (sw - blit.destination.w) / 2;
+                    blit.destination.y = (sh - blit.destination.h) / 2;
+                }
+#ifndef M2_MOBILE
                 if (pc_race && hardware && !raster_reported && raster_capture) {
                     std::printf("daytona: race source %ux%u, swapchain %ux%u, destination %ux%u at %u,%u\n",
                                 blit.source.w, blit.source.h, sw, sh, blit.destination.w,
@@ -1801,7 +2048,32 @@ int main(int argc, char **argv) {
                 running = false;
             }
         } else {
-            const bool submitted = SDL_SubmitGPUCommandBuffer(cmd);
+            // Diagnostic: M2_CAPTURE_EVERY=N with M2_CAPTURE_DIR=FOLDER saves one
+            // presented frame in N (the raster, as --capture-raster) while the
+            // game runs, attract mode included: a place the scripted race does
+            // not reach (the Canyon tunnel, 23/11). It waits for the GPU.
+            static const unsigned capture_every = [] {
+                const char *v = std::getenv("M2_CAPTURE_EVERY");
+                return v ? unsigned(std::max(std::atoi(v), 0)) : 0u;
+            }();
+            static const char *capture_dir = std::getenv("M2_CAPTURE_DIR");
+            static const unsigned long long capture_from = [] { // M2_CAPTURE_FROM: first one counted
+                const char *v = std::getenv("M2_CAPTURE_FROM");
+                return v ? std::strtoull(v, nullptr, 10) : 0ull;
+            }();
+            static unsigned long long capture_count = 0;
+            bool submitted;
+            if (capture_every && capture_dir && *capture_dir && swap && shown && hardware_rasterized &&
+                ++capture_count >= capture_from && capture_count % capture_every == 0) {
+                const bool native = raster_target && shown == raster_target;
+                char path[600];
+                std::snprintf(path, sizeof path, "%s/f%07llu.bmp", capture_dir, capture_count);
+                submitted = save_home_capture(dev, cmd, shown, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM,
+                    native ? raster_width : Uint32(screen_w * shown_scale),
+                    native ? raster_height : Uint32(H * shown_scale), path, native && raster_scale > 1 ? 1u : 0u);
+            } else {
+                submitted = SDL_SubmitGPUCommandBuffer(cmd);
+            }
             if (present_trace) {
                 const bool eligible = swap && pc_race && !in_launcher && have_frame &&
                                       !draw_home && !draw && !hardware && reveal >= 1.f;
@@ -1866,6 +2138,7 @@ int main(int argc, char **argv) {
     if (raster_target) SDL_ReleaseGPUTexture(dev, raster_target);
     if (raster_capture && !raster_captured) capture_status = 1;
 #endif
+    dxr_scene.shutdown();
     gpu.shutdown();
     ImGui_ImplSDLGPU3_Shutdown();
     ImGui_ImplSDL3_Shutdown();
