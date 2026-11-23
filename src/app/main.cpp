@@ -1030,6 +1030,7 @@ int main(int argc, char **argv) {
     uint32_t online_epoch = 0;  // the room's ring that race started on
     rt::online::AutoEntry online_entry;   // one Start for the whole room
     rt::online::CourseSync online_course; // and the MASTER's course
+    rt::online::Standings online_standings; // the race's standings, for the players list
     uint64_t online_race_since = 0;       // when this online race began (its first race frame), 0: not racing
     float online_names = 0.f;             // the players list's opacity over the race (app/online_overlay.h)
     std::unique_ptr<rt::GameLoop> game;
@@ -1105,6 +1106,7 @@ int main(int argc, char **argv) {
                 online_epoch = online_link->epoch();
                 online_entry = {};
                 online_course = {};
+                online_standings.clear();
                 std::printf("daytona: online: room %s, player %d of %d\n", online_link->room().c_str(), st.position, st.size);
             } else if (cfg.link && !solo_mode) { // link play: the communication board on TCP
                 link = std::make_unique<app::TcpLink>(uint16_t(cfg.link_port), cfg.link_next);
@@ -1494,17 +1496,20 @@ int main(int argc, char **argv) {
                     if (cfg.hold_test != test_hold.armed()) cfg.hold_test ? test_hold.arm() : test_hold.cancel();
                     if (test_hold.apply(game->frames(), inputs.in0)) cfg.hold_test = false; // held: the box clears
                 }
-                if (online_game) { // one Start and one course for the whole room
+                if (online_game) { // one Start and one course for the whole room, and its standings
                     const auto &room = online_link->status();
                     const bool master = room.position == 1;
                     rt::online::StartGate::apply(game->board(), inputs, master || room.any_start);
+                    for (const auto &message : online_link->take_controls())
+                        if (!online_standings.receive(message) && !master) online_course.receive(message);
                     if (master) {
                         if (const auto told = online_course.master(game->board()); !told.empty())
                             online_link->send_control(told);
                     } else {
-                        for (const auto &message : online_link->take_controls()) online_course.receive(message);
                         online_course.slave(game->board(), inputs);
                     }
+                    if (const auto told = online_standings.own(game->board(), room.position); !told.empty())
+                        online_link->send_control(told);
                     online_entry.apply(game->board(), inputs); // another player started: join
                 }
                 game->run_frame(inputs);
@@ -1977,13 +1982,19 @@ int main(int argc, char **argv) {
                     {view->Pos.x + view->Size.x, view->Pos.y + view->Size.y},
                     IM_COL32(0, 0, 0, int(255 * (1 - reveal))));
             }
-            if (online_names > 0.f && online_link && !in_launcher) app::draw_online_players(online_link->status(), online_names);
+            if (online_names > 0.f && online_link && !in_launcher) {
+                std::array<int, 9> ranks;
+                for (int car = 0; car < 9; ++car) ranks[car] = online_standings.rank(car);
+                app::draw_online_players(online_link->status(), online_names, ranks);
+            }
             if (capture_image && std::getenv("M2_CAPTURE_ONLINE_NAMES")) { // diagnostic: the list's look, in a capture
                 app::online::Status demo;
                 demo.size = demo.joined = 8;
                 demo.position = 2;
                 demo.names = {"Railton", "Jo\xc3\xa3o", "Ana", "Pedro", "", "Marina", "Luiz", "Bia"};
-                app::draw_online_players(demo, 1.f);
+                const bool standings = std::getenv("M2_CAPTURE_ONLINE_NAMES")[0] == '2'; // =2: as standings
+                app::draw_online_players(demo, 1.f, standings ? std::array<int, 9>{-1, 3, 0, 5, 1, 7, 2, 6, 4}
+                                                              : std::array<int, 9>{-1, -1, -1, -1, -1, -1, -1, -1, -1});
             }
 #endif
             sync_native_audio();

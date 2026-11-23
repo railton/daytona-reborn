@@ -774,7 +774,13 @@ msgstr ""
 msgid "Quitter la salle"
 msgstr ""
 
+msgid "CLASSEMENT"
+msgstr ""
+
 msgid "JOUEURS"
+msgstr ""
+
+msgid "%d."
 msgstr ""
 
 msgid " sur un écran à %.2f Hz"

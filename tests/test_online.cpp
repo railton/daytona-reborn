@@ -19,11 +19,12 @@ struct FakeBoard {
     std::array<uint8_t, 16384> backup{};
     Io &io() { return io_; }
     std::array<uint8_t, 16384> &backup_ram() { return backup; }
-    int mode = 3, step = 0, course = 0; // the guest's mode dispatch, selection step, course cursor
+    int mode = 3, step = 0, course = 0, rank = 0; // the guest's mode dispatch, selection step, course cursor, place
     uint8_t read_byte(uint32_t address) const {
         if (address == rt::online::AutoEntry::mode_address) return uint8_t(mode);
         if (address == rt::online::CourseSync::step_address) return uint8_t(step);
         if (address == rt::online::CourseSync::course_address) return uint8_t(course);
+        if (address == rt::online::Standings::rank_address) return uint8_t(rank);
         const uint32_t i = address - 0x239d60;
         if (i < 8) return uint8_t("SEGA@\x82\x02\x00"[i]);
         return i == 0x0b ? 1 : 0; // factory: MASTER
@@ -202,6 +203,25 @@ int main() {
     CHECK(racing.steer == 0x30 && slave_side.cursor() == -1 && !slave_side.confirmed());
     slave_side.receive("course=7"); // out of range: ignored
     CHECK(slave_side.cursor() == -1);
+
+    // Standings: this cabinet's place told on a change (and every 2 s), the
+    // others' kept, everything cleared outside a race
+    rt::online::Standings standings;
+    FakeBoard racer;
+    racer.mode = 22;
+    racer.rank = 2;
+    CHECK(standings.own(racer, 3) == "pos=3:2");
+    CHECK(standings.own(racer, 3).empty());
+    racer.rank = 0;
+    CHECK(standings.own(racer, 3) == "pos=3:0");
+    CHECK(standings.receive("pos=1:1") && standings.rank(1) == 1 && standings.rank(3) == 0);
+    CHECK(standings.receive("pos=9:1") && standings.rank(9) == -1); // ours, out of range: ignored
+    CHECK(!standings.receive("course=1"));
+    int repeats = 0;
+    for (int f = 0; f < 240; ++f) repeats += !standings.own(racer, 3).empty();
+    CHECK(repeats == 2); // every 115 frames while unchanged
+    racer.mode = 3;
+    CHECK(standings.own(racer, 3).empty() && standings.rank(1) == -1 && standings.rank(3) == -1);
     std::puts("online ok");
     return 0;
 }

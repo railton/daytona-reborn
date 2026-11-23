@@ -359,6 +359,7 @@ int main(int argc, char **argv) {
         std::unique_ptr<app::RelayLink> relay;
         rt::online::AutoEntry relay_entry;
         rt::online::CourseSync relay_course;
+        rt::online::Standings relay_standings;
         if (!relay_server.empty()) {
             const auto server = app::online::normalize_server(relay_server);
             if (!server) throw std::runtime_error("--relay: bad server address");
@@ -414,12 +415,15 @@ int main(int argc, char **argv) {
                 const auto &room = relay->status();
                 const bool master = room.position == 1;
                 rt::online::StartGate::apply(game.board(), inputs, master || room.any_start);
+                for (const auto &message : relay->take_controls())
+                    if (!relay_standings.receive(message) && !master) relay_course.receive(message);
                 if (master) {
                     if (const auto told = relay_course.master(game.board()); !told.empty()) relay->send_control(told);
                 } else {
-                    for (const auto &message : relay->take_controls()) relay_course.receive(message);
                     relay_course.slave(game.board(), inputs);
                 }
+                if (const auto told = relay_standings.own(game.board(), room.position); !told.empty())
+                    relay->send_control(told);
                 relay_entry.apply(game.board(), inputs);
             }
             game.run_frame(inputs);
@@ -559,6 +563,12 @@ int main(int argc, char **argv) {
                     game.frames(), game.instructions(), game.board().tgp().tgp_instructions(), game.interrupts(),
                     game.board().sound_bytes_total(), s, double(game.frames()) / s);
         std::printf("  last screen hash %016" PRIx64 "\n", game.board().video().screen_hash());
+        if (relay) { // the standings this cabinet knew at the end (car:place, 1 = first)
+            std::printf("  relay standings:");
+            for (int car = 1; car <= relay->status().size; ++car)
+                std::printf(" %d:%d", car, relay_standings.rank(car) + 1);
+            std::printf("\n");
+        }
         if (const rt::CommBoard *cb = game.board().comm_board()) {
             static const char *states[] = {"off (the game never started the board)", "waiting for the other cabinets", "up", "lost"};
             std::printf("  link: %s", states[int(cb->link())]);

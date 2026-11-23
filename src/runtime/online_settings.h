@@ -171,4 +171,50 @@ private:
     unsigned age_ = 0;
 };
 
+// Online: the linked race's standings for the players list. Each cabinet
+// keeps its own place among the linked players at 0x501908 (0 = first; it
+// matched every cabinet's POSITION on five linked cabinets, 23/11; a mirror
+// at 0x5051ed; not the 40-car place of a solo race). Each game tells the
+// room its own ("pos=CAR:RANK", on a change and every 2 s) and keeps the
+// others'. Cleared outside a race.
+class Standings {
+public:
+    static constexpr uint32_t rank_address = 0x501908;
+
+    // Once a frame: this cabinet's place; a message for the room, or empty.
+    template <class Board> std::string own(Board &board, int car) {
+        if (board.read_byte(AutoEntry::mode_address) != CourseSync::race) {
+            clear();
+            return {};
+        }
+        const int rank = board.read_byte(rank_address);
+        if (car < 1 || car > 8 || rank > 7) return {};
+        rank_[car] = rank;
+        if (rank == sent_ && ++since_ < 115) return {};
+        sent_ = rank;
+        since_ = 0;
+        return "pos=" + std::to_string(car) + ":" + std::to_string(rank);
+    }
+
+    // A message from another player; false if it is not one of ours.
+    bool receive(const std::string &message) {
+        int car = 0, rank = 0;
+        if (std::sscanf(message.c_str(), "pos=%d:%d", &car, &rank) != 2) return false;
+        if (car >= 1 && car <= 8 && rank >= 0 && rank <= 7) rank_[car] = rank;
+        return true;
+    }
+
+    int rank(int car) const { return car >= 1 && car <= 8 ? rank_[car] : -1; } // -1: not known
+    void clear() {
+        rank_.fill(-1);
+        sent_ = -1;
+        since_ = 0;
+    }
+
+private:
+    std::array<int, 9> rank_{-1, -1, -1, -1, -1, -1, -1, -1, -1};
+    int sent_ = -1;
+    unsigned since_ = 0;
+};
+
 } // namespace rt::online

@@ -856,8 +856,14 @@ msgstr "Resume the race"
 msgid "Quitter la salle"
 msgstr "Leave the room"
 
+msgid "CLASSEMENT"
+msgstr "STANDINGS"
+
 msgid "JOUEURS"
 msgstr "PLAYERS"
+
+msgid "%d."
+msgstr "%d."
 
 msgid " sur un écran à %.2f Hz"
 msgstr " on a %.2f Hz display"

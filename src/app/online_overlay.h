@@ -4,6 +4,7 @@
 
 #include "app/online.h"
 
+#include <array>
 #include <cstdint>
 
 namespace app {
@@ -13,7 +14,10 @@ namespace app {
 uint32_t online_car_colour(int car);
 
 // The player list, faded by alpha (0..1). room.position is this player's
-// place (and car number, rt::online::configure).
-void draw_online_players(const online::Status &room, float alpha);
+// place (and car number, rt::online::configure). ranks: each car's place in
+// the race (index = car number, 0 = first, -1 not known); when every
+// player's is known, the list is the standings, in race order.
+void draw_online_players(const online::Status &room, float alpha, const std::array<int, 9> &ranks = {
+                             -1, -1, -1, -1, -1, -1, -1, -1, -1});
 
 } // namespace app

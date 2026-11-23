@@ -856,8 +856,14 @@ msgstr "Voltar à corrida"
 msgid "Quitter la salle"
 msgstr "Sair da sala"
 
+msgid "CLASSEMENT"
+msgstr "CLASSIFICAÇÃO"
+
 msgid "JOUEURS"
 msgstr "JOGADORES"
+
+msgid "%d."
+msgstr "%dº"
 
 msgid " sur un écran à %.2f Hz"
 msgstr " em uma tela de %.2f Hz"
