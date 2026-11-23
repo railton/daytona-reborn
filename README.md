@@ -31,6 +31,8 @@ desktop computer from your ROM set, then built for the other platform.
 
 **New here? Follow [docs/getting-started.md](docs/getting-started.md)**: step
 by step for Windows, macOS and Linux, with fixes for the usual problems.
+Building this branch's Online mode on Windows or Linux (also with Docker):
+[docs/BUILDING.md](docs/BUILDING.md).
 
 In short:
 
