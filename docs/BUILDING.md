@@ -194,8 +194,8 @@ game mode and gearbox, **Settings**, **Quit** and **Online**.
 1. The first time, open **Settings**. On the **Game** tab, click
    **Browse...** and choose your `roms/daytona.zip` (or type its path and
    press Enter), and wait for the line under it to say all files are
-   verified. **Langue / Language** at the top switches the interface between
-   French, English and Portuguese (Português). **Back** returns to the home
+   verified. **Language**, at the top right, switches the interface between
+   English, French and Portuguese (Português). **Back** returns to the home
    menu. The choice is remembered.
 2. **Play** starts a solo race. In the game, **Esc** brings the menu back.
 3. **Online** (below Settings and Quit) opens the Online screen: create a
