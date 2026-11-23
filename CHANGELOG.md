@@ -107,6 +107,10 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
 
 ### Tools and tests
 
+- Removed the original fork author's private agent tooling (`tools/team_*.py`,
+  `tools/grok-acp-bridge.py`, `tools/schedule-*.ps1`), its tests and its
+  workflow: none of it builds or runs the game.
+
 - `m2run --relay` joins a room headless, as the game does (settings, Start,
   course, standings), and prints the standings it knew.
 - `tests/test_online.cpp`: invite code, protocol text, cabinet settings,
