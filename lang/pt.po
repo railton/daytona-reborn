@@ -856,6 +856,9 @@ msgstr "Voltar à corrida"
 msgid "Quitter la salle"
 msgstr "Sair da sala"
 
+msgid "JOUEURS"
+msgstr "JOGADORES"
+
 msgid " sur un écran à %.2f Hz"
 msgstr " em uma tela de %.2f Hz"
 

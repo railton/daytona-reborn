@@ -774,6 +774,9 @@ msgstr ""
 msgid "Quitter la salle"
 msgstr ""
 
+msgid "JOUEURS"
+msgstr ""
+
 msgid " sur un écran à %.2f Hz"
 msgstr ""
 

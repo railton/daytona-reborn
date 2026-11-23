@@ -38,6 +38,7 @@
 #include "app/link_socket.h"
 #include "app/relay_link.h"
 #include "app/online_menu.h"
+#include "app/online_overlay.h"
 #include "runtime/online_settings.h"
 #include "app/gpu/dxr_scene.h"
 #include "app/gpu/gpu_renderer.h"
@@ -1029,6 +1030,8 @@ int main(int argc, char **argv) {
     uint32_t online_epoch = 0;  // the room's ring that race started on
     rt::online::AutoEntry online_entry;   // one Start for the whole room
     rt::online::CourseSync online_course; // and the MASTER's course
+    uint64_t online_race_since = 0;       // when this online race began (its first race frame), 0: not racing
+    float online_names = 0.f;             // the players list's opacity over the race (app/online_overlay.h)
     std::unique_ptr<rt::GameLoop> game;
     bool pose_session = false, last_render_was_pose = false;
     uint64_t pose_interval_ns = 0;
@@ -1428,6 +1431,16 @@ int main(int argc, char **argv) {
             if (const uint64_t wait = pacer.wait_ns(SDL_GetTicksNS())) SDL_DelayPrecise(wait); // VRR: hold the frame
         const uint64_t now = SDL_GetTicksNS();
 #ifndef M2_MOBILE
+        { // online: the players list over the race, its first 10 s and while Tab (or L3) is held
+            const bool racing = online_game && game &&
+                                game->board().read_byte(rt::online::AutoEntry::mode_address) == rt::online::CourseSync::race;
+            if (!racing) online_race_since = 0;
+            else if (!online_race_since) online_race_since = now;
+            const bool held = SDL_GetKeyboardState(nullptr)[SDL_SCANCODE_TAB] ||
+                              (devices.pad && SDL_GetGamepadButton(devices.pad, SDL_GAMEPAD_BUTTON_LEFT_STICK));
+            const bool show = racing && !in_launcher && (held || now - online_race_since < 10'000'000'000ull);
+            online_names = std::clamp(online_names + (show ? 0.15f : -0.05f), 0.f, 1.f); // quick in, a slower fade out
+        }
         int pixel_width = 0, pixel_height = 0;
         // Native mode uses the DXIL viewport-aware tile shaders.
         const bool native_resolution = !capture_image && cfg.renderer == "hardware" && gpu.ok() && gpu_driver &&
@@ -1898,7 +1911,7 @@ int main(int argc, char **argv) {
 #ifdef M2_MOBILE
             || game != nullptr
 #else
-            || draw_home || reveal < 1.f
+            || draw_home || reveal < 1.f || online_names > 0.f
 #endif
         ) {
             ImGui_ImplSDLGPU3_NewFrame();
@@ -1963,6 +1976,14 @@ int main(int argc, char **argv) {
                 ImGui::GetForegroundDrawList()->AddRectFilled(view->Pos,
                     {view->Pos.x + view->Size.x, view->Pos.y + view->Size.y},
                     IM_COL32(0, 0, 0, int(255 * (1 - reveal))));
+            }
+            if (online_names > 0.f && online_link && !in_launcher) app::draw_online_players(online_link->status(), online_names);
+            if (capture_image && std::getenv("M2_CAPTURE_ONLINE_NAMES")) { // diagnostic: the list's look, in a capture
+                app::online::Status demo;
+                demo.size = demo.joined = 8;
+                demo.position = 2;
+                demo.names = {"Railton", "Jo\xc3\xa3o", "Ana", "Pedro", "", "Marina", "Luiz", "Bia"};
+                app::draw_online_players(demo, 1.f);
             }
 #endif
             sync_native_audio();
