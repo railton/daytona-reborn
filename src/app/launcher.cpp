@@ -9,8 +9,11 @@
 #include "imgui.h"
 
 #include <algorithm>
+#include <cfloat>
 #include <cmath>
+#include <cstdarg>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <filesystem>
 
@@ -222,6 +225,46 @@ bool Launcher::handle_event(const SDL_Event &e) {
     return e.type == SDL_EVENT_KEY_UP || e.type == SDL_EVENT_GAMEPAD_BUTTON_UP || e.type == SDL_EVENT_JOYSTICK_BUTTON_UP;
 }
 
+namespace {
+// The settings screen's pieces, in the Online screen's style: a label above
+// a full-width field, help text wrapped under it.
+void hint(const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
+    ImGui::TextWrappedV(fmt, args);
+    ImGui::PopStyleColor();
+    va_end(args);
+}
+
+bool combo(const char *label, const char *id, int *value, const char *const items[], int count) {
+    ImGui::TextUnformatted(label);
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    return ImGui::Combo(id, value, items, count);
+}
+
+bool slider(const char *label, const char *id, int *value, int lo, int hi, const char *format) {
+    ImGui::TextUnformatted(label);
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    return ImGui::SliderInt(id, value, lo, hi, format, ImGuiSliderFlags_AlwaysClamp);
+}
+
+// Two blocks side by side on a wide window, one under the other otherwise.
+template <class Left, class Right> void columns(const char *id, bool wide, Left left, Right right) {
+    if (wide && ImGui::BeginTable(id, 2, ImGuiTableFlags_SizingStretchSame | ImGuiTableFlags_PadOuterX)) {
+        ImGui::TableNextColumn();
+        left();
+        ImGui::TableNextColumn();
+        right();
+        ImGui::EndTable();
+    } else {
+        left();
+        ImGui::Spacing();
+        right();
+    }
+}
+} // namespace
+
 Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool from_home) {
     SDL_Gamepad *pad = devices.pad;
     {
@@ -247,27 +290,56 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
     }
 #endif
     ImGui::SetNextWindowBgAlpha(game_running ? 0.85f : 1.0f);
+#ifdef M2_MOBILE
+    const float scale = 1.0f; // the mobile style is sized for touch already (main.cpp)
+#else
+    const float scale = std::max(0.7f, std::min(vp->WorkSize.y / 900.f, vp->WorkSize.x / 980.f));
+    ImGui::PushFont(nullptr, 19.f * scale);
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {10.f * scale, 7.f * scale});
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, {12.f * scale, 8.f * scale});
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 5.f * scale);
+    ImGui::PushStyleVar(ImGuiStyleVar_GrabMinSize, 24.f * scale);
+    ImGui::PushStyleVar(ImGuiStyleVar_TabRounding, 5.f * scale);
+#endif
     ImGui::Begin("Daytona USA", nullptr,
                  ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse |
-                 ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings);
-    ImGui::PushTextWrapPos();
+                 ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
 
+    // one centred column, as wide as reads well
+    const float avail = ImGui::GetContentRegionAvail().x;
+    const float column = std::min(avail, 1000.f * scale);
+    ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (avail - column) * 0.5f);
+    ImGui::BeginChild("##settings", {column, 0});
+    ImGui::PushTextWrapPos(0.0f);
+    const bool wide = column >= 620.f;
+    const float button_h = 44.f * scale;
+    const ImVec4 good(0.48f, 0.98f, 0.79f, 1), warn(1, 0.74f, 0.45f, 1), bad(1, 0.45f, 0.4f, 1);
+
+    // header: back, title, language
+    const float header_right = ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x;
     if (from_home) {
-        if (ImGui::Button(TX("Back to the home screen"))) result = Back;
+        if (ImGui::Button(TX("Back"), {120.f * scale, button_h})) result = Back;
         ImGui::SameLine();
     }
-    ImGui::TextUnformatted("DAYTONA USA");
-    ImGui::SameLine();
-    ImGui::TextDisabled(TX("  static recompilation, native engine"));
-    {   // the interface language, each in its own script (app/i18n.h)
+    {
+        ImGui::BeginGroup();
+        ImGui::PushFont(nullptr, 30.f * scale);
+        ImGui::TextUnformatted(from_home ? TX("Settings") : "DAYTONA USA");
+        ImGui::PopFont();
+        ImGui::TextDisabled("%s", TX("static recompilation, native engine"));
+        ImGui::EndGroup();
+    }
+    {   // the interface language, each in its own script (app/i18n.h); only those with a translation
         const auto &langs = i18n::languages();
         size_t sel = 0;
         for (size_t i = 0; i < langs.size(); ++i)
             if (i18n::current() == langs[i].code) sel = i;
-        // only the languages with a translation next to the game (and French)
-        ImGui::SameLine();
-        ImGui::SetNextItemWidth(170);
-        if (ImGui::BeginCombo("Langue / Language", langs[sel].name)) {
+        const float width = 200.f * scale;
+        ImGui::SameLine(header_right - width);
+        ImGui::BeginGroup();
+        ImGui::TextDisabled("%s", TX("Language"));
+        ImGui::SetNextItemWidth(width);
+        if (ImGui::BeginCombo("##language", langs[sel].name)) {
             for (size_t i = 0; i < langs.size(); ++i)
                 if (i18n::available(langs[i].code) && ImGui::Selectable(langs[i].name, i == sel) && i != sel) {
                     cfg_.language = langs[i].code;
@@ -277,34 +349,40 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
                 }
             ImGui::EndCombo();
         }
+        ImGui::EndGroup();
     }
-    ImGui::Separator();
+    ImGui::Spacing();
 
+    // diagnostic: M2_CAPTURE_SETTINGS_TAB=N opens tab N (0 Game .. 5 Sound) once, for a --capture-home image
+    static int open_tab = [] {
+        const char *v = std::getenv("M2_CAPTURE_SETTINGS_TAB");
+        return v && *v ? std::atoi(v) : -1;
+    }();
+    const auto tab_flags = [&](int tab) { return tab == open_tab ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None; };
     if (ImGui::BeginTabBar("tabs")) {
-        if (ImGui::BeginTabItem(TX("Game"))) {
+        // ---- Game: the ROM set; starting, resuming, quitting (the cabinet launcher)
+        if (ImGui::BeginTabItem(TX("Game"), nullptr, tab_flags(0))) {
             ImGui::Spacing();
-            ImGui::TextUnformatted(TX("ROM set"));
+            ImGui::SeparatorText(TX("ROM set"));
 #ifdef SDL_PLATFORM_ANDROID
-            ImGui::TextWrapped(TX("Browse gives access to your ZIP/7z. A verified copy is kept in the app."));
+            hint(TX("Browse gives access to your ZIP/7z. A verified copy is kept in the app."));
 #endif
-            ImGui::SetNextItemWidth(-200);
+            const float small = 140.f * scale, gap = ImGui::GetStyle().ItemSpacing.x;
+            ImGui::SetNextItemWidth(std::max(120.f * scale, ImGui::GetContentRegionAvail().x - 2 * (small + gap)));
             if (ImGui::InputText("##rom", path_buf_, sizeof path_buf_, ImGuiInputTextFlags_EnterReturnsTrue)) {
                 cfg_.rom_path = path_buf_;
                 cfg_.save();
                 check_rom();
             }
             ImGui::SameLine();
-            if (ImGui::Button(TX("Browse..."), ImVec2(100, 0)) && !dialog_pending_) browse();
+            if (ImGui::Button(TX("Browse..."), {small, 0}) && !dialog_pending_) browse();
             ImGui::SameLine();
-            if (ImGui::Button(TX("Check"), ImVec2(90, 0))) {
+            if (ImGui::Button(TX("Check"), {small, 0})) {
                 cfg_.rom_path = path_buf_;
                 cfg_.save();
                 check_rom();
             }
-            ImGui::TextColored(rom_ok_ ? ImVec4(0.4f, 0.9f, 0.4f, 1) : ImVec4(1, 0.6f, 0.3f, 1), "%s", rom_message_.c_str());
-            if (!error_.empty()) {
-                ImGui::TextColored(ImVec4(1, 0.4f, 0.4f, 1), "%s", error_.c_str());
-            }
+            ImGui::TextColored(rom_ok_ ? good : warn, "%s", rom_message_.c_str());
             if (!checks_.empty() && ImGui::TreeNode(TX("Files"))) {
                 if (ImGui::BeginTable("files", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp)) {
                     for (const auto &c : checks_) {
@@ -312,395 +390,400 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
                         ImGui::TableNextColumn();
                         ImGui::TextUnformatted(c.file.c_str());
                         ImGui::TableNextColumn();
-                        if (c.ok) ImGui::TextColored(ImVec4(0.4f, 0.9f, 0.4f, 1), "ok");
-                        else ImGui::TextColored(ImVec4(1, 0.5f, 0.3f, 1), "%s", c.problem.c_str());
+                        if (c.ok) ImGui::TextColored(good, "ok");
+                        else ImGui::TextColored(warn, "%s", c.problem.c_str());
                     }
                     ImGui::EndTable();
                 }
                 ImGui::TreePop();
             }
-
-            ImGui::Spacing();
-            ImGui::Separator();
-            ImGui::TextUnformatted(TX("Display"));
-            {   // the picture's format first, easy to find (viewers' request, Daytona-Reborn issues 1 and 2)
-                const char *aspects[] = {TX("Arcade 4:3 (the original cabinet)"), TX("Automatic"), "16:10", "16:9",
-                                         TX("21:9 (ultrawide)")};
-                static const char *aspect_ids[] = {"4:3", "", "16:10", "16:9", "21:9"};
-                int aspect = 1;
-                for (int i = 0; i < 5; i++)
-                    if (cfg_.aspect == aspect_ids[i]) aspect = i;
-                ImGui::SetNextItemWidth(260);
-                if (ImGui::Combo(TX("Picture format"), &aspect, aspects, 5)) {
-                    cfg_.aspect = aspect_ids[aspect];
-                    cfg_.save();
-                }
-                ImGui::SetItemTooltip("%s", TX("Arcade 4:3: the cabinet's framing, centred, with bars at the sides of a wide screen.\n"
-                                               "Automatic: the window's shape with the native renderer, else the original 4:3.\n"
-                                               "16:10, 16:9, 21:9: the scene widens at the sides, the car keeps its proportions."));
-            }
-            const char *apis[] = {TX("Automatic"), "Vulkan", "Direct3D 12", "Metal"};
-            static const char *api_ids[] = {"", "vulkan", "direct3d12", "metal"};
-            int api = 0;
-            for (int i = 0; i < 4; i++)
-                if (cfg_.gpu == api_ids[i]) api = i;
-            ImGui::SetNextItemWidth(200);
-            if (ImGui::Combo(TX("Graphics API (restart the game)"), &api, apis, 4)) {
-                cfg_.gpu = api_ids[api];
-                cfg_.save();
-            }
-            const char *renderers[] = {TX("Software (exact)"), TX("Hardware (experimental)")};
-            int rd = cfg_.renderer == "hardware" ? 1 : 0;
-            ImGui::SetNextItemWidth(200);
-            if (ImGui::Combo(TX("Renderer"), &rd, renderers, 2)) {
-                cfg_.renderer = rd ? "hardware" : "software";
-                cfg_.save();
-            }
-            ImGui::TextDisabled(TX("Software: the 3D is computed by the processor, as on the arcade board. Hardware:\n"
-                                   "by the graphics card; in development, very close but not yet pixel exact."));
-            if (ImGui::Checkbox(TX("Fullscreen"), &cfg_.fullscreen)) {
-                SDL_SetWindowFullscreen(window_, cfg_.fullscreen);
-                cfg_.save();
-            }
-            ImGui::SameLine();
-            if (ImGui::Checkbox(TX("Hide the mouse during play"), &cfg_.hide_cursor)) cfg_.save();
-            ImGui::SetItemTooltip(TX("No mouse pointer during the race. It comes back when this launcher\n"
-                                     "opens (Esc) and hides again with Resume."));
-            {   // exclusive fullscreen: the display's own modes, a custom 57.52 Hz one among them
-                int count = 0;
-                SDL_DisplayMode **modes = SDL_GetFullscreenDisplayModes(SDL_GetDisplayForWindow(window_), &count);
-                std::string preview = TX("Desktop (borderless)");
-                for (int i = 0; i < count; ++i)
-                    if (mode_key(*modes[i]) == cfg_.fullscreen_mode) preview = mode_label(*modes[i]);
-                auto choose = [&](const std::string &key) {
-                    cfg_.fullscreen_mode = key;
-                    apply_fullscreen_mode(window_, key);
-                    cfg_.save();
-                };
-                ImGui::SetNextItemWidth(200);
-                if (ImGui::BeginCombo(TX("Fullscreen mode"), preview.c_str())) {
-                    if (ImGui::Selectable(TX("Desktop (borderless)"), cfg_.fullscreen_mode.empty())) choose("");
-                    for (int i = 0; i < count; ++i) {
-                        const std::string key = mode_key(*modes[i]);
-                        ImGui::PushID(i);
-                        if (ImGui::Selectable(mode_label(*modes[i]).c_str(), key == cfg_.fullscreen_mode)) choose(key);
-                        ImGui::PopID();
-                    }
-                    ImGui::EndCombo();
-                }
-                ImGui::SetItemTooltip(TX("Desktop: fullscreen at the desktop's resolution and refresh rate.\n"
-                                         "A mode: exclusive fullscreen at that resolution and rate, for example\n"
-                                         "a 57.52 Hz mode created in the graphics driver's settings."));
-                SDL_free(modes);
-            }
-            ImGui::TextUnformatted(TX("Display pacing"));
-            ImGui::SameLine();
-            ImGui::TextDisabled(TX("(all unchecked: the cabinet's speed on any display)"));
-            if (ImGui::Checkbox(TX("Smooth pacing on a 57.52 Hz display"), &cfg_.pace_smooth)) cfg_.save();
-            ImGui::SetItemTooltip(TX("On a display set to 57.52 Hz (or 115.05 Hz), one game frame per refresh (or two):\n"
-                                     "no doubled or skipped frame. The speed stays the cabinet's, within 1 %%.\n"
-                                     "No effect at other rates."));
-            if (ImGui::Checkbox(TX("Lock to the display (changes the game's speed)"), &cfg_.pace_sync_display)) cfg_.save();
-            ImGui::SetItemTooltip(TX("Runs the game at a rate that divides the display's exactly: each frame\n"
-                                     "stays on screen the same time and motion is perfectly smooth. On a\n"
-                                     "60, 120, 180 or 240 Hz display, the game runs at 60 frames/s, about 4 %% faster than the cabinet\n"
-                                     "(57.52); with the reference sound, the sound is a little faster too. No effect\n"
-                                     "on a 144 or 165 Hz display, which cannot lock a rate close to the cabinet's:\n"
-                                     "use VRR pacing then if the display supports G-Sync or FreeSync.\n"
-                                     "Unchecked: the game always runs at the cabinet's speed."));
-            if (ImGui::Checkbox(TX("VRR pacing (G-Sync / FreeSync)"), &cfg_.pace_vrr)) cfg_.save();
-            ImGui::SetItemTooltip(TX("For a variable refresh display: each frame lasts exactly 1/57.52 s, the display\n"
-                                     "refreshes at the game's pace and each frame stays on screen the same time.\n"
-                                     "VRR must be on in the display and the graphics driver; on a fixed\n"
-                                     "rate display, the result looks like the default setting."));
-            ImGui::TextDisabled(TX("Currently: %s."), pacing_status_.c_str());
-            if (ImGui::Checkbox(TX("Skip the launcher"), &cfg_.skip_launcher)) cfg_.save();
-            ImGui::SameLine();
-            ImGui::TextDisabled(TX("(starts the game right away; Esc opens this launcher)"));
-            const char *draw_modes[] = {TX("Double buffer"), TX("Single buffer"), TX("One frame in three")};
-            ImGui::SetNextItemWidth(200);
-            int dm = std::clamp(cfg_.draw_mode, 0, 2);
-            if (ImGui::Combo(TX("Draw mode"), &dm, draw_modes, 3)) {
-                cfg_.draw_mode = dm;
-                cfg_.save();
-            }
-            ImGui::TextDisabled(TX("Double buffer: every frame is drawn, as in the game. Single buffer: one in two;\n"
-                                   "one frame in three: one in three. Faster; the game itself is not slowed down."));
-            const char *supersampling[] = {TX("Native 2x"), TX("Disabled"), "2x", "3x", "4x", TX("Native direct")};
-            ImGui::BeginDisabled(cfg_.renderer != "hardware");
-            ImGui::SetNextItemWidth(200);
-            int ss = std::clamp(cfg_.supersampling, 0, app::Config::kNativeDirect);
-            if (ImGui::Combo(TX("Render resolution"), &ss, supersampling, IM_ARRAYSIZE(supersampling))) {
-                cfg_.supersampling = ss;
-                cfg_.save();
-            }
-            ImGui::EndDisabled();
-            ImGui::TextDisabled(TX("The native modes follow the window under Direct3D 12.\n"
-                                   "2x to 4x enlarge the original resolution."));
-
-            ImGui::Spacing();
-            ImGui::Separator();
-            ImGui::TextUnformatted(TX("Enhancements"));
-            ImGui::BeginDisabled(cfg_.arcade_43());
-            if (ImGui::Checkbox(TX("Gauges at the screen edges (experimental)"), &cfg_.hud_edges)) cfg_.save();
-            if (ImGui::Checkbox(TX("Stretch the sky backdrop (experimental)"), &cfg_.stretch_backdrop)) cfg_.save();
-            ImGui::EndDisabled();
-            ImGui::TextDisabled(TX("Shows more of the scene at the sides. The gauges stay in 4:3 in the centre, or else\n"
-                                   "lap times, position and maps move to the edges. In the race, the sky\n"
-                                   "at the sides is plain blue, or else the game's sky picture stretched across the screen."));
-            const char *distances[] = {TX("Shortest"), TX("Shorter"), TX("Default"), TX("Farther"), TX("Farthest")};
-            ImGui::SetNextItemWidth(200);
-            int dd = std::clamp(cfg_.draw_distance, -2, 2);
-            if (ImGui::SliderInt(TX("Draw distance"), &dd, -2, 2, distances[dd + 2], ImGuiSliderFlags_AlwaysClamp)) {
-                cfg_.draw_distance = dd;
-                cfg_.save();
-            }
-            ImGui::TextDisabled(TX("The scenery around the track. Widescreen also adds the scenery at the sides.\n"
-                                   "Shorter reduces the range; farther adds trees and buildings, not the road."));
-            if (ImGui::Checkbox(TX("3D scenery"), &cfg_.scenery_3d)) cfg_.save();
-            ImGui::TextDisabled(TX("Fir trees in 3D, full grandstands, pillars under the Dinosaur Canyon bridge.\n"
-                                   "Applies the next time the game starts."));
-            if (ImGui::Checkbox(TX("Opponent cars always detailed"), &cfg_.cars_near_model)) cfg_.save();
-            ImGui::TextDisabled(TX("One model, the most detailed, at every distance: no more cars\n"
-                                   "changing look as they come closer. Applies the next time the game starts."));
-            ImGui::BeginDisabled(cfg_.renderer != "hardware" || cfg_.draw_mode != 0);
-#ifdef M2_RAY_TRACING
-            if (ImGui::Checkbox(TX("Sun shadows (ray tracing, experimental)"), &cfg_.sun_shadows)) cfg_.save();
-            ImGui::TextDisabled(TX("Shadows cast by the game's sun (Direct3D 12, ray tracing capable card,\n"
-                                   "native resolution). Applies the next time the game starts."));
-            if (cfg_.sun_shadows) {
-                if (ImGui::Checkbox(TX("Sky light (experimental)"), &cfg_.sky_light)) cfg_.save();
-                ImGui::TextDisabled(TX("The sky lights from everywhere: darker under the cars, under the gantry,\n"
-                                       "at the foot of walls. Applies the next time the game starts."));
-                ImGui::SetNextItemWidth(200);
-                int tens = cfg_.sun_height / 10;
-                char sun_label[32];
-                std::snprintf(sun_label, sizeof sun_label, tens ? TX("%d degrees") : TX("the game's own"), tens * 10);
-                if (ImGui::SliderInt(TX("Sun height"), &tens, 0, 8, sun_label, ImGuiSliderFlags_AlwaysClamp)) {
-                    cfg_.sun_height = tens * 10;
-                    cfg_.save();
-                }
-                ImGui::TextDisabled(TX("The direction stays the game's sun's. Lower, the shadows get longer\n"
-                                       "(as in late afternoon). Applies the next time the game starts."));
-            }
-#endif
-            if (ImGui::Checkbox(TX("120 frames/s smoothing (experimental)"), &cfg_.interpolate)) cfg_.save();
-            ImGui::EndDisabled();
-            ImGui::TextDisabled(TX("In-between frames between the game's. Needs the Hardware renderer and the double\n"
-                                   "buffer.\n"
-                                   "Applies the next time the game starts."));
-            ImGui::SetNextItemWidth(200);
-            int crt = cfg_.display_gamma >= 2.0f ? int(cfg_.display_gamma * 10.0f + 0.5f) : 20;
-            char crt_label[32];
-            std::snprintf(crt_label, sizeof crt_label, crt <= 20 ? TX("PC (original)") : TX("Cabinet %d.%d"), crt / 10, crt % 10);
-            if (ImGui::SliderInt(TX("Screen colours (restart the game)"), &crt, 20, 26, crt_label,
-                                 ImGuiSliderFlags_AlwaysClamp)) {
-                cfg_.display_gamma = crt <= 20 ? 0.0f : float(crt) / 10.0f;
-                cfg_.save();
-            }
-            ImGui::TextDisabled(TX("PC: the game's colours as before (original picture).\n"
-                                   "Cabinet 2.2 to 2.6: the same colours as on an arcade cabinet's screen,\n"
-                                   "deeper and less washed out. Recommended: 2.4."));
-            ImGui::SetNextItemWidth(200);
-            int saturation = int(cfg_.display_saturation * 100.0f + 0.5f);
-            if (ImGui::SliderInt(TX("Colour saturation (restart the game)"), &saturation, 50, 150,
-                                 saturation == 100 ? TX("100 %% (original)") : "%d %%", ImGuiSliderFlags_AlwaysClamp)) {
-                cfg_.display_saturation = float(saturation) / 100.0f;
-                cfg_.save();
-            }
-            ImGui::TextDisabled(TX("Above 100 %%: livelier colours. 100 %%: the game's colours as they are."));
-            const int scenery_width = 496 + 2 * rt::GameLoop::wide_margin(cfg_.arcade_43() ? 0.0 : cfg_.aspect_ratio());
-            const uint32_t automatic_budget = rt::automatic_scenery_budget(scenery_width, cfg_.draw_distance);
-            int budget_mode = cfg_.draw_budget ? 1 : 0;
-            const char *budget_modes[] = {TX("Automatic"), TX("Custom")};
-            ImGui::SetNextItemWidth(200);
-            if (ImGui::Combo(TX("Polygon budget"), &budget_mode, budget_modes, 2)) {
-                cfg_.draw_budget = budget_mode ? automatic_budget : 0;
-                cfg_.save();
-            }
-            if (cfg_.draw_budget) {
-                int value = int(cfg_.draw_budget);
-                ImGui::SetNextItemWidth(200);
-                if (ImGui::InputInt(TX("Custom allowance"), &value, 500, 5000)) {
-                    cfg_.draw_budget = uint32_t(std::clamp(value, 1, int(rt::kMaxSceneryBudget)));
-                    cfg_.save();
-                }
-                ImGui::TextDisabled(TX("Replaces the automatic allowance. From 1 to 1,000,000.\n"
-                                       "Too low, scenery may be missing; too high, the game may slow down."));
-            } else {
-                ImGui::TextDisabled(TX("Current allowance: %u. It follows widescreen and the draw distance.\n"
-                                       "Resolution and supersampling do not change it."), automatic_budget);
-            }
-
-            ImGui::Spacing();
-            ImGui::Separator();
-            ImGui::TextUnformatted(TX("Link play (experimental, reset)"));
-            if (ImGui::Checkbox(TX("Link to other cabinets"), &cfg_.link)) cfg_.save();
-            ImGui::BeginDisabled(!cfg_.link);
-            ImGui::SetNextItemWidth(200);
-            if (ImGui::InputInt(TX("This cabinet's port"), &cfg_.link_port, 0, 0)) {
-                cfg_.link_port = std::clamp(cfg_.link_port, 1, 65535);
-                cfg_.save();
-            }
-            ImGui::SetNextItemWidth(200);
-            if (ImGui::InputText(TX("Next cabinet (host:port)"), link_next_buf_, sizeof link_next_buf_)) {
-                cfg_.link_next = link_next_buf_;
-                cfg_.save();
-            }
-            if (ImGui::Checkbox(TX("Synchronise frames (each cabinet waits for the master)"), &cfg_.link_framesync)) cfg_.save();
-            ImGui::EndDisabled();
-            ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled));
-            ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + 640);
-            ImGui::TextWrapped(TX("Network: %s"), link_status_.c_str());
-            ImGui::PopTextWrapPos();
-            ImGui::PopStyleColor();
-            ImGui::TextDisabled(TX("The cabinets link in a ring over the network (Wi-Fi or cable): each listens on its\n"
-                                   "port and connects to the next one; with two, each has the other as next. All the\n"
-                                   "computers can take the same port, for example 15112, and Next cabinet =\n"
-                                   "the other computer's address:15112. In test mode (F2) > GAME SYSTEM, set LINK ID\n"
-                                   "(one MASTER, the others SLAVE) and a different CAR NUMBER on each. The 1994 game\n"
-                                   "(revision A) supports link play."));
-
-            ImGui::Spacing();
-            ImGui::Separator();
-            if (!error_.empty()) {
-                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 0.4f, 0.4f, 1));
-                ImGui::TextWrapped("%s", error_.c_str());
-                ImGui::PopStyleColor();
-            }
+            if (!error_.empty()) ImGui::TextColored(bad, "%s", error_.c_str());
             if (!from_home) {
+                ImGui::Spacing();
+                ImGui::SeparatorText(TX("Play"));
                 ImGui::Checkbox(TX("Hold the Test button"), &cfg_.hold_test); // not saved: one press, then it clears
-#ifdef M2_MOBILE
-                ImGui::TextWrapped(TX("Opens the test menu: coin settings, game type; without an F2 key."));
-#else
-                ImGui::SameLine();
-                ImGui::TextDisabled(TX("(opens the test menu: coin settings, game type; without an F2 key)"));
-#endif
-                ImGui::SetItemTooltip(TX("Check, then Start or Resume: once the game runs, the Test button is held\n"
+                ImGui::SetItemTooltip("%s", TX("Check, then Start or Resume: once the game runs, the Test button is held\n"
                                          "for 3 seconds, which opens the test menu, then the box unchecks itself.\n"
                                          "F2, or any button assigned to Test, still works."));
+                hint(TX("Opens the test menu: coin settings, game type; without an F2 key."));
+                ImGui::Spacing();
+                const float third = (ImGui::GetContentRegionAvail().x - 2 * gap) / 3.f;
                 ImGui::BeginDisabled(!rom_ok_);
                 if (game_running) {
-                    if (ImGui::Button(TX("Resume"), ImVec2(140, 40))) result = Resume;
+                    if (ImGui::Button(TX("Resume"), {third, button_h})) result = Resume;
                     ImGui::SameLine();
-                    if (ImGui::Button(TX("Reset"), ImVec2(140, 40))) result = Reset;
-                } else if (ImGui::Button(TX("Start game"), ImVec2(140, 40))) {
+                    if (ImGui::Button(TX("Reset"), {third, button_h})) result = Reset;
+                } else if (ImGui::Button(TX("Start game"), {2 * third + gap, button_h})) {
                     result = StartGame;
                 }
                 ImGui::EndDisabled();
                 ImGui::SameLine();
-                if (ImGui::Button(TX("Quit"), ImVec2(140, 40))) result = Quit;
+                if (ImGui::Button(TX("Quit"), {third, button_h})) result = Quit;
             }
             ImGui::EndTabItem();
         }
 
-        if (ImGui::BeginTabItem(TX("Controls"))) {
+        // ---- Display: the picture and the window, the frame pacing
+        if (ImGui::BeginTabItem(TX("Display"), nullptr, tab_flags(1))) {
+            ImGui::Spacing();
+            columns("##display", wide, [&] {
+                ImGui::SeparatorText(TX("Picture"));
+                {   // the picture's format first, easy to find (viewers' request, Daytona-Reborn issues 1 and 2)
+                    const char *aspects[] = {TX("Arcade 4:3 (the original cabinet)"), TX("Automatic"), "16:10", "16:9",
+                                             TX("21:9 (ultrawide)")};
+                    static const char *aspect_ids[] = {"4:3", "", "16:10", "16:9", "21:9"};
+                    int aspect = 1;
+                    for (int i = 0; i < 5; i++)
+                        if (cfg_.aspect == aspect_ids[i]) aspect = i;
+                    if (combo(TX("Picture format"), "##aspect", &aspect, aspects, 5)) {
+                        cfg_.aspect = aspect_ids[aspect];
+                        cfg_.save();
+                    }
+                    ImGui::SetItemTooltip("%s", TX("Arcade 4:3: the cabinet's framing, centred, with bars at the sides of a wide screen.\n"
+                                                   "Automatic: the window's shape with the native renderer, else the original 4:3.\n"
+                                                   "16:10, 16:9, 21:9: the scene widens at the sides, the car keeps its proportions."));
+                }
+                const char *apis[] = {TX("Automatic"), "Vulkan", "Direct3D 12", "Metal"};
+                static const char *api_ids[] = {"", "vulkan", "direct3d12", "metal"};
+                int api = 0;
+                for (int i = 0; i < 4; i++)
+                    if (cfg_.gpu == api_ids[i]) api = i;
+                if (combo(TX("Graphics API (restart the game)"), "##api", &api, apis, 4)) {
+                    cfg_.gpu = api_ids[api];
+                    cfg_.save();
+                }
+                const char *renderers[] = {TX("Software (exact)"), TX("Hardware (experimental)")};
+                int rd = cfg_.renderer == "hardware" ? 1 : 0;
+                if (combo(TX("Renderer"), "##renderer", &rd, renderers, 2)) {
+                    cfg_.renderer = rd ? "hardware" : "software";
+                    cfg_.save();
+                }
+                hint(TX("Software: the 3D is computed by the processor, as on the arcade board. Hardware: by the graphics card; in development, very close but not yet pixel exact."));
+                const char *supersampling[] = {TX("Native 2x"), TX("Disabled"), "2x", "3x", "4x", TX("Native direct")};
+                ImGui::BeginDisabled(cfg_.renderer != "hardware");
+                int ss = std::clamp(cfg_.supersampling, 0, app::Config::kNativeDirect);
+                if (combo(TX("Render resolution"), "##supersampling", &ss, supersampling, IM_ARRAYSIZE(supersampling))) {
+                    cfg_.supersampling = ss;
+                    cfg_.save();
+                }
+                ImGui::EndDisabled();
+                hint(TX("The native modes follow the window under Direct3D 12.\n"
+                        "2x to 4x enlarge the original resolution."));
+                const char *draw_modes[] = {TX("Double buffer"), TX("Single buffer"), TX("One frame in three")};
+                int dm = std::clamp(cfg_.draw_mode, 0, 2);
+                if (combo(TX("Draw mode"), "##draw_mode", &dm, draw_modes, 3)) {
+                    cfg_.draw_mode = dm;
+                    cfg_.save();
+                }
+                hint(TX("Double buffer: every frame is drawn, as in the game. Single buffer: one in two; one frame in three: one in three. Faster; the game itself is not slowed down."));
+            }, [&] {
+                ImGui::SeparatorText(TX("Window"));
+                if (ImGui::Checkbox(TX("Fullscreen"), &cfg_.fullscreen)) {
+                    SDL_SetWindowFullscreen(window_, cfg_.fullscreen);
+                    cfg_.save();
+                }
+                if (ImGui::Checkbox(TX("Hide the mouse during play"), &cfg_.hide_cursor)) cfg_.save();
+                ImGui::SetItemTooltip("%s", TX("No mouse pointer during the race. It comes back when this launcher\n"
+                                         "opens (Esc) and hides again with Resume."));
+                {   // exclusive fullscreen: the display's own modes, a custom 57.52 Hz one among them
+                    int count = 0;
+                    SDL_DisplayMode **modes = SDL_GetFullscreenDisplayModes(SDL_GetDisplayForWindow(window_), &count);
+                    std::string preview = TX("Desktop (borderless)");
+                    for (int i = 0; i < count; ++i)
+                        if (mode_key(*modes[i]) == cfg_.fullscreen_mode) preview = mode_label(*modes[i]);
+                    auto choose = [&](const std::string &key) {
+                        cfg_.fullscreen_mode = key;
+                        apply_fullscreen_mode(window_, key);
+                        cfg_.save();
+                    };
+                    ImGui::TextUnformatted(TX("Fullscreen mode"));
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    if (ImGui::BeginCombo("##fullscreen_mode", preview.c_str())) {
+                        if (ImGui::Selectable(TX("Desktop (borderless)"), cfg_.fullscreen_mode.empty())) choose("");
+                        for (int i = 0; i < count; ++i) {
+                            const std::string key = mode_key(*modes[i]);
+                            ImGui::PushID(i);
+                            if (ImGui::Selectable(mode_label(*modes[i]).c_str(), key == cfg_.fullscreen_mode)) choose(key);
+                            ImGui::PopID();
+                        }
+                        ImGui::EndCombo();
+                    }
+                    ImGui::SetItemTooltip("%s", TX("Desktop: fullscreen at the desktop's resolution and refresh rate.\n"
+                                             "A mode: exclusive fullscreen at that resolution and rate, for example\n"
+                                             "a 57.52 Hz mode created in the graphics driver's settings."));
+                    SDL_free(modes);
+                }
+                if (ImGui::Checkbox(TX("Skip the launcher"), &cfg_.skip_launcher)) cfg_.save();
+                hint(TX("(starts the game right away; Esc opens this launcher)"));
+
+                ImGui::Spacing();
+                ImGui::SeparatorText(TX("Display pacing"));
+                hint(TX("(all unchecked: the cabinet's speed on any display)"));
+                if (ImGui::Checkbox(TX("Smooth pacing on a 57.52 Hz display"), &cfg_.pace_smooth)) cfg_.save();
+                ImGui::SetItemTooltip("%s", TX("On a display set to 57.52 Hz (or 115.05 Hz), one game frame per refresh (or two):\n"
+                                         "no doubled or skipped frame. The speed stays the cabinet's, within 1 %.\n"
+                                         "No effect at other rates."));
+                if (ImGui::Checkbox(TX("Lock to the display (changes the game's speed)"), &cfg_.pace_sync_display)) cfg_.save();
+                ImGui::SetItemTooltip("%s", TX("Runs the game at a rate that divides the display's exactly: each frame\n"
+                                         "stays on screen the same time and motion is perfectly smooth. On a\n"
+                                         "60, 120, 180 or 240 Hz display, the game runs at 60 frames/s, about 4 % faster than the cabinet\n"
+                                         "(57.52); with the reference sound, the sound is a little faster too. No effect\n"
+                                         "on a 144 or 165 Hz display, which cannot lock a rate close to the cabinet's:\n"
+                                         "use VRR pacing then if the display supports G-Sync or FreeSync.\n"
+                                         "Unchecked: the game always runs at the cabinet's speed."));
+                if (ImGui::Checkbox(TX("VRR pacing (G-Sync / FreeSync)"), &cfg_.pace_vrr)) cfg_.save();
+                ImGui::SetItemTooltip("%s", TX("For a variable refresh display: each frame lasts exactly 1/57.52 s, the display\n"
+                                         "refreshes at the game's pace and each frame stays on screen the same time.\n"
+                                         "VRR must be on in the display and the graphics driver; on a fixed\n"
+                                         "rate display, the result looks like the default setting."));
+                hint(TX("Currently: %s."), pacing_status_.c_str());
+            });
+            ImGui::EndTabItem();
+        }
+
+        // ---- Enhancements: off by default (rules.md); the scenery, widescreen, colours, smoothing
+        if (ImGui::BeginTabItem(TX("Enhancements"), nullptr, tab_flags(2))) {
+            ImGui::Spacing();
+            columns("##enhancements", wide, [&] {
+                ImGui::SeparatorText(TX("Scenery"));
+                const char *distances[] = {TX("Shortest"), TX("Shorter"), TX("Default"), TX("Farther"), TX("Farthest")};
+                int dd = std::clamp(cfg_.draw_distance, -2, 2);
+                if (slider(TX("Draw distance"), "##draw_distance", &dd, -2, 2, distances[dd + 2])) {
+                    cfg_.draw_distance = dd;
+                    cfg_.save();
+                }
+                hint(TX("The scenery around the track. Widescreen also adds the scenery at the sides.\n"
+                        "Shorter reduces the range; farther adds trees and buildings, not the road."));
+                if (ImGui::Checkbox(TX("3D scenery"), &cfg_.scenery_3d)) cfg_.save();
+                hint(TX("Fir trees in 3D, full grandstands, pillars under the Dinosaur Canyon bridge.\n"
+                        "Applies the next time the game starts."));
+                if (ImGui::Checkbox(TX("Opponent cars always detailed"), &cfg_.cars_near_model)) cfg_.save();
+                hint(TX("One model, the most detailed, at every distance: no more cars changing look as they come closer. Applies the next time the game starts."));
+                const int scenery_width = 496 + 2 * rt::GameLoop::wide_margin(cfg_.arcade_43() ? 0.0 : cfg_.aspect_ratio());
+                const uint32_t automatic_budget = rt::automatic_scenery_budget(scenery_width, cfg_.draw_distance);
+                int budget_mode = cfg_.draw_budget ? 1 : 0;
+                const char *budget_modes[] = {TX("Automatic"), TX("Custom")};
+                if (combo(TX("Polygon budget"), "##budget", &budget_mode, budget_modes, 2)) {
+                    cfg_.draw_budget = budget_mode ? automatic_budget : 0;
+                    cfg_.save();
+                }
+                if (cfg_.draw_budget) {
+                    int value = int(cfg_.draw_budget);
+                    ImGui::TextUnformatted(TX("Custom allowance"));
+                    ImGui::SetNextItemWidth(-FLT_MIN);
+                    if (ImGui::InputInt("##allowance", &value, 500, 5000)) {
+                        cfg_.draw_budget = uint32_t(std::clamp(value, 1, int(rt::kMaxSceneryBudget)));
+                        cfg_.save();
+                    }
+                    hint(TX("Replaces the automatic allowance. From 1 to 1,000,000.\n"
+                            "Too low, scenery may be missing; too high, the game may slow down."));
+                } else {
+                    hint(TX("Current allowance: %u. It follows widescreen and the draw distance.\n"
+                            "Resolution and supersampling do not change it."), automatic_budget);
+                }
+            }, [&] {
+                ImGui::SeparatorText(TX("Widescreen"));
+                ImGui::BeginDisabled(cfg_.arcade_43());
+                if (ImGui::Checkbox(TX("Gauges at the screen edges (experimental)"), &cfg_.hud_edges)) cfg_.save();
+                if (ImGui::Checkbox(TX("Stretch the sky backdrop (experimental)"), &cfg_.stretch_backdrop)) cfg_.save();
+                ImGui::EndDisabled();
+                hint(TX("Shows more of the scene at the sides. The gauges stay in 4:3 in the centre, or else lap times, position and maps move to the edges. In the race, the sky at the sides is plain blue, or else the game's sky picture stretched across the screen."));
+
+                ImGui::Spacing();
+                ImGui::SeparatorText(TX("Colours"));
+                int crt = cfg_.display_gamma >= 2.0f ? int(cfg_.display_gamma * 10.0f + 0.5f) : 20;
+                char crt_label[32];
+                std::snprintf(crt_label, sizeof crt_label, crt <= 20 ? TX("PC (original)") : TX("Cabinet %d.%d"), crt / 10, crt % 10);
+                if (slider(TX("Screen colours (restart the game)"), "##gamma", &crt, 20, 26, crt_label)) {
+                    cfg_.display_gamma = crt <= 20 ? 0.0f : float(crt) / 10.0f;
+                    cfg_.save();
+                }
+                hint(TX("PC: the game's colours as before (original picture).\n"
+                        "Cabinet 2.2 to 2.6: the same colours as on an arcade cabinet's screen, deeper and less washed out. Recommended: 2.4."));
+                int saturation = int(cfg_.display_saturation * 100.0f + 0.5f);
+                if (slider(TX("Colour saturation (restart the game)"), "##saturation", &saturation, 50, 150,
+                           saturation == 100 ? TX("100 %% (original)") : "%d %%")) {
+                    cfg_.display_saturation = float(saturation) / 100.0f;
+                    cfg_.save();
+                }
+                hint(TX("Above 100 %%: livelier colours. 100 %%: the game's colours as they are."));
+
+                ImGui::Spacing();
+                ImGui::SeparatorText(TX("Smoothing"));
+                ImGui::BeginDisabled(cfg_.renderer != "hardware" || cfg_.draw_mode != 0);
+#ifdef M2_RAY_TRACING
+                if (ImGui::Checkbox(TX("Sun shadows (ray tracing, experimental)"), &cfg_.sun_shadows)) cfg_.save();
+                hint(TX("Shadows cast by the game's sun (Direct3D 12, ray tracing capable card, native resolution). Applies the next time the game starts."));
+                if (cfg_.sun_shadows) {
+                    if (ImGui::Checkbox(TX("Sky light (experimental)"), &cfg_.sky_light)) cfg_.save();
+                    hint(TX("The sky lights from everywhere: darker under the cars, under the gantry, at the foot of walls. Applies the next time the game starts."));
+                    int tens = cfg_.sun_height / 10;
+                    char sun_label[32];
+                    std::snprintf(sun_label, sizeof sun_label, tens ? TX("%d degrees") : TX("the game's own"), tens * 10);
+                    if (slider(TX("Sun height"), "##sun_height", &tens, 0, 8, sun_label)) {
+                        cfg_.sun_height = tens * 10;
+                        cfg_.save();
+                    }
+                    hint(TX("The direction stays the game's sun's. Lower, the shadows get longer (as in late afternoon). Applies the next time the game starts."));
+                }
+#endif
+                if (ImGui::Checkbox(TX("120 frames/s smoothing (experimental)"), &cfg_.interpolate)) cfg_.save();
+                ImGui::EndDisabled();
+                hint(TX("In-between frames between the game's. Needs the Hardware renderer and the double buffer.\n"
+                        "Applies the next time the game starts."));
+            });
+            ImGui::EndTabItem();
+        }
+
+        // ---- Link play: cabinets on a local network (the Online mode is in the home menu)
+        if (ImGui::BeginTabItem(TX("Link play"), nullptr, tab_flags(3))) {
+            ImGui::Spacing();
+            ImGui::SeparatorText(TX("Link play (experimental, reset)"));
+            if (ImGui::Checkbox(TX("Link to other cabinets"), &cfg_.link)) cfg_.save();
+            ImGui::BeginDisabled(!cfg_.link);
+            columns("##link", wide, [&] {
+                ImGui::TextUnformatted(TX("This cabinet's port"));
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                if (ImGui::InputInt("##link_port", &cfg_.link_port, 0, 0)) {
+                    cfg_.link_port = std::clamp(cfg_.link_port, 1, 65535);
+                    cfg_.save();
+                }
+            }, [&] {
+                ImGui::TextUnformatted(TX("Next cabinet (host:port)"));
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                if (ImGui::InputText("##link_next", link_next_buf_, sizeof link_next_buf_)) {
+                    cfg_.link_next = link_next_buf_;
+                    cfg_.save();
+                }
+            });
+            if (ImGui::Checkbox(TX("Synchronise frames (each cabinet waits for the master)"), &cfg_.link_framesync)) cfg_.save();
+            ImGui::EndDisabled();
+            ImGui::Spacing();
+            ImGui::TextWrapped(TX("Network: %s"), link_status_.c_str());
+            ImGui::Spacing();
+            hint(TX("The cabinets link in a ring over the network (Wi-Fi or cable): each listens on its port and connects to the next one; with two, each has the other as next. All the computers can take the same port, for example 15112, and Next cabinet = the other computer's address:15112. In test mode (F2) > GAME SYSTEM, set LINK ID (one MASTER, the others SLAVE) and a different CAR NUMBER on each. The 1994 game (revision A) supports link play."));
+            ImGui::EndTabItem();
+        }
+
+        // ---- Controls: devices, steering, force feedback, the assignments
+        if (ImGui::BeginTabItem(TX("Controls"), nullptr, tab_flags(4))) {
             Controls &c = cfg_.controls;
             ImGui::Spacing();
-            ImGui::Text(TX("Gamepad: %s"), pad ? SDL_GetGamepadName(pad) : TX("none connected"));
-            std::string joys;
-            for (SDL_Joystick *j : devices.joys) {
-                const char *n = SDL_GetJoystickName(j);
-                joys += (joys.empty() ? "" : ", ") + std::string(n ? n : "joystick");
-            }
-            ImGui::TextWrapped(TX("Wheels and joysticks: %s"), joys.empty() ? TX("none found") : joys.c_str());
-            // live meters
-            const bool *keys = SDL_GetKeyboardState(nullptr);
-            const float steer = c.value(SteerRight, keys, devices) - c.value(SteerLeft, keys, devices);
-            char label[32];
-            std::snprintf(label, sizeof label, "%+.2f", c.steer_invert ? -steer : steer);
-            ImGui::ProgressBar(0.5f + 0.5f * (c.steer_invert ? -steer : steer), ImVec2(200, 0), label);
-            ImGui::SameLine();
-            ImGui::TextUnformatted(TX("Steering"));
-            const float acc = c.value(Accelerate, keys, devices), brk = c.value(Brake, keys, devices);
-            ImGui::ProgressBar(acc, ImVec2(200, 0));
-            ImGui::SameLine();
-            ImGui::TextUnformatted(TX("Accelerator"));
-            ImGui::ProgressBar(brk, ImVec2(200, 0));
-            ImGui::SameLine();
-            ImGui::TextUnformatted(TX("Brake pedal"));
-            ImGui::SetNextItemWidth(200);
-            if (ImGui::SliderFloat(TX("Dead zone"), &c.deadzone, 0.0f, 0.4f, "%.2f")) cfg_.save();
-            ImGui::SameLine();
-            if (ImGui::Checkbox(TX("Invert steering"), &c.steer_invert)) cfg_.save();
-            ImGui::SetNextItemWidth(200);
-            if (ImGui::SliderFloat(TX("Wheel dead zone (experimental)"), &c.joy_deadzone, 0.0f, 0.4f, "%.2f")) cfg_.save();
-            ImGui::SetNextItemWidth(200);
-            int wheel_sensitivity = int(c.wheel_sensitivity * 100.0f + 0.5f);
-            if (ImGui::SliderInt(TX("Wheel sensitivity"), &wheel_sensitivity, 25, 300, "%d%%")) {
-                c.wheel_sensitivity = float(wheel_sensitivity) / 100.0f;
-                cfg_.save();
-            }
-            ImGui::TextDisabled(TX("100 %%: linear. Lower: gentler near the centre. Higher: sharper.\n"
-                                   "Only for the steering axis of a wheel or joystick; full lock is kept."));
-            ImGui::SetNextItemWidth(200);
-            int pad_sensitivity = int(c.pad_steer_sensitivity * 100.0f + 0.5f);
-            if (ImGui::SliderInt(TX("Stick sensitivity (gamepad)"), &pad_sensitivity, 25, 100, "%d%%")) {
-                c.pad_steer_sensitivity = float(pad_sensitivity) / 100.0f;
-                cfg_.save();
-            }
-            ImGui::SetNextItemWidth(200);
-            int pad_speed = int(c.pad_steer_speed * 100.0f + 0.5f);
-            if (ImGui::SliderInt(TX("Steering speed (gamepad)"), &pad_speed, 2, 100, pad_speed >= 100 ? TX("Immediate") : "%d%%")) {
-                c.pad_steer_speed = float(pad_speed) / 100.0f;
-                cfg_.save();
-            }
-            ImGui::TextDisabled(TX("Gamepad stick only. Sensitivity: lower, gentler near the centre (full lock kept).\n"
-                                   "Speed: how fast the game's wheel follows the stick, per frame (100 %%: at once)."));
-            ImGui::TextDisabled(TX("Triggers, sticks, wheels and pedals are analogue. To assign a wheel or pedal axis,\n"
-                                   "click its button, then turn the wheel or press the pedal as far as you want\n"
-                                   "full lock or full travel, and let go: that sets its range."));
-#ifndef _WIN32 // SDL's own Logitech driver is off on Windows already
-            if (ImGui::Checkbox(TX("Legacy Logitech wheel support (restart the game)"), &cfg_.legacy_logitech_wheels)) cfg_.save();
-            ImGui::TextDisabled(TX("Logitech wheels through the system driver: needed for a wheel that is listed but does\n"
-                                   "nothing when assigned (the original Driving Force). Unchecked: SDL's driver, which gives\n"
-                                   "force feedback to recent wheels under macOS. After a change, restart and\n"
-                                   "assign the wheel's controls again."));
-#endif
+            columns("##controls", wide, [&] {
+                ImGui::SeparatorText(TX("Devices"));
+                ImGui::TextWrapped(TX("Gamepad: %s"), pad ? SDL_GetGamepadName(pad) : TX("none connected"));
+                std::string joys;
+                for (SDL_Joystick *j : devices.joys) {
+                    const char *n = SDL_GetJoystickName(j);
+                    joys += (joys.empty() ? "" : ", ") + std::string(n ? n : "joystick");
+                }
+                ImGui::TextWrapped(TX("Wheels and joysticks: %s"), joys.empty() ? TX("none found") : joys.c_str());
+                ImGui::Spacing();
+                // live meters
+                const bool *keys = SDL_GetKeyboardState(nullptr);
+                const float steer = c.value(SteerRight, keys, devices) - c.value(SteerLeft, keys, devices);
+                char label[32];
+                std::snprintf(label, sizeof label, "%+.2f", c.steer_invert ? -steer : steer);
+                ImGui::TextUnformatted(TX("Steering"));
+                ImGui::ProgressBar(0.5f + 0.5f * (c.steer_invert ? -steer : steer), {-FLT_MIN, 0}, label);
+                ImGui::TextUnformatted(TX("Accelerator"));
+                ImGui::ProgressBar(c.value(Accelerate, keys, devices), {-FLT_MIN, 0});
+                ImGui::TextUnformatted(TX("Brake pedal"));
+                ImGui::ProgressBar(c.value(Brake, keys, devices), {-FLT_MIN, 0});
+            }, [&] {
+                ImGui::SeparatorText(TX("Steering"));
+                ImGui::TextUnformatted(TX("Dead zone"));
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                if (ImGui::SliderFloat("##deadzone", &c.deadzone, 0.0f, 0.4f, "%.2f")) cfg_.save();
+                if (ImGui::Checkbox(TX("Invert steering"), &c.steer_invert)) cfg_.save();
+                ImGui::TextUnformatted(TX("Wheel dead zone (experimental)"));
+                ImGui::SetNextItemWidth(-FLT_MIN);
+                if (ImGui::SliderFloat("##joy_deadzone", &c.joy_deadzone, 0.0f, 0.4f, "%.2f")) cfg_.save();
+                int wheel_sensitivity = int(c.wheel_sensitivity * 100.0f + 0.5f);
+                if (slider(TX("Wheel sensitivity"), "##wheel_sensitivity", &wheel_sensitivity, 25, 300, "%d%%")) {
+                    c.wheel_sensitivity = float(wheel_sensitivity) / 100.0f;
+                    cfg_.save();
+                }
+                hint(TX("100 %%: linear. Lower: gentler near the centre. Higher: sharper.\n"
+                        "Only for the steering axis of a wheel or joystick; full lock is kept."));
+                int pad_sensitivity = int(c.pad_steer_sensitivity * 100.0f + 0.5f);
+                if (slider(TX("Stick sensitivity (gamepad)"), "##pad_sensitivity", &pad_sensitivity, 25, 100, "%d%%")) {
+                    c.pad_steer_sensitivity = float(pad_sensitivity) / 100.0f;
+                    cfg_.save();
+                }
+                int pad_speed = int(c.pad_steer_speed * 100.0f + 0.5f);
+                if (slider(TX("Steering speed (gamepad)"), "##pad_speed", &pad_speed, 2, 100,
+                           pad_speed >= 100 ? TX("Immediate") : "%d%%")) {
+                    c.pad_steer_speed = float(pad_speed) / 100.0f;
+                    cfg_.save();
+                }
+                hint(TX("Gamepad stick only. Sensitivity: lower, gentler near the centre (full lock kept).\n"
+                        "Speed: how fast the game's wheel follows the stick, per frame (100 %%: at once)."));
+            });
 
-            ImGui::SetNextItemWidth(200);
-            int ffb = int(cfg_.ffb_strength * 100.0f + 0.5f);
-            if (ImGui::SliderInt(TX("Force feedback (experimental)"), &ffb, 0, 100, ffb ? "%d%%" : TX("Off"))) {
-                cfg_.ffb_strength = float(ffb) / 100.0f;
-                cfg_.save();
-            }
-            ImGui::SameLine();
-            if (ImGui::Checkbox(TX("Invert the force"), &cfg_.ffb_invert)) cfg_.save();
-            ImGui::SameLine();
-            if (ImGui::Checkbox(TX("Force feedback log"), &cfg_.ffb_log)) cfg_.save();
+            ImGui::Spacing();
+            columns("##feedback", wide, [&] {
+                ImGui::SeparatorText(TX("Force feedback"));
+                int ffb = int(cfg_.ffb_strength * 100.0f + 0.5f);
+                if (slider(TX("Force feedback (experimental)"), "##ffb", &ffb, 0, 100, ffb ? "%d%%" : TX("Off"))) {
+                    cfg_.ffb_strength = float(ffb) / 100.0f;
+                    cfg_.save();
+                }
+                if (ImGui::Checkbox(TX("Invert the force"), &cfg_.ffb_invert)) cfg_.save();
+                ImGui::SameLine();
+                if (ImGui::Checkbox(TX("Force feedback log"), &cfg_.ffb_log)) cfg_.save();
 #ifdef __linux__ // for Linux drivers without a spring effect (the kernel's Logitech driver)
-            if (ImGui::Checkbox(TX("Centring computed by the game"), &cfg_.ffb_centring_override)) cfg_.save();
-            ImGui::SetItemTooltip(TX("For a wheel that kicks on impacts but does not recentre in bends: its\n"
-                                     "Linux driver has no spring effect (the log's first line says \"spring no\").\n"
-                                     "The game's recentring is then computed here from the wheel's position and\n"
-                                     "sent as a constant force. Leave unchecked if the wheel already recentres."));
+                if (ImGui::Checkbox(TX("Centring computed by the game"), &cfg_.ffb_centring_override)) cfg_.save();
+                ImGui::SetItemTooltip("%s", TX("For a wheel that kicks on impacts but does not recentre in bends: its\n"
+                                         "Linux driver has no spring effect (the log's first line says \"spring no\").\n"
+                                         "The game's recentring is then computed here from the wheel's position and\n"
+                                         "sent as a constant force. Leave unchecked if the wheel already recentres."));
 #endif
-            ImGui::TextDisabled(TX("The cabinet wheel's motor (recentring, resistance, wheel pulling), on the device\n"
-                                   "assigned to steering; a gamepad rumbles when the car is pushed. Currently: %s.\n"
-                                   "Wheels and force feedback are not yet tested on real hardware: feedback welcome.\n"
-                                   "The log goes to daytona.log, next to launcher.ini under Windows, else to the terminal."), ffb_device_);
+            }, [&] {
+                hint(TX("The cabinet wheel's motor (recentring, resistance, wheel pulling), on the device assigned to steering; a gamepad rumbles when the car is pushed. Currently: %s.\n"
+                        "Wheels and force feedback are not yet tested on real hardware: feedback welcome.\n"
+                        "The log goes to daytona.log, next to launcher.ini under Windows, else to the terminal."), ffb_device_);
+#ifndef _WIN32 // SDL's own Logitech driver is off on Windows already
+                if (ImGui::Checkbox(TX("Legacy Logitech wheel support (restart the game)"), &cfg_.legacy_logitech_wheels)) cfg_.save();
+                hint(TX("Logitech wheels through the system driver: needed for a wheel that is listed but does nothing when assigned (the original Driving Force). Unchecked: SDL's driver, which gives force feedback to recent wheels under macOS. After a change, restart and assign the wheel's controls again."));
+#endif
+            });
 
-            if (ImGui::BeginTable("binds", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH)) {
-                ImGui::TableSetupColumn(TX("Control"), ImGuiTableColumnFlags_WidthFixed, 130);
-                ImGui::TableSetupColumn(TX("Keyboard"), ImGuiTableColumnFlags_WidthFixed, 130);
-                ImGui::TableSetupColumn(TX("Gamepad"), ImGuiTableColumnFlags_WidthFixed, 250);
-                ImGui::TableSetupColumn(TX("Wheel / joystick (experimental)"));
+            ImGui::Spacing();
+            ImGui::SeparatorText(TX("Assignments"));
+            hint(TX("Triggers, sticks, wheels and pedals are analogue. To assign a wheel or pedal axis, click its button, then turn the wheel or press the pedal as far as you want full lock or full travel, and let go: that sets its range."));
+            if (ImGui::BeginTable("binds", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerH |
+                                              ImGuiTableFlags_SizingStretchProp)) {
+                ImGui::TableSetupColumn(TX("Control"), ImGuiTableColumnFlags_WidthStretch, 1.0f);
+                ImGui::TableSetupColumn(TX("Keyboard"), ImGuiTableColumnFlags_WidthStretch, 1.0f);
+                ImGui::TableSetupColumn(TX("Gamepad"), ImGuiTableColumnFlags_WidthStretch, 1.4f);
+                ImGui::TableSetupColumn(TX("Wheel / joystick (experimental)"), ImGuiTableColumnFlags_WidthStretch, 1.8f);
                 ImGui::TableHeadersRow();
+                // a button filling its cell, but for a small "clear" beside it
+                auto cell_button = [&](const char *text, const char *clear_id, bool &clear) {
+                    const float clear_w = ImGui::CalcTextSize(TX("clear")).x + ImGui::GetStyle().FramePadding.x * 2;
+                    const bool pressed = ImGui::Button(text, {std::max(40.f, ImGui::GetContentRegionAvail().x - clear_w -
+                                                                                  ImGui::GetStyle().ItemSpacing.x), 0});
+                    ImGui::SameLine();
+                    clear = ImGui::SmallButton(clear_id);
+                    return pressed;
+                };
                 for (int a = 0; a < kNumActions; a++) {
                     ImGui::PushID(a);
                     ImGui::TableNextRow();
                     ImGui::TableNextColumn();
+                    ImGui::AlignTextToFramePadding();
                     ImGui::TextUnformatted(action_name(Action(a)));
                     ImGui::TableNextColumn();
                     const bool cap_key = capture_action_ == a && capture_kind_ == CaptureKey;
                     const char *kn = c.bind[a].key == SDL_SCANCODE_UNKNOWN ? "-" : SDL_GetScancodeName(c.bind[a].key);
-                    if (ImGui::Button(cap_key ? TX("Press a key...") : kn, ImVec2(120, 0))) start_capture(a, CaptureKey, devices);
+                    if (ImGui::Button(cap_key ? TX("Press a key...") : kn, {-FLT_MIN, 0})) start_capture(a, CaptureKey, devices);
                     ImGui::TableNextColumn();
                     const bool cap_pad = capture_action_ == a && capture_kind_ == CapturePad;
                     const std::string pn = cap_pad ? TX("Press or move...") : c.bind[a].pad.describe();
-                    if (ImGui::Button(pn.c_str(), ImVec2(190, 0))) start_capture(a, CapturePad, devices);
-                    ImGui::SameLine();
-                    if (ImGui::SmallButton(TX("clear"))) {
+                    bool clear = false;
+                    if (cell_button(pn.c_str(), TX("clear"), clear)) start_capture(a, CapturePad, devices);
+                    if (clear) {
                         c.bind[a].pad = PadInput{};
                         cfg_.save();
                     }
@@ -709,9 +792,8 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
                     const std::string jn = !cap_joy ? c.bind[a].joy.describe(devices)
                                            : joy_tracking_ ? TX("As far as wanted, then let go...")
                                                            : TX("Press, or move all the way and let go...");
-                    if (ImGui::Button(jn.c_str(), ImVec2(300, 0))) start_capture(a, CaptureJoy, devices);
-                    ImGui::SameLine();
-                    if (ImGui::SmallButton(TX("clear##joy"))) {
+                    if (cell_button(jn.c_str(), TX("clear##joy"), clear)) start_capture(a, CaptureJoy, devices);
+                    if (clear) {
                         c.bind[a].joy = JoyInput{};
                         cfg_.save();
                     }
@@ -719,47 +801,55 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
                 }
                 ImGui::EndTable();
             }
-            ImGui::TextDisabled(TX("Esc cancels an assignment; Backspace clears a key."));
-            if (ImGui::Button(TX("Reset the default settings"))) {
+            hint(TX("Esc cancels an assignment; Backspace clears a key."));
+            if (ImGui::Button(TX("Reset the default settings"), {0, button_h})) {
                 c.set_defaults();
                 cfg_.save();
             }
             ImGui::EndTabItem();
         }
-        if (ImGui::BeginTabItem(TX("Sound"))) {
+
+        // ---- Sound
+        if (ImGui::BeginTabItem(TX("Sound"), nullptr, tab_flags(5))) {
             ImGui::Spacing();
-            auto percent = [&](const char *label, float &value) { // a 0..1 setting as 0-100%
-                ImGui::SetNextItemWidth(200);
+            auto percent = [&](const char *label, const char *id, float &value) { // a 0..1 setting as 0-100%
                 int v = int(value * 100.0f + 0.5f);
-                if (ImGui::SliderInt(label, &v, 0, 100, "%d%%")) {
+                if (slider(label, id, &v, 0, 100, "%d%%")) {
                     value = float(v) / 100.0f;
                     cfg_.save();
                 }
             };
-            percent(TX("Volume"), cfg_.volume);
-            ImGui::SameLine();
-            if (ImGui::Checkbox(TX("Mute"), &cfg_.mute)) cfg_.save();
-            ImGui::Spacing();
-            percent(TX("Music"), cfg_.music_volume);
-            percent(TX("Effects"), cfg_.effects_volume);
-            ImGui::TextDisabled(TX("The balance between the music and everything else (engine, skids, impacts).\n"
-                                   "100 %% and 100 %%: the cabinet sound board's mix."));
-
-            ImGui::Spacing();
-            ImGui::Separator();
-            if (ImGui::Checkbox(TX("Native sound (experimental, reset)"), &cfg_.native_audio)) cfg_.save();
-            ImGui::TextDisabled(TX("Native sequencer and mixer; the reference sound stays available for comparison."));
+            columns("##sound", wide, [&] {
+                ImGui::SeparatorText(TX("Volume"));
+                percent(TX("Volume"), "##volume", cfg_.volume);
+                if (ImGui::Checkbox(TX("Mute"), &cfg_.mute)) cfg_.save();
+                ImGui::Spacing();
+                percent(TX("Music"), "##music", cfg_.music_volume);
+                percent(TX("Effects"), "##effects", cfg_.effects_volume);
+                hint(TX("The balance between the music and everything else (engine, skids, impacts).\n"
+                        "100 %% and 100 %%: the cabinet sound board's mix."));
+            }, [&] {
+                ImGui::SeparatorText(TX("Engine"));
+                if (ImGui::Checkbox(TX("Native sound (experimental, reset)"), &cfg_.native_audio)) cfg_.save();
+                hint(TX("Native sequencer and mixer; the reference sound stays available for comparison."));
+            });
             ImGui::EndTabItem();
         }
 
         ImGui::EndTabBar();
+        open_tab = -1;
     }
     ImGui::PopTextWrapPos();
 #ifdef M2_MOBILE
     if (ImGui::IsWindowHovered() && !ImGui::IsAnyItemActive() && ImGui::IsMouseDragging(0))
         ImGui::SetScrollY(ImGui::GetScrollY() - ImGui::GetIO().MouseDelta.y);
 #endif
+    ImGui::EndChild();
     ImGui::End();
+#ifndef M2_MOBILE
+    ImGui::PopStyleVar(5);
+    ImGui::PopFont();
+#endif
     return result;
 }
 

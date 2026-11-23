@@ -13,6 +13,7 @@
 //           [--start-solo 1|2|3 [--transmission automatic|manual] [--race-mode normal|time-attack]] (Revision A desktop)
 //           [--capture-home FILE.bmp]
 //           [--online] (Revision A: open the home menu's Online screen)
+//           [--settings] (Revision A: open the settings)
 //           [--inputs FILE] (bounded PC solo race, after the native start)
 //           [--trace-player-inputs FILE | --trace-effective-inputs FILE]
 //           [--trace-software-presents FILE.csv] (bounded software solo race)
@@ -482,6 +483,7 @@ int main(int argc, char **argv) {
     std::optional<float> hdr10_paper_white;
     const char *capture_home = nullptr;
     bool open_online = false; // --online: the home menu's Online screen first
+    bool open_settings = false; // --settings: the settings first
     const char *present_trace_path = nullptr;
     const char *hardware_trace_path = nullptr;
     const char *input_script_path = nullptr;
@@ -520,6 +522,7 @@ int main(int argc, char **argv) {
 #ifndef M2_MOBILE
         else if (!std::strcmp(argv[i], "--capture-home") && i + 1 < argc) capture_home = argv[++i];
         else if (!std::strcmp(argv[i], "--online")) open_online = true;
+        else if (!std::strcmp(argv[i], "--settings")) open_settings = true;
         else if (!std::strcmp(argv[i], "--capture-raster")) {
             if (i + 1 >= argc) return 1;
             raster_capture = argv[++i];
@@ -900,7 +903,7 @@ int main(int argc, char **argv) {
         ImGui::GetIO().Fonts->AddFontDefaultVector(); // the launcher's, with the other scripts merged in
         app::i18n::add_fonts();
     }
-    bool settings = false, pc_race = false;
+    bool settings = open_settings && pc_home, pc_race = false;
     app::OnlineMenu online_menu;
     bool online_screen = open_online && pc_home; // the home menu shows the Online screen
     bool solo = false;

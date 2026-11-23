@@ -41,7 +41,9 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
   password, room full or missing, other version, too many connections...
 - The ROM set is asked for before joining a room (a profile without one left
   the room at once).
-- `--online` opens the Online screen at start.
+- `--online` opens the Online screen at start, `--settings` the settings;
+  `M2_CAPTURE_SETTINGS_TAB=N` opens a settings tab in a `--capture-home`
+  image.
 
 ### Relay server (`server/daytona-relay`)
 
@@ -72,8 +74,13 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
   The texts the original left untranslated (link status, home menu
   messages) are translated too.
 - Brazilian Portuguese interface (`lang/pt.po`, every text).
+- **Settings redesigned** in the Online screen's style: one centred column,
+  a larger font, a label above each full-width field, help text that wraps
+  to the width, sections with titles and two columns where they fit; the
+  long page split into tabs: Game, Display, Enhancements, Link play,
+  Controls, Sound; the language choice in the header.
 - The Online screen: labels above full-width fields, larger fields and
-  buttons, create and join side by side.
+  buttons, create and join side by side; long labels wrap.
 - `lang/` is copied next to the game on every build, so a changed
   translation reaches it without relinking.
 

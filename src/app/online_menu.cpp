@@ -18,7 +18,7 @@ void copy_to(char *dst, size_t size, const std::string &src) {
 
 // A label above its field, the field across the whole width.
 bool text_field(const char *label, const char *id, char *buf, size_t size, ImGuiInputTextFlags flags = 0) {
-    ImGui::TextUnformatted(label);
+    ImGui::TextWrapped("%s", label); // a long translation wraps instead of being cut
     ImGui::SetNextItemWidth(-FLT_MIN);
     return ImGui::InputText(id, buf, size, flags);
 }
