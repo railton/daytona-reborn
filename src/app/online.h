@@ -15,6 +15,11 @@ namespace app::online {
 constexpr int kMinPlayers = 2, kMaxPlayers = 8;
 constexpr int kDefaultPort = 7777;
 constexpr size_t kMaxName = 20;
+// This game's online behaviour (what it sends besides the arcade's own link
+// data, how it starts and joins races). The server keeps a room to one
+// version, so every player of a room behaves the same. Raise it with any
+// such change.
+constexpr int kOnlineVersion = 2;
 
 // What a friend needs to join: the server, the room, the server's password.
 struct Invite {
@@ -48,6 +53,7 @@ struct Status {
     bool ready = false;
     std::vector<rt::online::Setting> eeprom;
     std::vector<std::string> names; // ring order
+    bool any_start = false; // any player may start a race; else only the MASTER
 };
 std::optional<Status> parse_status(const std::string &payload);
 
@@ -56,6 +62,7 @@ std::string percent_decode(const std::string &s);
 
 // The wire frames: type, epoch (big endian), length (big endian), payload.
 constexpr uint8_t kData = 'D', kStatus = 'S', kPing = 'P', kError = 'E';
+constexpr uint8_t kControl = 'C'; // to every other player of the room (rt::online::CourseSync)
 constexpr size_t kHeader = 7, kMaxPayload = 16 * 1024;
 void append_frame(std::string &out, uint8_t type, uint32_t epoch, const uint8_t *payload, size_t n);
 

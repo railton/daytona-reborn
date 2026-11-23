@@ -65,6 +65,7 @@ func (c *client) send(f proto.Frame) {
 type room struct {
 	code    string
 	size    int
+	game    string    // the online version of the games in it (Hello.Game)
 	members []*client // ring order = join order
 	epoch   uint32
 }
@@ -75,6 +76,7 @@ type server struct {
 	password string
 	maxRooms int
 	eeprom   []proto.Setting
+	anyStart bool
 }
 
 func (s *server) join(c *client, h proto.Hello) error {
@@ -90,10 +92,16 @@ func (s *server) join(c *client, h proto.Hello) error {
 		if len(s.rooms) >= s.maxRooms {
 			return proto.Errf("server_full", "server full: %d rooms at most", s.maxRooms)
 		}
-		r = &room{code: h.Room, size: h.Players}
+		r = &room{code: h.Room, size: h.Players, game: h.Game}
 		s.rooms[h.Room] = r
 	case h.Op == "auto" && r.size != h.Players:
 		return proto.Errf("size", "room %q is for %d players, not %d", h.Room, r.size, h.Players)
+	}
+	if r.game == "" {
+		r.game = h.Game
+	}
+	if h.Game != "" && h.Game != r.game {
+		return proto.Errf("game_version", "room %q is for game online version %s, not %s", h.Room, r.game, h.Game)
 	}
 	if len(r.members) >= r.size {
 		return proto.Errf("full", "room %q is full (%d players)", h.Room, r.size)
@@ -136,8 +144,28 @@ func (s *server) changed(r *room) {
 		names[i] = m.name
 	}
 	for i, m := range r.members {
-		st := proto.Status{Joined: len(r.members), Size: r.size, Position: i + 1, Ready: ready, EEPROM: s.eeprom, Names: names}
+		st := proto.Status{Joined: len(r.members), Size: r.size, Position: i + 1, Ready: ready, EEPROM: s.eeprom, Names: names, AnyStart: s.anyStart}
 		m.send(proto.Frame{Type: proto.TypeStatus, Epoch: r.epoch, Payload: st.Encode()})
+	}
+}
+
+// broadcast passes a control frame from c to every other member of its room.
+func (s *server) broadcast(c *client, f proto.Frame) {
+	s.mu.Lock()
+	r := c.room
+	if r == nil || f.Epoch != r.epoch || len(r.members) != r.size {
+		s.mu.Unlock()
+		return
+	}
+	others := make([]*client, 0, len(r.members)-1)
+	for _, m := range r.members {
+		if m != c {
+			others = append(others, m)
+		}
+	}
+	s.mu.Unlock()
+	for _, m := range others {
+		m.send(f)
 	}
 }
 
@@ -238,6 +266,10 @@ func (s *server) handle(conn net.Conn) {
 		switch f.Type {
 		case proto.TypeData:
 			s.forward(c, f)
+		case proto.TypeControl:
+			if len(f.Payload) <= 256 {
+				s.broadcast(c, f)
+			}
 		case proto.TypePing:
 		default:
 			return
@@ -266,9 +298,16 @@ func main() {
 	if err != nil {
 		log.Fatalf("cannot listen on port %d: %v", *port, err)
 	}
-	s := &server{rooms: map[string]*room{}, password: *password, maxRooms: *maxRooms, eeprom: eeprom}
+	start := strings.ToLower(strings.TrimSpace(os.Getenv("DAYTONA_START")))
+	if start != "" && start != "master" && start != "anyone" {
+		log.Fatalf("invalid DAYTONA_START=%q (use: master, anyone)", start)
+	}
+	if start == "" {
+		start = "master"
+	}
+	s := &server{rooms: map[string]*room{}, password: *password, maxRooms: *maxRooms, eeprom: eeprom, anyStart: start == "anyone"}
 	log.Printf("daytona-relay listening on port %d (rooms of %d to %d players, password: %v)", *port, proto.MinPlayers, proto.MaxPlayers, *password != "")
-	log.Printf("race settings: %s", desc)
+	log.Printf("race settings: %s start=%s", desc, start)
 	for {
 		conn, err := ln.Accept()
 		if err != nil {

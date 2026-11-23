@@ -822,6 +822,9 @@ msgstr ""
 msgid "Nombre de joueurs invalide : de 2 à 8."
 msgstr ""
 
+msgid "Cette salle a été créée par une autre version du jeu : tous les joueurs doivent avoir la même version."
+msgstr ""
+
 msgid "Le serveur a refusé la connexion : "
 msgstr ""
 

@@ -1,8 +1,9 @@
 #pragma once
 
 // Online play (app/relay_link.h): the cabinet's own settings for a linked
-// race, written before the first frame as PcSolo::configure does, and the
-// entry into a race another player started (AutoEntry, below). The relay
+// race, written before the first frame as PcSolo::configure does; then, once
+// a frame, one Start and one course for the whole room (AutoEntry,
+// StartGate, CourseSync, below). The relay
 // server numbers the players: the first in the room is the MASTER (car 1),
 // the others SLAVEs (car 2, 3...). Every player gets the server's race
 // settings, so the linked cabinets always agree (the game cancels a link
@@ -23,6 +24,8 @@
 #include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cstdio>
+#include <string>
 #include <vector>
 
 namespace rt::online {
@@ -92,6 +95,79 @@ public:
     }
 
 private:
+    unsigned age_ = 0;
+};
+
+// Online: only the MASTER starts a race (unless the server lets anyone): a
+// SLAVE's Start is released while its guest is in attract (modes below the
+// entry countdown), so it can still join, select and race.
+struct StartGate {
+    template <class Board, class Inputs> static void apply(Board &board, Inputs &inputs, bool may_start) {
+        if (!may_start && board.read_byte(AutoEntry::mode_address) < 15) inputs.in0 |= 0x10;
+    }
+};
+
+// Online: the MASTER's course for the whole room. Linked cabinets each choose
+// their own course, and the guest settles a disagreement by itself (observed
+// 23/11: MASTER Expert, SLAVE Beginner -> both race Beginner). So the MASTER
+// tells the room where its cursor is and what it confirmed (the selection
+// step at 0x5010f8 leaves 1 on confirmation; the course at 0x501460, guest
+// order 0 short, 2 medium, 1 long, live while step 1 runs, pc_solo.h), and
+// each SLAVE's steering follows it, its pedal confirming once the MASTER has.
+// If the SLAVE's own timer ends first, its cursor is already the MASTER's.
+// The gearbox stays each driver's own. Board inputs only.
+class CourseSync {
+public:
+    static constexpr uint32_t step_address = 0x5010f8, course_address = 0x501460;
+    static constexpr int selection = 18, course_step = 1, race = 22;
+
+    // MASTER, once a frame: "cursor=N" when its cursor moves, "course=N" when
+    // it confirms, else empty.
+    template <class Board> std::string master(Board &board) {
+        const int mode = board.read_byte(AutoEntry::mode_address), step = board.read_byte(step_address);
+        std::string out;
+        if (mode == selection && step == course_step) {
+            const int course = board.read_byte(course_address);
+            if (course != sent_) out = "cursor=" + std::to_string(sent_ = course);
+        } else if (mode == selection && last_step_ == course_step) {
+            out = "course=" + std::to_string(board.read_byte(course_address));
+        }
+        if (mode != selection) sent_ = -1;
+        last_step_ = mode == selection ? step : -1;
+        return out;
+    }
+
+    // SLAVE: a message from the MASTER.
+    void receive(const std::string &message) {
+        int value = -1;
+        if (std::sscanf(message.c_str(), "cursor=%d", &value) == 1 && value >= 0 && value <= 2) cursor_ = value;
+        else if (std::sscanf(message.c_str(), "course=%d", &value) == 1 && value >= 0 && value <= 2)
+            cursor_ = value, confirmed_ = true;
+    }
+
+    // SLAVE, once a frame: its course inputs follow the MASTER's.
+    template <class Board, class Inputs> void slave(Board &board, Inputs &inputs) {
+        const int mode = board.read_byte(AutoEntry::mode_address);
+        if (mode < 15 || mode >= race) { // attract or racing: the next selection starts afresh
+            cursor_ = -1;
+            confirmed_ = false;
+            age_ = 0;
+            return;
+        }
+        if (mode != selection || board.read_byte(step_address) != course_step) return;
+        constexpr uint8_t steer[] = {0x80, 0xe0, 0xb0}; // guest order: short, long, medium (pc_solo.h)
+        inputs.steer = steer[cursor_ >= 0 ? cursor_ : 0];
+        inputs.accel = 0x20; // the player's pedal does not choose
+        if (confirmed_ && ++age_ >= 30 && (age_ - 30) % 24 < 5) inputs.accel = 0xe0;
+    }
+
+    int cursor() const { return cursor_; }
+    bool confirmed() const { return confirmed_; }
+
+private:
+    int sent_ = -1, last_step_ = -1;           // MASTER
+    int cursor_ = -1;                          // SLAVE
+    bool confirmed_ = false;
     unsigned age_ = 0;
 };
 

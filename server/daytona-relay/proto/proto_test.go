@@ -9,7 +9,7 @@ import (
 )
 
 func TestHelloRoundTrip(t *testing.T) {
-	in := Hello{Op: "create", Room: "k7f3q9xz", Players: 3, Name: "João da Silva", Password: "a b%c"}
+	in := Hello{Op: "create", Room: "k7f3q9xz", Players: 3, Name: "João da Silva", Password: "a b%c", Game: "2"}
 	out, err := ParseHello(in.Line())
 	if err != nil {
 		t.Fatal(err)
@@ -48,7 +48,7 @@ func TestCleanName(t *testing.T) {
 
 func TestStatusRoundTrip(t *testing.T) {
 	in := Status{Joined: 2, Size: 3, Position: 2, Ready: false,
-		EEPROM: []Setting{{0x1a, 1}, {0x20, 3}}, Names: []string{"Railton", "João"}}
+		EEPROM: []Setting{{0x1a, 1}, {0x20, 3}}, Names: []string{"Railton", "João"}, AnyStart: true}
 	out, err := DecodeStatus(in.Encode())
 	if err != nil {
 		t.Fatal(err)

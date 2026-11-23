@@ -47,10 +47,11 @@ const (
 	MaxPayload = 16 * 1024
 	MaxName    = 20
 
-	TypeData   byte = 'D' // game bytes: client -> server (from its game), server -> client (for its game)
-	TypeStatus byte = 'S' // server -> client: room state, see Status
-	TypePing   byte = 'P' // keepalive, both directions
-	TypeError  byte = 'E' // server -> client: fatal error text, then the server closes
+	TypeData    byte = 'D' // game bytes: client -> server (from its game), server -> client (for its game)
+	TypeStatus  byte = 'S' // server -> client: room state, see Status
+	TypePing    byte = 'P' // keepalive, both directions
+	TypeError   byte = 'E' // server -> client: fatal error text, then the server closes
+	TypeControl byte = 'C' // client -> server -> every other member: the games' own coordination (course choice)
 )
 
 var roomRe = regexp.MustCompile(`^[a-z0-9_-]{1,32}$`)
@@ -58,7 +59,7 @@ var roomRe = regexp.MustCompile(`^[a-z0-9_-]{1,32}$`)
 // Error is a refusal with a code: an E frame's payload is "code\ntext", and
 // the game shows its own text for the code, in the player's language.
 // Codes: protocol, version, room, players, password, not_found, exists,
-// full, size, server_full.
+// full, size, server_full, game_version.
 type Error struct{ Code, Text string }
 
 func (e *Error) Error() string { return e.Text }
@@ -114,6 +115,7 @@ type Hello struct {
 	Players  int // create and auto
 	Name     string
 	Password string
+	Game     string // the game's online version ("v"); a room only takes one; empty: the daytona-link helper
 }
 
 func (h Hello) Line() string {
@@ -127,6 +129,9 @@ func (h Hello) Line() string {
 	}
 	if h.Password != "" {
 		fmt.Fprintf(&b, " pass=%s", url.PathEscape(h.Password))
+	}
+	if h.Game != "" {
+		fmt.Fprintf(&b, " v=%s", url.PathEscape(h.Game))
 	}
 	return b.String() + "\n"
 }
@@ -160,6 +165,8 @@ func ParseHello(line string) (Hello, error) {
 			h.Name = val
 		case "pass":
 			h.Password = val
+		case "v":
+			h.Game = val
 		}
 	}
 	switch h.Op {
@@ -232,6 +239,9 @@ type Status struct {
 	Ready    bool // the ring is complete: open the game's connections
 	EEPROM   []Setting
 	Names    []string // ring order
+	// AnyStart: any player may start a race (the others join it); else only
+	// the MASTER, the first in the room.
+	AnyStart bool
 }
 
 func (s Status) Encode() []byte {
@@ -251,6 +261,11 @@ func (s Status) Encode() []byte {
 	b.WriteByte('\n')
 	for _, n := range s.Names {
 		fmt.Fprintf(&b, "name=%s\n", url.PathEscape(n))
+	}
+	if s.AnyStart {
+		b.WriteString("start=anyone\n")
+	} else {
+		b.WriteString("start=master\n")
 	}
 	return []byte(b.String())
 }
@@ -281,6 +296,8 @@ func DecodeStatus(p []byte) (Status, error) {
 		case "name":
 			n, _ := url.PathUnescape(v)
 			s.Names = append(s.Names, n)
+		case "start":
+			s.AnyStart = v == "anyone"
 		}
 	}
 	return s, nil

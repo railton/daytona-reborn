@@ -197,6 +197,7 @@ std::string hello_line(const Hello &hello) {
     const std::string name = clean_name(hello.name);
     if (!name.empty()) line += " name=" + percent_encode(name);
     if (!hello.password.empty()) line += " pass=" + percent_encode(hello.password);
+    line += " v=" + std::to_string(kOnlineVersion);
     return line + "\n";
 }
 
@@ -221,6 +222,8 @@ std::optional<Status> parse_status(const std::string &payload) {
             }
         } else if (line.rfind("name=", 0) == 0) {
             s.names.push_back(clean_name(percent_decode(line.substr(5))));
+        } else if (line == "start=anyone") {
+            s.any_start = true;
         }
     }
     return s;

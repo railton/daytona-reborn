@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace app {
 
@@ -42,6 +43,11 @@ public:
     uint32_t epoch() const { return epoch_; }                 // changes with every new ring
     const std::string &server() const { return server_; }
     const std::string &room() const { return room_; }
+    // The games' own coordination (rt::online::CourseSync), outside the
+    // arcade's link data: to every other player of the room; what they sent
+    // since the last call. Only while the room is complete, this ring's only.
+    void send_control(const std::string &text);
+    std::vector<std::string> take_controls();
 
 private:
     struct Connect; // the connect thread's result, shared with it
@@ -52,6 +58,7 @@ private:
     online::Status status_;
     uint32_t epoch_ = 0;
     std::string out_, in_, inbox_; // to the server; from it (unparsed); for the game
+    std::vector<std::string> controls_;
     size_t inbox_pos_ = 0;
     uint64_t last_rx_ms_ = 0, last_tx_ms_ = 0;
     void fail(const std::string &why);

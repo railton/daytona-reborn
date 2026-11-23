@@ -79,6 +79,8 @@ std::string server_error(const std::string &payload) {
     if (code == "version") return TXR("Ce serveur n'est pas compatible avec cette version du jeu.");
     if (code == "room") return TXR("Code de salle invalide.");
     if (code == "players") return TXR("Nombre de joueurs invalide : de 2 à 8.");
+    if (code == "game_version")
+        return TXR("Cette salle a été créée par une autre version du jeu : tous les joueurs doivent avoir la même version.");
     return std::string(TXR("Le serveur a refusé la connexion : ")) + text;
 }
 
@@ -276,6 +278,7 @@ void RelayLink::frame(uint8_t type, uint32_t epoch, const std::string &payload) 
             if (epoch != epoch_) { // a new ring: nothing of the old one carries over
                 inbox_.clear();
                 inbox_pos_ = 0;
+                controls_.clear();
             }
             epoch_ = epoch;
             state_ = s->ready ? State::Ready : State::Waiting;
@@ -287,8 +290,23 @@ void RelayLink::frame(uint8_t type, uint32_t epoch, const std::string &payload) 
             else inbox_ += payload;
         }
         break;
+    case online::kControl:
+        if (state_ == State::Ready && epoch == epoch_ && controls_.size() < 256) controls_.push_back(payload);
+        break;
     default: break; // ping
     }
+}
+
+void RelayLink::send_control(const std::string &text) {
+    if (state_ != State::Ready || text.empty() || text.size() > 256) return;
+    online::append_frame(out_, online::kControl, epoch_, reinterpret_cast<const uint8_t *>(text.data()), text.size());
+    flush();
+}
+
+std::vector<std::string> RelayLink::take_controls() {
+    std::vector<std::string> out;
+    out.swap(controls_);
+    return out;
 }
 
 int RelayLink::read(uint8_t *buf, int max) {

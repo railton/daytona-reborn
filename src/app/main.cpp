@@ -1027,7 +1027,8 @@ int main(int argc, char **argv) {
     bool online_game = false;   // the game runs an online race
     bool online_wanted = false; // the next start_game is one
     uint32_t online_epoch = 0;  // the room's ring that race started on
-    rt::online::AutoEntry online_entry; // one Start for the whole room
+    rt::online::AutoEntry online_entry;   // one Start for the whole room
+    rt::online::CourseSync online_course; // and the MASTER's course
     std::unique_ptr<rt::GameLoop> game;
     bool pose_session = false, last_render_was_pose = false;
     uint64_t pose_interval_ns = 0;
@@ -1099,6 +1100,8 @@ int main(int argc, char **argv) {
                 game->board().set_link(online_link.get(), false);
                 online_game = true;
                 online_epoch = online_link->epoch();
+                online_entry = {};
+                online_course = {};
                 std::printf("daytona: online: room %s, player %d of %d\n", online_link->room().c_str(), st.position, st.size);
             } else if (cfg.link && !solo_mode) { // link play: the communication board on TCP
                 link = std::make_unique<app::TcpLink>(uint16_t(cfg.link_port), cfg.link_next);
@@ -1478,7 +1481,19 @@ int main(int argc, char **argv) {
                     if (cfg.hold_test != test_hold.armed()) cfg.hold_test ? test_hold.arm() : test_hold.cancel();
                     if (test_hold.apply(game->frames(), inputs.in0)) cfg.hold_test = false; // held: the box clears
                 }
-                if (online_game) online_entry.apply(game->board(), inputs); // another player started: join
+                if (online_game) { // one Start and one course for the whole room
+                    const auto &room = online_link->status();
+                    const bool master = room.position == 1;
+                    rt::online::StartGate::apply(game->board(), inputs, master || room.any_start);
+                    if (master) {
+                        if (const auto told = online_course.master(game->board()); !told.empty())
+                            online_link->send_control(told);
+                    } else {
+                        for (const auto &message : online_link->take_controls()) online_course.receive(message);
+                        online_course.slave(game->board(), inputs);
+                    }
+                    online_entry.apply(game->board(), inputs); // another player started: join
+                }
                 game->run_frame(inputs);
 #ifndef M2_MOBILE
                 if (interpolate_poses && !pose_session && (solo || pc_race)) {

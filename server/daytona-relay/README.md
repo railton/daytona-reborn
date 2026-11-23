@@ -37,6 +37,7 @@ Edit `docker-compose.yml`, or put them in a `.env` file beside it, then
 | `DAYTONA_RIVAL_ARROW` | `on` | `on`, `off` |
 | `DAYTONA_ADVERTISE_SOUND` | `on` | `on`, `off` |
 | `DAYTONA_FREE_PLAY` | `on` | `on` (no coins, Start only), `off` |
+| `DAYTONA_START` | `master` | `master` (only the room's creator starts a race), `anyone` |
 
 The race settings apply to every player of every room: each game takes them
 when it joins, so the cabinets never disagree (the game cancels a link whose
@@ -58,9 +59,13 @@ In the game's home menu, **Online**:
    **Copy the code** and send it to the friends. It holds the server, the room
    and the password, with a check, so a cut or mistyped code is refused.
 2. The friends type a name, paste the code under **Join a room**, **Join**.
-3. When the room is full the race starts on its own for everyone: press
-   **Start (Enter)**. Esc comes back to the room's screen; **Leave the room**
-   ends it.
+3. When the room is full the game starts on its own for everyone. The
+   MASTER (the room's creator) presses **Start (Enter)**: every other player
+   joins that race on their own (the cabinet's WAITING FOR YOUR ENTRY is
+   answered for them). With `DAYTONA_START=anyone`, any player's Start does.
+4. The MASTER chooses the course: the others' course cursor follows it and
+   confirms when the MASTER confirms. Each player chooses their own gearbox.
+   Esc comes back to the room's screen; **Leave the room** ends it.
 
 When someone leaves, the others come back to the room's screen; when it is
 full again the race starts again on its own.
@@ -99,12 +104,16 @@ and prints `link: up, cabinet N of 2` at the end.
   through the server: pick one close to every player.
 - Only Revision A (`daytona`) has link play.
 
+Every game tells the server its online version; a room only takes games of
+the version that created it, so every player of a room behaves the same.
+
 ## Protocol
 
 One TCP connection a player. A greeting line
 (`DAYTONA-RELAY 1 op=create|join room=... players=N name=... pass=...`), then
 frames `type (1) | epoch (4) | length (2) | data`: `D` the game's bytes, `S`
-the room's state, `P` ping, `E` a refusal (`code\ntext`; the game shows its
+the room's state, `P` ping, `C` the games' own coordination (the MASTER's
+course, to every other player), `E` a refusal (`code\ntext`; the game shows its
 own text for the code, in the player's language). The epoch changes whenever
 someone joins or leaves, and an old ring's data is dropped. Details in
 `proto/proto.go`; the game's side is `src/app/online.*` and

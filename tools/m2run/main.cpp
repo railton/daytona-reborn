@@ -358,6 +358,7 @@ int main(int argc, char **argv) {
         // settings from the server and this player's place (as the app does).
         std::unique_ptr<app::RelayLink> relay;
         rt::online::AutoEntry relay_entry;
+        rt::online::CourseSync relay_course;
         if (!relay_server.empty()) {
             const auto server = app::online::normalize_server(relay_server);
             if (!server) throw std::runtime_error("--relay: bad server address");
@@ -409,7 +410,18 @@ int main(int argc, char **argv) {
             const bool omit_this_tick = omit_cell && f == omit_cell->first;
             if (omit_this_tick) scenery.omit_cell = omit_cell->second;
             rt::Inputs inputs = script.at(game.board().frame());
-            if (relay) relay_entry.apply(game.board(), inputs); // as the app: join a race another started
+            if (relay) { // as the app: one Start and the MASTER's course for the room
+                const auto &room = relay->status();
+                const bool master = room.position == 1;
+                rt::online::StartGate::apply(game.board(), inputs, master || room.any_start);
+                if (master) {
+                    if (const auto told = relay_course.master(game.board()); !told.empty()) relay->send_control(told);
+                } else {
+                    for (const auto &message : relay->take_controls()) relay_course.receive(message);
+                    relay_course.slave(game.board(), inputs);
+                }
+                relay_entry.apply(game.board(), inputs);
+            }
             game.run_frame(inputs);
             // Diagnostic (divergence search): M2_RAM_HASH=FILE.csv writes, per
             // frame from M2_RAM_HASH_FROM, an FNV-1a hash of each 4 KB of work

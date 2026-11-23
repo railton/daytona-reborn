@@ -19,9 +19,11 @@ struct FakeBoard {
     std::array<uint8_t, 16384> backup{};
     Io &io() { return io_; }
     std::array<uint8_t, 16384> &backup_ram() { return backup; }
-    int mode = 3; // the guest's mode dispatch (AutoEntry)
+    int mode = 3, step = 0, course = 0; // the guest's mode dispatch, selection step, course cursor
     uint8_t read_byte(uint32_t address) const {
         if (address == rt::online::AutoEntry::mode_address) return uint8_t(mode);
+        if (address == rt::online::CourseSync::step_address) return uint8_t(step);
+        if (address == rt::online::CourseSync::course_address) return uint8_t(course);
         const uint32_t i = address - 0x239d60;
         if (i < 8) return uint8_t("SEGA@\x82\x02\x00"[i]);
         return i == 0x0b ? 1 : 0; // factory: MASTER
@@ -76,11 +78,12 @@ int main() {
     h.players = 3;
     h.name = "Jo\xC3\xA3o S";
     h.password = "a b";
-    CHECK(hello_line(h) == "DAYTONA-RELAY 1 op=create room=abc players=3 name=Jo%C3%A3o%20S pass=a%20b\n");
+    CHECK(hello_line(h) == "DAYTONA-RELAY 1 op=create room=abc players=3 name=Jo%C3%A3o%20S pass=a%20b v=" +
+                               std::to_string(kOnlineVersion) + "\n");
     h.op = Hello::Op::Join;
     h.name.clear();
     h.password.clear();
-    CHECK(hello_line(h) == "DAYTONA-RELAY 1 op=join room=abc\n");
+    CHECK(hello_line(h) == "DAYTONA-RELAY 1 op=join room=abc v=" + std::to_string(kOnlineVersion) + "\n");
 
     // status (as the Go server's Status.Encode writes it); offsets the
     // server may not set are dropped
@@ -88,6 +91,9 @@ int main() {
     CHECK(st && st->joined == 2 && st->size == 3 && st->position == 2 && !st->ready);
     CHECK(st->eeprom.size() == 3 && st->eeprom[0].offset == 0x1a && st->eeprom[1].value == 3 && st->eeprom[2].offset == 0x10);
     CHECK(st->names.size() == 2 && st->names[1] == "Jo\xC3\xA3o");
+    CHECK(!st->any_start);
+    st = parse_status("joined=2 size=2 pos=1 ready=1\neeprom=\nname=A\nname=B\nstart=anyone\n");
+    CHECK(st && st->ready && st->any_start && st->eeprom.empty());
     CHECK(!parse_status("garbage"));
 
     // frames
@@ -119,7 +125,7 @@ int main() {
 
     // AutoEntry: Start only while another cabinet's race waits for this
     // one's entry, in short edges, nothing otherwise
-    struct In { uint8_t in0 = 0xff; };
+    struct In { uint8_t in0 = 0xff, steer = 0x80, accel = 0x20; };
     rt::online::AutoEntry entry;
     int presses = 0;
     for (int f = 0; f < 200; ++f) {
@@ -142,6 +148,60 @@ int main() {
     In after;
     entry.apply(board, after);
     CHECK(after.in0 == 0xff);
+
+    // StartGate: a SLAVE's Start is released in attract, kept from the entry
+    // countdown on; the MASTER's always kept
+    board.mode = 3;
+    In gate;
+    gate.in0 = 0xef; // Start held
+    rt::online::StartGate::apply(board, gate, false);
+    CHECK(gate.in0 == 0xff);
+    gate.in0 = 0xef;
+    rt::online::StartGate::apply(board, gate, true);
+    CHECK(gate.in0 == 0xef);
+    board.mode = 16;
+    rt::online::StartGate::apply(board, gate, false);
+    CHECK(gate.in0 == 0xef);
+
+    // CourseSync: the MASTER tells its cursor as it moves and its course on
+    // confirmation; a SLAVE steers to it and confirms only after the MASTER
+    rt::online::CourseSync master_side, slave_side;
+    FakeBoard master_board, slave_board;
+    master_board.mode = slave_board.mode = 18;
+    master_board.step = slave_board.step = 1;
+    master_board.course = 0;
+    CHECK(master_side.master(master_board) == "cursor=0");
+    CHECK(master_side.master(master_board).empty()); // nothing new
+    master_board.course = 1; // long: Expert
+    const std::string moved = master_side.master(master_board);
+    CHECK(moved == "cursor=1");
+    slave_side.receive(moved);
+    In s1;
+    for (int f = 0; f < 60; ++f) {
+        s1 = {};
+        s1.accel = 0xe0; // the SLAVE's own pedal: ignored here
+        slave_side.slave(slave_board, s1);
+        CHECK(s1.steer == 0xe0 && s1.accel == 0x20); // steering to Expert, not confirming
+    }
+    master_board.step = 2; // the MASTER confirms
+    const std::string chosen = master_side.master(master_board);
+    CHECK(chosen == "course=1");
+    slave_side.receive(chosen);
+    bool confirmed = false;
+    for (int f = 0; f < 60; ++f) {
+        In in;
+        slave_side.slave(slave_board, in);
+        CHECK(in.steer == 0xe0);
+        confirmed |= in.accel == 0xe0;
+    }
+    CHECK(confirmed && slave_side.confirmed());
+    slave_board.mode = 22; // racing: the next selection starts afresh
+    In racing;
+    racing.steer = 0x30;
+    slave_side.slave(slave_board, racing);
+    CHECK(racing.steer == 0x30 && slave_side.cursor() == -1 && !slave_side.confirmed());
+    slave_side.receive("course=7"); // out of range: ignored
+    CHECK(slave_side.cursor() == -1);
     std::puts("online ok");
     return 0;
 }

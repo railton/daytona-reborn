@@ -904,6 +904,9 @@ msgstr "Invalid room code."
 msgid "Nombre de joueurs invalide : de 2 à 8."
 msgstr "Invalid number of players: 2 to 8."
 
+msgid "Cette salle a été créée par une autre version du jeu : tous les joueurs doivent avoir la même version."
+msgstr "This room was created by another version of the game: every player needs the same version."
+
 msgid "Le serveur a refusé la connexion : "
 msgstr "The server refused the connection: "
 

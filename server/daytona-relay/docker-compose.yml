@@ -23,6 +23,7 @@ services:
       DAYTONA_RIVAL_ARROW: "${DAYTONA_RIVAL_ARROW:-on}"           # on | off
       DAYTONA_ADVERTISE_SOUND: "${DAYTONA_ADVERTISE_SOUND:-on}"   # on | off
       DAYTONA_FREE_PLAY: "${DAYTONA_FREE_PLAY:-on}"               # on: no coins, Start only | off
+      DAYTONA_START: "${DAYTONA_START:-master}"                   # master: only the room's creator starts a race | anyone
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
