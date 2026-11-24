@@ -70,6 +70,20 @@ Launcher::Launcher(Config &cfg, SDL_Window *window) : cfg_(cfg), window_(window)
 void Launcher::check_rom() {
     checks_.clear();
     rom_ok_ = false;
+#ifndef M2_MOBILE
+    if (cfg_.rom_path.empty()) {
+        // none chosen yet: the project's roms/ folder, where the build took it from
+        // (build-daytona/ is beside roms/), or roms/ in the working folder
+        const char *base = SDL_GetBasePath();
+        for (const std::string &dir : {std::string(base ? base : "") + "../roms/", std::string("roms/")})
+            for (const char *ext : {".zip", ".7z"}) {
+                std::error_code ec;
+                const std::string candidate = dir + M2_ROMSET + ext;
+                if (cfg_.rom_path.empty() && std::filesystem::exists(candidate, ec)) cfg_.rom_path = candidate;
+            }
+        if (!cfg_.rom_path.empty()) std::snprintf(path_buf_, sizeof path_buf_, "%s", cfg_.rom_path.c_str());
+    }
+#endif
     if (cfg_.rom_path.empty()) {
         char text[256];
         std::snprintf(text, sizeof text, TX("Choose the %s ROM set (.zip or .7z)."), M2_ROMSET);
@@ -266,18 +280,143 @@ template <class Left, class Right> void columns(const char *id, bool wide, Left 
 }
 } // namespace
 
+void Launcher::take_dialog_result() {
+    std::lock_guard<std::mutex> g(dialog_mutex_);
+    if (!dialog_result_.empty()) {
+        cfg_.rom_path = dialog_result_;
+        dialog_result_.clear();
+        std::snprintf(path_buf_, sizeof path_buf_, "%s", cfg_.rom_path.c_str());
+        cfg_.save();
+        check_rom();
+    }
+}
+
+// The interface language, each in its own script (app/i18n.h); only those with a translation.
+bool Launcher::language_combo(float width) {
+    const auto &langs = i18n::languages();
+    size_t sel = 0;
+    for (size_t i = 0; i < langs.size(); ++i)
+        if (i18n::current() == langs[i].code) sel = i;
+    bool changed = false;
+    ImGui::TextDisabled("%s", TX("Language"));
+    ImGui::SetNextItemWidth(width);
+    if (ImGui::BeginCombo("##language", langs[sel].name)) {
+        for (size_t i = 0; i < langs.size(); ++i)
+            if (i18n::available(langs[i].code) && ImGui::Selectable(langs[i].name, i == sel) && i != sel) {
+                cfg_.language = langs[i].code;
+                cfg_.save();
+                i18n::set(cfg_.language);
+                check_rom(); // its message, in the new language
+                changed = true;
+            }
+        ImGui::EndCombo();
+    }
+    return changed;
+}
+
+// diagnostic: M2_CAPTURE_ROM_GATE=1 shows the ROM set screen (with a sample refusal) in a --capture-home image
+bool Launcher::capture_gate() {
+    static const bool on = [] {
+        const char *v = std::getenv("M2_CAPTURE_ROM_GATE");
+        return v && *v == '1';
+    }();
+    return on;
+}
+
+// The PC home's first screen until a ROM set is verified: choose it (the file
+// window, or its path typed), its files checked as it is chosen.
+Launcher::Result Launcher::draw_rom_gate() {
+    take_dialog_result();
+    if (capture_gate() && !gate_open_) {
+        gate_open_ = true;
+        rom_ok_ = false;
+        rom_message_ = "2 files of 30 are missing or wrong (a sample, for the capture)."; // diagnostic only
+    }
+    Result result = Stay;
+    const auto *view = ImGui::GetMainViewport();
+    const float scale = std::max(0.7f, std::min(view->Size.y / 900.f, view->Size.x / 980.f));
+    const float width = std::min(view->Size.x - 32.f, 760.f * scale);
+    ImGui::SetNextWindowSizeConstraints({width, 0}, {width, view->Size.y - 32.f});
+    ImGui::SetNextWindowPos({view->Pos.x + view->Size.x * 0.5f, view->Pos.y + view->Size.y * 0.5f}, ImGuiCond_Always,
+                            {0.5f, 0.5f});
+    ImGui::PushFont(nullptr, 21.f * scale);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {24.f * scale, 20.f * scale});
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {12.f * scale, 10.f * scale});
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, {12.f * scale, 10.f * scale});
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 5.f * scale);
+    ImGui::Begin("##rom_gate", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize |
+                 ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings);
+    const ImVec4 good(0.48f, 0.98f, 0.79f, 1), warn(1, 0.74f, 0.45f, 1);
+    const float full = ImGui::GetContentRegionAvail().x, button_h = 52.f * scale;
+    {
+        const float lang_w = 200.f * scale;
+        ImGui::BeginGroup();
+        ImGui::PushFont(nullptr, 30.f * scale);
+        ImGui::TextUnformatted(TX("Your ROM set"));
+        ImGui::PopFont();
+        ImGui::TextDisabled("v%s", DAYTONA_APP_VERSION);
+        ImGui::EndGroup();
+        ImGui::SameLine(full - lang_w + ImGui::GetStyle().WindowPadding.x);
+        ImGui::BeginGroup();
+        language_combo(lang_w);
+        ImGui::EndGroup();
+    }
+    ImGui::Spacing();
+    ImGui::PushTextWrapPos(0);
+    char what[256];
+    std::snprintf(what, sizeof what,
+                  TX("The game is rebuilt from your own Daytona USA ROM set: MAME's %s set, a .zip or .7z. "
+                     "Choose it to start; nothing is sent anywhere."),
+                  M2_ROMSET);
+    ImGui::TextUnformatted(what);
+    ImGui::PopTextWrapPos();
+    ImGui::Spacing();
+    if (ImGui::Button(dialog_pending_ ? TX("Choosing...") : TX("Choose the ROM set..."), {full, button_h}) &&
+        !dialog_pending_)
+        browse();
+    ImGui::TextDisabled("%s", TX("Or type its full path and press Enter:"));
+    ImGui::SetNextItemWidth(-FLT_MIN);
+    if (ImGui::InputText("##rom_gate_path", path_buf_, sizeof path_buf_, ImGuiInputTextFlags_EnterReturnsTrue)) {
+        cfg_.rom_path = path_buf_;
+        cfg_.save();
+        check_rom();
+    }
+    if (!rom_message_.empty()) {
+        ImGui::PushTextWrapPos(0);
+        ImGui::TextColored(rom_ok_ ? good : warn, "%s", rom_message_.c_str());
+        ImGui::PopTextWrapPos();
+    }
+    // refused: only the files that are missing or wrong
+    const bool any_bad = std::any_of(checks_.begin(), checks_.end(), [](const auto &c) { return !c.ok; });
+    if (!rom_ok_ && any_bad && ImGui::BeginTable("##gate_files", 2, ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp)) {
+        for (const auto &c : checks_) {
+            if (c.ok) continue;
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted(c.file.c_str());
+            ImGui::TableNextColumn();
+            ImGui::TextColored(warn, "%s", c.problem.c_str());
+        }
+        ImGui::EndTable();
+    }
+    if (gate_open_) { // opened from Settings: the verified set stays if nothing else is chosen
+        ImGui::Spacing();
+        ImGui::BeginDisabled(!rom_ok_);
+        if (ImGui::Button(TX("Done"), {full, button_h * 0.85f})) {
+            gate_open_ = false;
+            result = Back;
+        }
+        ImGui::EndDisabled();
+    }
+    ImGui::End();
+    ImGui::PopStyleVar(4);
+    ImGui::PopFont();
+    return result;
+}
+
 Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool from_home) {
     SDL_Gamepad *pad = devices.pad;
-    {
-        std::lock_guard<std::mutex> g(dialog_mutex_);
-        if (!dialog_result_.empty()) {
-            cfg_.rom_path = dialog_result_;
-            dialog_result_.clear();
-            std::snprintf(path_buf_, sizeof path_buf_, "%s", cfg_.rom_path.c_str());
-            cfg_.save();
-            check_rom();
-        }
-    }
+    take_dialog_result();
 
     Result result = Stay;
     const ImGuiViewport *vp = ImGui::GetMainViewport();
@@ -330,26 +469,11 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
         ImGui::TextDisabled("%s   v%s (%s)", TX("static recompilation, native engine"), DAYTONA_APP_VERSION, DAYTONA_APP_COMMIT);
         ImGui::EndGroup();
     }
-    {   // the interface language, each in its own script (app/i18n.h); only those with a translation
-        const auto &langs = i18n::languages();
-        size_t sel = 0;
-        for (size_t i = 0; i < langs.size(); ++i)
-            if (i18n::current() == langs[i].code) sel = i;
+    {
         const float width = 200.f * scale;
         ImGui::SameLine(header_right - width);
         ImGui::BeginGroup();
-        ImGui::TextDisabled("%s", TX("Language"));
-        ImGui::SetNextItemWidth(width);
-        if (ImGui::BeginCombo("##language", langs[sel].name)) {
-            for (size_t i = 0; i < langs.size(); ++i)
-                if (i18n::available(langs[i].code) && ImGui::Selectable(langs[i].name, i == sel) && i != sel) {
-                    cfg_.language = langs[i].code;
-                    cfg_.save();
-                    i18n::set(cfg_.language);
-                    check_rom(); // its message, in the new language
-                }
-            ImGui::EndCombo();
-        }
+        language_combo(width);
         ImGui::EndGroup();
     }
     ImGui::Spacing();
@@ -365,10 +489,25 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
         if (ImGui::BeginTabItem(TX("Game"), nullptr, tab_flags(0))) {
             ImGui::Spacing();
             ImGui::SeparatorText(TX("ROM set"));
+            const float small = 140.f * scale, gap = ImGui::GetStyle().ItemSpacing.x;
+#ifndef M2_MOBILE
+            if (from_home) { // the PC home chose it on its first screen: its state, and Change...
+                const float change_w = 160.f * scale;
+                ImGui::BeginGroup();
+                ImGui::PushTextWrapPos(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - change_w - ImGui::GetStyle().ItemSpacing.x);
+                ImGui::TextUnformatted(cfg_.rom_path.c_str());
+                ImGui::TextColored(rom_ok_ ? good : warn, "%s", rom_message_.c_str());
+                ImGui::PopTextWrapPos();
+                ImGui::EndGroup();
+                ImGui::SameLine(ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x - change_w);
+                if (ImGui::Button(TX("Change..."), {change_w, 0})) gate_open_ = true;
+            } else {
+#else
+            {
+#endif
 #ifdef SDL_PLATFORM_ANDROID
             hint(TX("Browse gives access to your ZIP/7z. A verified copy is kept in the app."));
 #endif
-            const float small = 140.f * scale, gap = ImGui::GetStyle().ItemSpacing.x;
             ImGui::SetNextItemWidth(std::max(120.f * scale, ImGui::GetContentRegionAvail().x - 2 * (small + gap)));
             if (ImGui::InputText("##rom", path_buf_, sizeof path_buf_, ImGuiInputTextFlags_EnterReturnsTrue)) {
                 cfg_.rom_path = path_buf_;
@@ -398,6 +537,7 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
                 }
                 ImGui::TreePop();
             }
+            } // the full ROM set controls (the cabinet launcher, mobile)
             if (!error_.empty()) ImGui::TextColored(bad, "%s", error_.c_str());
             if (!from_home) {
                 ImGui::Spacing();

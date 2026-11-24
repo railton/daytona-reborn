@@ -20,6 +20,7 @@
 
 #include <chrono>
 #include <cstdint>
+#include <deque>
 #include <vector>
 
 namespace rt {
@@ -91,10 +92,21 @@ private:
     uint16_t linktimer_ = 0;
     uint8_t preset_id_ = 0, preset_count_ = 0; // preset_ring
     bool paced_ = false, zfg_shown_ = false;   // set_paced: zfg flips held for the game's read
-    uint8_t zfg_pending_ = 0, reserve_ = 0;
+    uint8_t reserve_ = 0;
+    struct Block {
+        uint16_t offset = 0, size = 0; // size: the frame's (a SLAVE's answer)
+        bool reply = false;            // a SLAVE answers it when the game takes it (consume)
+        std::vector<uint8_t> data;
+    };
+    std::deque<Block> pending_; // paced: received blocks waiting for the game's read
+  public:
+    bool flag_only_ = false; // diagnostics: 0.11.0's pacing, the data written at once (M2_TEST_RELAY_FLAG_ONLY)
+  private:
     bool primed_ = false; // the reserve has been built once
     uint32_t fg_reads_ = 0; // since the vblank tick
-    void data_arrived();
+    void land_block(int frame_offset, int frame_size, bool reply);
+    void consume(const Block &b);
+    void write_block(const Block &b);
     std::chrono::steady_clock::time_point last_fg_poll_{}; // read_fg's transport poll, at most once a ms
     uint8_t buffer0_[0x1000] = {};
     std::vector<uint8_t> rx_; // bytes received toward the next whole frame

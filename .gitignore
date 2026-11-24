@@ -21,7 +21,11 @@ platform/mobile/android/app/.cxx/
 *.m2ord
 *.bin
 *.ic*
-roms/
+# your ROM set: everything in roms/ but its README
+roms/*
+!roms/README.md
+.tools/
+windows-build.log
 rom/
 generated/
 extracted/

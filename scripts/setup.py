@@ -164,7 +164,14 @@ def configure_and_build(build, romset="daytona93"):
     say("Configuring and building" + ("" if romset == "daytona93" else f" ({romset})"))
     cmd = ["cmake", "-S", ".", "-B", build, "-DCMAKE_BUILD_TYPE=Release", "-DM2_ROMSET=" + romset]
     want = {}  # cache entries that must match, or the build directory is reconfigured
-    if WINDOWS and not (shutil.which("cl") and shutil.which("ninja")):
+    # M2_COMPILER=mingw: llvm-mingw's Clang with Ninja, from CC/CXX (scripts/windows-build.ps1:
+    # portable tools, no Visual Studio)
+    mingw = WINDOWS and os.environ.get("M2_COMPILER", "").lower() == "mingw"
+    if mingw:
+        cmd += ["-G", "Ninja"]
+        want["CMAKE_GENERATOR"] = "Ninja"
+        print(f"Compiler: llvm-mingw ({os.environ.get('CXX', 'c++')})")
+    elif WINDOWS and not (shutil.which("cl") and shutil.which("ninja")):
         # Visual Studio generator: finds the compiler without a developer prompt.
         # Clang (clang-cl) when Visual Studio has it, else MSVC.
         cmd += ["-A", "x64"]

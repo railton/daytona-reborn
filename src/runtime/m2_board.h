@@ -162,8 +162,11 @@ public:
         if (comm_board_) comm_board_->vblank();
     }
     // Block flips held for the game's own wait (CommBoard::set_paced). After set_link.
-    void set_link_paced(bool on, int reserve = 0) {
-        if (comm_board_) comm_board_->set_paced(on, reserve);
+    void set_link_paced(bool on, int reserve = 0, bool flag_only = false) {
+        if (comm_board_) {
+            comm_board_->set_paced(on, reserve);
+            comm_board_->flag_only_ = flag_only;
+        }
     }
     // The comm board's 16 KB shared RAM (diagnostics: this cabinet's block at 0x2000).
     const uint8_t *comm_ram() const { return comm_.data(); }

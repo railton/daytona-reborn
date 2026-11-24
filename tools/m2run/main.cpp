@@ -179,7 +179,11 @@ int main(int argc, char **argv) {
         const char *v = std::getenv("M2_TEST_RELAY_BARRIER");
         return !(v && !std::strcmp(v, "0"));
     }();
-    bool key_steering = false; // --key-steering: the course and gearbox picked as the app does with keys (app/selection_steer.h)
+    bool key_steering = false;
+    const bool autodrive = [] {
+        const char *v = std::getenv("M2_TEST_AUTODRIVE");
+        return v && *v == '1';
+    }(); // --key-steering: the course and gearbox picked as the app does with keys (app/selection_steer.h)
     app::SelectionSteer selection_steer;
     bool snapshot_stamps = false, scene_stamps = false;
     std::optional<uint64_t> scene_pair_from;
@@ -430,7 +434,8 @@ int main(int argc, char **argv) {
             // (rt::online::StartBarrier) lines up the race.
             game.board().set_link(relay.get(), relay_framesync);
             if (relay_preset) game.board().preset_link_ring(rt::online::link_id(st.position, st.size), st.size);
-            game.board().set_link_paced(relay_pace > 0, relay_pace > 1 ? relay_pace - 1 : 0);
+            game.board().set_link_paced(relay_pace > 0, relay_pace > 1 ? relay_pace - 1 : 0,
+                                        std::getenv("M2_TEST_RELAY_FLAG_ONLY") != nullptr); // 0.11.0's pacing, for comparisons
         }
         game.set_frame_skip(frame_skip);
         if (aspect > 0) {
@@ -463,6 +468,11 @@ int main(int argc, char **argv) {
         int previous_mode = -1, previous_step = -1, previous_link = -1;
         bool relay_failure_told = false;
         int races_seen = 0, previous_race_mode = -1;
+        // In the race, how far the previous cabinet's tick counter (byte 0x0a of
+        // the block received at 0x21c0) moved each frame: 1 is smooth, 0 a frame
+        // with no new data, 2+ a skip (the other car would stall or jump).
+        uint64_t rx_steps[4] = {};
+        int rx_previous = -1;
         rt::online::StartBarrier relay_barrier_state; // as the app: everyone starts the race together
         bool relay_holding = false;
         auto steady_ms = [] {
@@ -492,6 +502,10 @@ int main(int argc, char **argv) {
             const bool omit_this_tick = omit_cell && f == omit_cell->first;
             if (omit_this_tick) scenery.omit_cell = omit_cell->second;
             rt::Inputs inputs = script.at(game.board().frame());
+            if (autodrive) { // M2_TEST_AUTODRIVE=1: a pedal tap every 100 frames (confirms the screens), held in the race
+                const bool racing = game.board().read_byte(0x5010a0) == 22;
+                inputs.accel = racing || f % 100 < 8 ? 0xe0 : 0x20;
+            }
             if (key_steering) selection_steer.apply(game.board(), inputs.steer, false); // as the app with keys
             if (relay) { // as the app: one Start and the MASTER's course for the room
                 const auto &room = relay->status();
@@ -535,6 +549,13 @@ int main(int argc, char **argv) {
             }
             { // each race: its course on entry, the standings this game knew at its end
                 const int race_mode = game.board().read_byte(0x5010a0);
+                if (relay && race_mode == 22) {
+                    const int rx = game.board().comm_ram()[0x21c0 + 0x0a];
+                    if (rx_previous >= 0) ++rx_steps[std::min(3, (rx - rx_previous) & 0xff)];
+                    rx_previous = rx;
+                } else {
+                    rx_previous = -1;
+                }
                 if (race_mode == 22 && previous_race_mode != 22)
                     std::printf("m2run: race %d at frame %" PRIu64 ", course %d\n", ++races_seen, game.frames(),
                                 int(game.board().read_byte(0x501460)));
@@ -700,6 +721,11 @@ int main(int argc, char **argv) {
                     game.board().sound_bytes_total(), s, double(game.frames()) / s);
         std::printf("  last screen hash %016" PRIx64 "\n", game.board().video().screen_hash());
         if (relay) { // the standings this cabinet knew at the end (car:place, 1 = first)
+            const uint64_t rx_total = rx_steps[0] + rx_steps[1] + rx_steps[2] + rx_steps[3];
+            if (rx_total)
+                std::printf("  relay data in the race: %.1f%% steps of 1, %.1f%% no new data, %.1f%% skips (of %" PRIu64 " frames)\n",
+                            100.0 * rx_steps[1] / rx_total, 100.0 * rx_steps[0] / rx_total,
+                            100.0 * (rx_steps[2] + rx_steps[3]) / rx_total, rx_total);
             std::printf("  relay standings:");
             for (int car = 1; car <= relay->status().size; ++car)
                 std::printf(" %d:%d", car, relay_standings.rank(car) + 1);

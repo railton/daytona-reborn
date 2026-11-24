@@ -1040,6 +1040,7 @@ int main(int argc, char **argv) {
     rt::online::Standings online_standings; // the race's standings, for the players list
     rt::online::StartBarrier online_barrier; // everyone starts the race together (no frame sync)
     bool online_waiting = false;             // this game holds at the barrier: the others are still selecting
+    bool online_race_logged = false;         // the online race's diagnostics line, once a race
     uint64_t online_race_since = 0;       // when this online race began (its first race frame), 0: not racing
     float online_names = 0.f;             // the players list's opacity over the race (app/online_overlay.h)
     app::CarTagOverlay online_tags;       // the other players' name tags over their cars, all race long
@@ -1547,6 +1548,18 @@ int main(int argc, char **argv) {
                                     (unsigned long long)online_barrier.waited_ms());
                 }
                 game->run_frame(inputs);
+                if (online_game) { // diagnostics: what the cabinet runs as, once a race (the log)
+                    const bool in_race = game->board().read_byte(rt::online::AutoEntry::mode_address) == rt::online::CourseSync::race;
+                    if (in_race && !online_race_logged) {
+                        const auto &ee = game->board().io().eeprom;
+                        const auto *cb = game->board().comm_board();
+                        std::printf("daytona: online race: LINK ID %d, CAR NUMBER %d (settings), own car record %d, link %d of %d, room place %d of %d\n",
+                                    int(ee[0x0b]), int(ee[0x0c]) + 1, int(game->board().read_byte(0x505180 + 0x94)) + 1,
+                                    cb ? cb->id() : 0, cb ? cb->count() : 0, online_link->status().position, online_link->status().size);
+                        std::fflush(stdout);
+                    }
+                    online_race_logged = in_race;
+                }
                 if (online_game)
                     if (const auto told = online_barrier.after_frame(game->board(), online_link->status().position, SDL_GetTicks());
                         !told.empty())
@@ -1982,7 +1995,10 @@ int main(int argc, char **argv) {
 #endif
             ImGui::NewFrame();
 #ifndef M2_MOBILE
-            if (draw_home && online_screen) {
+            if (pc_home && in_launcher && launcher.rom_gate()) {
+                // no verified ROM set (or Settings' Change...): that screen, nothing else
+                launcher.draw_rom_gate();
+            } else if (draw_home && online_screen) {
                 switch (online_menu.draw(cfg, online_link.get(), online_game && game, home_message)) {
                 case app::OnlineMenu::Back: online_screen = false; break;
                 case app::OnlineMenu::Resume: in_launcher = false; break;
@@ -1991,7 +2007,7 @@ int main(int argc, char **argv) {
                 case app::OnlineMenu::Connect:
                     leave_online();
                     if (!launcher.rom_ok()) { // the race starts as soon as the room fills: the ROM set first
-                        home_message = TX("First choose the Daytona Revision A ROM set in Settings.");
+                        home_message = TX("First choose the Daytona Revision A ROM set.");
                         break;
                     }
                     home_message.clear();

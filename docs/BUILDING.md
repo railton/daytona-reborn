@@ -19,8 +19,9 @@ Official, more detailed guide (macOS too, and every option):
 
   Other Daytona sets (`daytonas`, `daytonat`, `daytonase`, ...) are rejected,
   even when renamed.
-- **Git**: Windows `winget install Git.Git` (then open a new PowerShell);
-  Linux `sudo apt install git` (or your distribution's equivalent).
+- **Git** to clone the code (Linux `sudo apt install git`, or your
+  distribution's equivalent). On Windows it is optional: download the code
+  as a zip instead (below), `Build Daytona.bat` brings its own.
 - A 64-bit computer, an internet connection for the first build and about
   10 GB of free disk space. The first build takes from several minutes to
   half an hour or more.
@@ -37,31 +38,73 @@ Already cloned? From the project folder:
 
     git pull
 
-Every command below runs from this project folder.
+Without Git: on the GitHub page, **Code > Download ZIP** (or the source zip
+of a release), and unzip it. Every command below runs from this project
+folder.
+
+Three ways to build, all from your own ROM set:
+
+| You are on | Use | You install |
+| --- | --- | --- |
+| Windows 10/11 | [`Build Daytona.bat`](#windows-build-daytonabat-recommended) | nothing (portable tools, no administrator) |
+| Linux | [`scripts/docker-build.sh`](#linux-with-docker-recommended-on-linux) | Docker |
+| Linux, for your own Windows PC | [`scripts/docker-build-windows.sh`](#windows-build-made-on-linux) | Docker |
+
+Windows with Visual Studio (`setup.ps1`) and Linux without Docker
+(`setup.sh`) remain, further down.
 
 ## Put your ROM set in place
 
-Make a `roms` folder in the project and copy your set into it, named exactly
-after the set: `roms/daytona.zip` (or `roms/daytona.7z`), and optionally
+The project has a `roms` folder: copy your set into it, named exactly after
+the set: `roms/daytona.zip` (or `roms/daytona.7z`), and optionally
 `roms/daytona93.zip`. Do this before building: without a ROM set only the
-tools are built. Git ignores `roms/`, so it is never uploaded.
-
-Windows (PowerShell):
-
-    New-Item -ItemType Directory -Path roms -Force
-    Copy-Item C:\path\to\daytona.zip roms\daytona.zip
+tools are built. Git ignores everything in `roms/` but its README, so a ROM
+set is never uploaded. `Build Daytona.bat` asks for the file and copies it
+there itself.
 
 Linux:
 
-    mkdir -p roms
     cp /path/to/daytona.zip roms/daytona.zip
+
+The game finds `roms/daytona.zip` on its own the first time it starts.
 
 On Windows, check the file is not `daytona.zip.zip` (Explorer can hide the
 extension).
 
-## Windows
+## Windows: Build Daytona.bat (recommended)
 
-The project's supported Windows path, Windows 10 or 11.
+Windows 10 (1803 or later) or 11, 64-bit. Nothing to install, no
+administrator rights.
+
+1. **Double-click `Build Daytona.bat`** in the project folder (if Windows
+   shows "Windows protected your PC", **More info > Run anyway**: it is a
+   script from this project, `scripts\windows-build.ps1`).
+2. The first time, it downloads its tools into `.tools\` in the project
+   folder, about 330 MB, each file checked against its pinned SHA-256:
+   llvm-mingw (Clang for Windows), CMake, Ninja, Python (embeddable) and
+   MinGit. They are not installed on Windows: delete the project folder and
+   they are gone.
+3. If `roms\daytona.zip` is not there yet, a window asks for your ROM set and
+   copies it there.
+4. It fetches the pinned libraries, recompiles the game from your ROM set
+   and builds it: 10 to 40 minutes the first time, much less afterwards.
+5. It ends with `== Done`, the game at `build-daytona\daytona.exe`, and a
+   **Daytona (recomp)** shortcut on your desktop. The game finds your ROM set
+   by itself.
+
+**Updating:** download the new version (or, in a git clone, run
+`powershell -ExecutionPolicy Bypass -File scripts\windows-build.ps1 -Update`,
+which runs `git pull` first), then double-click `Build Daytona.bat` again.
+
+**If it stops**, it says why in red; everything it printed is in
+`windows-build.log` in the project folder. A download whose checksum does
+not match is deleted and nothing is unpacked: run it again. To start over,
+delete `build-daytona` (and `.tools` to download the tools again).
+
+## Windows with Visual Studio (setup.ps1)
+
+The original Windows path, Windows 10 or 11, if you prefer Microsoft's
+build tools.
 
 1. In PowerShell, in the project folder:
 
@@ -177,6 +220,29 @@ Do not mix Docker and native builds in the same folder: the build folders
 remember the paths they were configured with (`/src` in the container). To
 switch, delete `build` and `build-daytona` first.
 
+## Windows build made on Linux
+
+To test on your own Windows PC (a dual boot, another computer) without
+building there: the Windows game is cross-compiled in Docker with the same
+compiler `Build Daytona.bat` uses (llvm-mingw, `docker/windows-cross`).
+
+1. Build the Linux game first (`./scripts/docker-build.sh`, above): the
+   Windows build reuses the game's code it recompiled from your ROM set
+   (`build-daytona/gen/`), which is the same on every system.
+2. Then:
+
+       ./scripts/docker-build-windows.sh
+
+   The first time it builds the `daytona-windows-cross` image (about 85 MB
+   of llvm-mingw, checked against its SHA-256).
+3. Copy `build-windows/daytona.exe` and the `build-windows/lang/` folder to
+   the Windows PC, with your ROM set beside them, start `daytona.exe` and
+   choose the ROM set in **Settings > Game > Browse...**.
+
+The `.exe` needs nothing else: the C++ runtime is linked in, it only uses
+Windows' own DLLs. It is still a build from your ROM set: for your own PC
+only (below).
+
 ## Linux without Docker
 
     ./setup.sh
@@ -191,10 +257,11 @@ pacman or zypper; it asks for your `sudo` password), then runs the same
 The Revision A game opens on its **home menu**: Play, the three courses,
 game mode and gearbox, **Settings**, **Quit** and **Online**.
 
-1. The first time, open **Settings**. On the **Game** tab, click
-   **Browse...** and choose your `roms/daytona.zip` (or type its path and
-   press Enter), and wait for the line under it to say all files are
-   verified. **Language**, at the top right, switches the interface between
+1. The game finds `roms/daytona.zip` in the project by itself. Otherwise
+   (the game copied elsewhere) it opens on **Your ROM set**: click **Choose
+   the ROM set...** (or type its full path and press Enter). Nothing else
+   opens until the set is verified; a refused set lists the files that are
+   missing or wrong. Later, **Settings > Game > Change...** chooses another. **Language**, at the top right, switches the interface between
    English, French and Portuguese (Português). **Back** returns to the home
    menu. The choice is remembered.
 2. **Play** starts a solo race. In the game, **Esc** brings the menu back.
@@ -208,7 +275,8 @@ game mode and gearbox, **Settings**, **Quit** and **Online**.
 
     build-daytona/daytona --profile 2
 
-(`build-daytona\Release\daytona.exe --profile 2` on Windows.) A profile is a
+(`build-daytona\daytona.exe --profile 2` on Windows; `build-daytona\Release\`
+with `setup.ps1`.) A profile is a
 separate settings and saves folder, so choose the ROM set once in that
 copy's Settings too. Settings live in `~/.local/share/daytona-recomp/` on
 Linux and `%APPDATA%\daytona-recomp\` on Windows (`daytona-pc-solo` for the
@@ -216,7 +284,7 @@ normal copy, `daytona-2` for `--profile 2`); delete a folder to reset it.
 
 ## Never share builds
 
-Do not send the game, its `.exe`, or the `build`, `build-daytona` or `roms`
-folders to anyone, or upload them anywhere: they contain code generated from
+Do not send the game, its `.exe`, or the `build`, `build-daytona`,
+`build-windows` or `roms` folders to anyone, or upload them anywhere: they contain code generated from
 your ROM set, and the ROMs themselves. Share only the link to the code
 (and this guide). Each player builds the game from their own ROM set.

@@ -187,16 +187,37 @@ msgstr ""
 msgid "All files"
 msgstr ""
 
-msgid "static recompilation, native engine"
+msgid "Language"
 msgstr ""
 
-msgid "Language"
+msgid "Your ROM set"
+msgstr ""
+
+msgid "The game is rebuilt from your own Daytona USA ROM set: MAME's %s set, a .zip or .7z. Choose it to start; nothing is sent anywhere."
+msgstr ""
+
+msgid "Choosing..."
+msgstr ""
+
+msgid "Choose the ROM set..."
+msgstr ""
+
+msgid "Or type its full path and press Enter:"
+msgstr ""
+
+msgid "Done"
+msgstr ""
+
+msgid "static recompilation, native engine"
 msgstr ""
 
 msgid "Game"
 msgstr ""
 
 msgid "ROM set"
+msgstr ""
+
+msgid "Change..."
 msgstr ""
 
 msgid "Browse gives access to your ZIP/7z. A verified copy is kept in the app."
@@ -758,7 +779,7 @@ msgstr ""
 msgid "The game did not confirm the start."
 msgstr ""
 
-msgid "First choose the Daytona Revision A ROM set in Settings."
+msgid "First choose the Daytona Revision A ROM set."
 msgstr ""
 
 msgid "Waiting for the other players to finish choosing..."

@@ -33,7 +33,7 @@ void CommBoard::cn_w(uint8_t data) {
         // reset command
         linkenable_ = 0x00;
         zfg_ = 0;
-        zfg_pending_ = 0;
+        pending_.clear();
         primed_ = false;
         cn_ = 0;
         fg_ = 0;
@@ -77,20 +77,54 @@ uint8_t CommBoard::fg_r() {
     read_fg();
     // paced: a block's flip shows at the game's own wait, after the frame's
     // reference read (the vblank interrupt reads fg first), once a frame
-    if (paced_ && ++fg_reads_ >= 2 && !zfg_shown_ && zfg_pending_ > (primed_ ? 0 : reserve_)) {
+    if (paced_ && ++fg_reads_ >= 2 && !zfg_shown_ && pending_.size() > size_t(primed_ ? 0 : reserve_)) {
+        consume(pending_.front()); // the block and its flip together, as the board delivers them
+        pending_.pop_front();
         zfg_ ^= 0x01;
-        --zfg_pending_;
         zfg_shown_ = true;
         primed_ = true;
     }
     return uint8_t(fg_ | (~zfg_ << 7) | 0x7e);
 }
 
-// A block of the previous cabinet's has landed: zfg flips (MAME), or, paced,
-// the flip waits for the game's read (fg_r).
-void CommBoard::data_arrived() {
-    if (!paced_) zfg_ ^= 0x01;
-    else if (zfg_pending_ < 2 + reserve_) ++zfg_pending_; // further behind: the game reads the newest data anyway
+// A block of the previous cabinet's (in buffer0_) has landed: into the shared
+// RAM with a zfg flip (MAME), or, paced, queued: the game gets it with its
+// flip at its read (fg_r), one a frame, so the data it reads is always the
+// block that flip announces (the other cars' data steps once a frame).
+void CommBoard::land_block(int frame_offset, int frame_size, bool reply) {
+    Block b;
+    b.offset = uint16_t(frame_offset);
+    b.reply = reply;
+    b.size = uint16_t(frame_size);
+    b.data.assign(buffer0_ + 1, buffer0_ + 1 + std::min<int>(frame_size, int(sizeof buffer0_) - 1));
+    if (!paced_) {
+        write_block(b);
+        zfg_ ^= 0x01;
+        return;
+    }
+    if (flag_only_) { // 0.11.0's pacing (comparisons): the data at once, only its flip held
+        write_block(b);
+        b.data.clear();
+    }
+    pending_.push_back(std::move(b));
+    while (pending_.size() > size_t(2 + reserve_)) { // further behind: the oldest goes in without a flip
+        consume(pending_.front());
+        pending_.pop_front();
+    }
+}
+
+// Paced: a queued block reaches the game, and a SLAVE answers it now, with
+// its state of this frame. Answered on arrival instead (MAME), a burst of
+// blocks got the same state twice and a gap then: the MASTER saw this
+// cabinet's data stall and skip (39% of its frames moved by one step,
+// measured at 100 +- 15 ms); answered here, once a frame.
+void CommBoard::consume(const Block &b) {
+    write_block(b);
+    if (b.reply && linkalive_ == 0x01) send_data(linkid_, 0x2000, b.size, b.size + 1);
+}
+
+void CommBoard::write_block(const Block &b) {
+    for (size_t j = 0; j < b.data.size(); j++) shared_[(b.offset + j) & 0x3fff] = b.data[j];
 }
 
 void CommBoard::vblank() {
@@ -228,9 +262,8 @@ void CommBoard::comm_tick() {
                 idx = buffer0_[0];
                 if (idx >= 0 && idx <= linkcount_) {
                     // save message to "ring buffer"
-                    for (int j = 0x00; j < frame_size; j++) shared_[(frame_offset + j) & 0x3fff] = buffer0_[1 + j];
-                    data_arrived();
-                    if (is_slave) send_data(linkid_, frame_start, frame_size, data_size);
+                    land_block(frame_offset, frame_size, is_slave);
+                    if (is_slave && !paced_) send_data(linkid_, frame_start, frame_size, data_size);
                     else if (is_relay) send_frame(data_size);
                 } else if (idx == 0xfc) {
                     // 0xFC - VSYNC
@@ -300,9 +333,8 @@ void CommBoard::read_fg() {
         while (recv > 0) {
             const int idx = buffer0_[0];
             if (idx >= 0 && idx <= linkcount_) {
-                for (int j = 0x00; j < frame_size; j++) shared_[(frame_offset + j) & 0x3fff] = buffer0_[1 + j];
-                data_arrived();
-                if (is_slave) send_data(linkid_, frame_start, frame_size, data_size);
+                land_block(frame_offset, frame_size, is_slave);
+                if (is_slave && !paced_) send_data(linkid_, frame_start, frame_size, data_size);
                 else if (is_relay) send_frame(data_size);
             } else if (idx == 0xfc) {
                 linktimer_ = 0x00;

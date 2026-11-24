@@ -13,10 +13,11 @@ namespace app {
 
 uint32_t online_car_colour(int car) {
     // CAR NUMBER 1..8, the lit paint of each linked car (measured on an
-    // 8-cabinet race through the relay): violet, orange, cyan, lime,
-    // charcoal, lilac, yellow, light blue
-    static const uint32_t colours[] = {0x7048d8, 0xff8a1c, 0x2ce8f0, 0x9ad82a,
-                                       0x3c4044, 0xd8c4f0, 0xf2e21e, 0x5a9af0};
+    // 8-cabinet race through the relay): red, blue, yellow, green, charcoal,
+    // pink, cyan, orange. 0.12.0: the first measurement read m2run's BGRA
+    // dumps as RGB, red and blue swapped (violet for the red car 1)
+    static const uint32_t colours[] = {0xd84870, 0x1c8aff, 0xf0e82c, 0x2ad89a,
+                                       0x44403c, 0xf0c4d8, 0x1ee2f2, 0xf09a5a};
     return car >= 1 && car <= 8 ? colours[car - 1] : 0x808080;
 }
 
@@ -39,9 +40,9 @@ void outlined(ImDrawList *draw, ImFont *font, float size, ImVec2 at, ImU32 colou
 
 // The colour a car's name is written in: its paint, the charcoal car's lightened
 // to read on the dark bars.
-uint32_t name_colour(int car) { return car == 5 ? 0xa8b0b6 : online_car_colour(car); }
+uint32_t name_colour(int car) { return car == 5 ? 0xb6b0a8 : online_car_colour(car); }
 
-// Dark car colours (5 charcoal, 1 violet) take white figures, the others black.
+// Dark car colours (5 charcoal, 1 red, 2 blue) take white figures, the others black.
 bool light(uint32_t rgb) {
     const int r = (rgb >> 16) & 0xff, g = (rgb >> 8) & 0xff, b = rgb & 0xff;
     return r * 299 + g * 587 + b * 114 > 140000;

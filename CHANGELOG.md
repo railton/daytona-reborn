@@ -4,6 +4,65 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`). The
 fork's version is in `VERSION`, raised with every code change (rules.md
 rule 14); each version has its section here.
 
+## 0.12.0 (2026-11-24)
+
+### Online play
+
+- **The other players' cars no longer flicker.** With the link paced
+  (0.11.0), a received block went into the game's memory on arrival while
+  its flag waited for the game's read, so the data the game saw ran ahead
+  or behind its flag; and a SLAVE answered each block on arrival, so a burst
+  of two sent the MASTER the same state twice, then a gap. The game drew
+  the other cars stalling and jumping (seen as flicker). Now each block
+  enters the game's memory with its flag, one a frame, and a SLAVE answers
+  when its game takes the block. The other car's data moving by exactly one
+  step a frame in the race, 2 players at 100 +- 15 ms: MASTER 21% (0.11.0)
+  to 95.7%, SLAVE 41% to 99.5%; 4 players 95.9-98.6%; the game's speed
+  100% in the race. Seen gone in a race through the relay in Europe.
+- **The players' colours are their cars' colours.** The list and the name
+  tags used a palette measured from captures read with red and blue
+  swapped (violet for the red car 1, orange for the blue car 2). Now: red,
+  blue, yellow, green, charcoal, pink, cyan, orange, as the cars are drawn.
+- `m2run --relay` prints how the other car's data moved in the race (steps
+  of one, frames without new data, skips) and the online trace has the
+  game's tick counter; `M2_TEST_RELAY_FLAG_ONLY=1` restores 0.11.0's pacing,
+  `M2_TEST_AUTODRIVE=1` taps the pedal through the screens and holds it in
+  the race. The app logs each online race's LINK ID, CAR NUMBER and ring
+  place.
+
+### Building
+
+- **`Build Daytona.bat`: the Windows build without installing anything.**
+  Double-click it (Windows 10/11): `scripts/windows-build.ps1` downloads
+  portable tools into `.tools/` (llvm-mingw 20261117, CMake 4.5.1, Ninja
+  1.13.2, Python 3.14.10 embeddable, MinGit 2.56.1, about 330 MB), each
+  checked against its pinned SHA-256, no administrator rights; asks for the
+  ROM set in a file window and copies it to `roms/`; fetches the libraries,
+  recompiles and builds; puts a "Daytona (recomp)" shortcut on the desktop;
+  logs to `windows-build.log`. `-Update` pulls a git clone first.
+  `scripts/setup.py` takes `M2_COMPILER=mingw` (llvm-mingw with Ninja, no
+  Visual Studio).
+- **A Windows build made on Linux**: `scripts/docker-build-windows.sh`
+  cross-compiles `daytona.exe` in Docker with the same compiler
+  (`docker/windows-cross`, `cmake/toolchains/llvm-mingw-cross.cmake`),
+  reusing the code recompiled by the Linux build. MinGW builds link the C++
+  runtime in (`-static`): the `.exe` uses only Windows' own DLLs.
+- **The `roms/` folder comes with the project** (a README naming the file;
+  git still ignores any ROM set in it), and **the game finds
+  `roms/daytona.zip` by itself** the first time, beside its build folder or
+  in the working folder: no Browse needed after building.
+- **The ROM set is chosen on the first screen.** Without a verified ROM
+  set the PC home opens on one screen ("Your ROM set": Choose the ROM
+  set..., or its path typed, the language, the refused files listed) and
+  nothing else works until it is accepted. Settings' Game tab keeps only the
+  set's path and state, with **Change...** to open that screen again. The
+  cabinet launcher and the mobile builds keep the full controls.
+  `M2_CAPTURE_ROM_GATE=1` shows it in a `--capture-home` image.
+- Checked: the five tools downloaded, verified and unpacked by the script's
+  own code (PowerShell 7 on Linux; the script parses with no errors), the
+  cross-built `daytona.exe` imports no compiler DLL, the ROM found from
+  another working folder. Not yet run on Windows itself.
+
 ## 0.11.0 (2026-11-24)
 
 The fork's first numbered version: everything since Daytona Reborn beta

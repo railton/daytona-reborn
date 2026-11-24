@@ -186,17 +186,38 @@ msgstr "Conjunto de ROM (zip, 7z)"
 msgid "All files"
 msgstr "Todos os arquivos"
 
-msgid "static recompilation, native engine"
-msgstr "recompilação estática, motor nativo"
-
 msgid "Language"
 msgstr "Idioma"
+
+msgid "Your ROM set"
+msgstr "Sua ROM"
+
+msgid "The game is rebuilt from your own Daytona USA ROM set: MAME's %s set, a .zip or .7z. Choose it to start; nothing is sent anywhere."
+msgstr "O jogo é reconstruído a partir da sua própria ROM de Daytona USA: o conjunto %s do MAME, um .zip ou .7z. Escolha-a para começar; nada é enviado a lugar nenhum."
+
+msgid "Choosing..."
+msgstr "Escolhendo..."
+
+msgid "Choose the ROM set..."
+msgstr "Escolher a ROM..."
+
+msgid "Or type its full path and press Enter:"
+msgstr "Ou digite o caminho completo e pressione Enter:"
+
+msgid "Done"
+msgstr "Concluir"
+
+msgid "static recompilation, native engine"
+msgstr "recompilação estática, motor nativo"
 
 msgid "Game"
 msgstr "Jogo"
 
 msgid "ROM set"
 msgstr "Conjunto de ROM"
+
+msgid "Change..."
+msgstr "Trocar..."
 
 msgid "Browse gives access to your ZIP/7z. A verified copy is kept in the app."
 msgstr "Procurar dá acesso ao seu ZIP/7z. Uma cópia verificada é guardada no aplicativo."
@@ -809,8 +830,8 @@ msgstr "O jogo selecionou outro câmbio."
 msgid "The game did not confirm the start."
 msgstr "O jogo não confirmou a largada."
 
-msgid "First choose the Daytona Revision A ROM set in Settings."
-msgstr "Escolha primeiro o conjunto de ROM Daytona Revision A em Configurações."
+msgid "First choose the Daytona Revision A ROM set."
+msgstr "Escolha primeiro a ROM do Daytona Revision A."
 
 msgid "Waiting for the other players to finish choosing..."
 msgstr "Aguardando os outros jogadores terminarem de escolher..."

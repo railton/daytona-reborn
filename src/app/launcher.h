@@ -34,6 +34,10 @@ public:
     Result draw(bool game_running, const Devices &devices, bool from_home = false);
 
     bool rom_ok() const { return rom_ok_; }
+    // The PC home's ROM set screen: shown, and nothing else usable, until a
+    // ROM set is verified; Settings' "Change..." opens it again (Back closes it then).
+    bool rom_gate() const { return !rom_ok_ || gate_open_ || capture_gate(); }
+    Result draw_rom_gate();
     const std::string &error() const { return error_; }
     void set_error(const std::string &e) { error_ = e; }
     void set_ffb_device(const char *kind) { ffb_device_ = kind; } // what force feedback is playing on
@@ -43,6 +47,10 @@ public:
 private:
     void check_rom();
     void browse();
+    void take_dialog_result(); // the file window's choice, from its thread
+    bool language_combo(float width);
+    bool gate_open_ = false;
+    static bool capture_gate(); // diagnostic: M2_CAPTURE_ROM_GATE=1
     static void SDLCALL dialog_done(void *self, const char *const *files, int filter);
 
     Config &cfg_;

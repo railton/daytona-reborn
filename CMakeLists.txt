@@ -17,6 +17,13 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+if(MINGW)
+    # MinGW (llvm-mingw, scripts/windows-build.ps1 and docker/windows-cross):
+    # the C++ runtime (libc++, libunwind) linked in, so the game runs on a
+    # Windows without the compiler's DLLs.
+    add_link_options(-static)
+endif()
+
 if(MSVC)
     # /bigobj: the generated game code has many labels per object file
     add_compile_options(/W4 /fp:strict /bigobj /utf-8)

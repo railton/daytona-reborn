@@ -52,20 +52,24 @@ You need your own ROM set in MAME format (`.zip` or `.7z`):
        git clone https://github.com/railton/daytona-reborn.git
        cd daytona-reborn
 
+   (or download the code as a zip and unzip it).
 2. Copy your ROM set to `roms/daytona.zip` (and/or `roms/daytona93.zip`).
+   On Windows, `Build Daytona.bat` asks for it instead.
 3. Build:
 
-   | System | Command |
+   | System | How |
    | --- | --- |
-   | Windows (PowerShell) | `powershell -ExecutionPolicy Bypass -File setup.ps1` |
+   | Windows 10/11 | double-click **`Build Daytona.bat`**: portable tools downloaded and checked, nothing installed, no administrator |
    | Linux, with Docker (nothing else installed) | `./scripts/docker-build.sh` |
+   | Linux, a build for your own Windows PC | `./scripts/docker-build-windows.sh` (after the line above) |
+   | Windows with Visual Studio | `powershell -ExecutionPolicy Bypass -File setup.ps1` |
    | Linux or macOS, native | `./setup.sh` |
 
-   Setup installs the toolchain, fetches the pinned dependencies into
-   `extern/`, recompiles the game from your ROM set, builds and runs the
-   tests.
-4. Play: `build-daytona/daytona` (`build-daytona\Release\daytona.exe` on
-   Windows; setup prints the exact path).
+   Each fetches the pinned dependencies into `extern/`, recompiles the game
+   from your ROM set and builds it.
+4. Play: `build-daytona/daytona` (`build-daytona\daytona.exe` on Windows, and
+   a **Daytona (recomp)** shortcut on the desktop). The game finds
+   `roms/daytona.zip` by itself.
 
 Step by step, with the usual problems and fixes:
 [docs/BUILDING.md](docs/BUILDING.md). More detail on every platform and option:

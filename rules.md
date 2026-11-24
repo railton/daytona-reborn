@@ -140,8 +140,13 @@ legal problem, or hours re-deriving something already established.
     and `go test ./...` in `server/daytona-relay`.
 21. **Docker is the reference Linux build** (`scripts/docker-build.sh`,
     `docker/linux-build`); nothing else needs installing on the host. The
-    Windows build is `setup.ps1`; `zig-setup.ps1` is not recommended to
-    players (it runs as administrator and downloads without checksums).
+    recommended Windows build is `Build Daytona.bat`
+    (`scripts/windows-build.ps1`): portable tools pinned by URL and SHA-256,
+    no administrator; a tool update changes both together. The same
+    compiler cross-builds Windows on Linux (`scripts/docker-build-windows.sh`,
+    `docker/windows-cross`). `setup.ps1` (Visual Studio) remains;
+    `zig-setup.ps1` is not recommended to players (it runs as administrator
+    and downloads without checksums).
 22. **Game builds are never shared.** A build, its `build*` folders and its
     generated code hold code derived from the ROM (rule 6): every player
     builds from their own ROM set, and only the source and the guide
