@@ -217,6 +217,12 @@ bool Controls::analog_source(Action a, const Devices &d) const {
            (d.pad && bind[a].pad.kind == PadInput::Axis) || (bind[a].joy.kind == JoyInput::Axis && d.find(bind[a].joy.guid));
 }
 
+bool Controls::steering_holds(const bool *keys, const Devices &d) const {
+    const bool wheel = (bind[SteerLeft].joy.kind == JoyInput::Axis && d.find(bind[SteerLeft].joy.guid)) ||
+                       (bind[SteerRight].joy.kind == JoyInput::Axis && d.find(bind[SteerRight].joy.guid));
+    return wheel && !touch_steering && !(keys && (keys[bind[SteerLeft].key] || keys[bind[SteerRight].key]));
+}
+
 rt::Inputs Controls::sample(const bool *keys, const Devices &d) {
     rt::Inputs in;
     // Steering: an analogue stick sets the position directly; keys ramp toward full lock and back.

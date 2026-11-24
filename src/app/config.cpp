@@ -98,6 +98,7 @@ void Config::read(std::istream &f) {
         else if (k == "online_name") online_name = v;
         else if (k == "online_server") online_server = v;
         else if (k == "online_password") online_password = v;
+        else if (k == "online_room") online_room = v;
         else if (k == "ffb_strength") ffb_strength = std::clamp(std::strtof(v.c_str(), nullptr), 0.0f, 1.0f);
         else if (k == "ffb_invert") ffb_invert = v == "1";
         else if (k == "pad_steer_sensitivity") {
@@ -173,6 +174,7 @@ void Config::write(std::ostream &f) const {
     f << "online_name=" << online_name << "\n";
     f << "online_server=" << online_server << "\n";
     f << "online_password=" << online_password << "\n";
+    f << "online_room=" << online_room << "\n";
     f << "ffb_strength=" << ffb_strength << "\n";
     f << "ffb_invert=" << (ffb_invert ? 1 : 0) << "\n";
     f << "pad_steer_sensitivity=" << controls.pad_steer_sensitivity << "\n";

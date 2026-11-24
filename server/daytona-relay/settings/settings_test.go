@@ -1,6 +1,9 @@
 package settings
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func eepromMap(r Race) map[byte]byte {
 	m := map[byte]byte{}
@@ -104,5 +107,28 @@ func TestEveryValue(t *testing.T) {
 	any.Start = "anyone"
 	if !any.AnyStart() {
 		t.Error("start=anyone")
+	}
+}
+
+func TestApply(t *testing.T) {
+	r, _ := FromEnv(func(string) string { return "" })
+	base := r
+	if err := r.Apply("Difficulty:HARD, cabinet:deluxe,,start:anyone"); err != nil {
+		t.Fatal(err)
+	}
+	if r.Difficulty != "hard" || r.Cabinet != "deluxe" || !r.AnyStart() || r.Country != base.Country {
+		t.Errorf("applied: %+v", r)
+	}
+	for _, bad := range []string{"difficulty:insane", "volume:11", "cabinet"} {
+		before := r
+		if err := r.Apply(bad); err == nil || r != before {
+			t.Errorf("%q: %v, %+v", bad, err, r)
+		}
+	}
+	if err := r.Apply(""); err != nil {
+		t.Errorf("empty: %v", err)
+	}
+	if !strings.Contains(base.Info(), "difficulty=normal\n") || strings.Count(base.Info(), "\n") != len(Options()) {
+		t.Errorf("info %q", base.Info())
 	}
 }

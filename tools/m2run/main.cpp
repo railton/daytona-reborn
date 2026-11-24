@@ -10,7 +10,7 @@
 //         [--scene-pair TICK] (own and verify two adjacent completed draws)
 //         [--transmission automatic|manual] [--race-mode normal|time-attack] (requires --pc-solo)
 //         [--link-listen PORT --link-next HOST:PORT [--link-sync]]
-//         [--relay HOST:PORT (--relay-create ROOM[:N] | --relay-join ROOM) [--relay-name NAME]
+//         [--relay HOST:PORT (--relay-create ROOM[:N] [--relay-settings KEY:VALUE,...] | --relay-join ROOM) [--relay-name NAME]
 //          [--relay-password PASS]] (online play through a daytona-relay server)
 //         [--realtime] (hold each frame to the arcade's 57.52 Hz, as the game paces itself)
 //         [--draw-budget N] [--draw-order-only] [--original-selection] [--scenery-log FILE]
@@ -61,6 +61,7 @@
 #include "../common/race_start_failure.h"
 #include "app/link_socket.h"
 #include "app/relay_link.h"
+#include "app/selection_steer.h"
 #include "runtime/online_settings.h"
 
 #include <algorithm>
@@ -152,11 +153,13 @@ int main(int argc, char **argv) {
     std::string dump_dir, inputs_path, wav_path, nvram_dir, save_nvram_dir, link_next, scenery_log_path, race_log_path;
     std::string rom_object_counts_path;
     int link_listen = 0;
-    std::string relay_server, relay_create, relay_join, relay_name, relay_password;
+    std::string relay_server, relay_create, relay_join, relay_name, relay_password, relay_settings;
     std::optional<rt::StartRaceRequest> solo;
     std::optional<rt::RaceTransmission> transmission;
     std::optional<rt::RaceMode> race_mode;
     bool link_sync = false, native_check = false, realtime = false;
+    bool key_steering = false; // --key-steering: the course and gearbox picked as the app does with keys (app/selection_steer.h)
+    app::SelectionSteer selection_steer;
     bool snapshot_stamps = false, scene_stamps = false;
     std::optional<uint64_t> scene_pair_from;
     std::optional<std::pair<uint64_t, uint8_t>> omit_cell;
@@ -178,6 +181,7 @@ int main(int argc, char **argv) {
         if (!std::strcmp(argv[i], "--stretch-backdrop")) stretch_backdrop = true;
         if (!std::strcmp(argv[i], "--link-sync")) link_sync = true;
         if (!std::strcmp(argv[i], "--realtime")) realtime = true;
+        if (!std::strcmp(argv[i], "--key-steering")) key_steering = true;
         if (!std::strcmp(argv[i], "--native-audio-check")) native_check = true;
         if (!std::strcmp(argv[i], "--draw-order-only")) rt::EnhanceDiagnostics::draw_order_only = true;
         if (!std::strcmp(argv[i], "--original-selection")) original_selection = true;
@@ -192,7 +196,7 @@ int main(int argc, char **argv) {
         if (i + 1 == argc) break;
         if (!std::strcmp(argv[i], "--hud-edges") || !std::strcmp(argv[i], "--stretch-backdrop") ||
             !std::strcmp(argv[i], "--link-sync") || !std::strcmp(argv[i], "--native-audio-check") ||
-            !std::strcmp(argv[i], "--realtime") ||
+            !std::strcmp(argv[i], "--realtime") || !std::strcmp(argv[i], "--key-steering") ||
             !std::strcmp(argv[i], "--draw-order-only") || !std::strcmp(argv[i], "--original-selection")) { i--; continue; }
         if (!std::strcmp(argv[i], "--inputs")) inputs_path = argv[i + 1];
         else if (!std::strcmp(argv[i], "--rom-object-counts")) rom_object_counts_path = argv[i + 1];
@@ -208,6 +212,7 @@ int main(int argc, char **argv) {
         else if (!std::strcmp(argv[i], "--relay-create")) relay_create = argv[i + 1];
         else if (!std::strcmp(argv[i], "--relay-join")) relay_join = argv[i + 1];
         else if (!std::strcmp(argv[i], "--relay-name")) relay_name = argv[i + 1];
+        else if (!std::strcmp(argv[i], "--relay-settings")) relay_settings = argv[i + 1]; // create: key:value,...
         else if (!std::strcmp(argv[i], "--relay-password")) relay_password = argv[i + 1];
         else if (!std::strcmp(argv[i], "--draw-distance")) rt::GameLoop::set_draw_distance(std::atoi(argv[i + 1]));
         else if (!std::strcmp(argv[i], "--draw-budget")) {
@@ -373,6 +378,7 @@ int main(int argc, char **argv) {
             if (!relay_create.empty()) {
                 const auto colon = relay_create.rfind(':');
                 hello.op = app::online::Hello::Op::Create;
+                hello.settings = relay_settings;
                 hello.room = relay_create.substr(0, colon);
                 start_at = colon == std::string::npos ? 2 : std::atoi(relay_create.c_str() + colon + 1);
                 if (start_at < app::online::kMinPlayers || start_at > app::online::kMaxPlayers)
@@ -444,6 +450,7 @@ int main(int argc, char **argv) {
             const bool omit_this_tick = omit_cell && f == omit_cell->first;
             if (omit_this_tick) scenery.omit_cell = omit_cell->second;
             rt::Inputs inputs = script.at(game.board().frame());
+            if (key_steering) selection_steer.apply(game.board(), inputs.steer, false); // as the app with keys
             if (relay) { // as the app: one Start and the MASTER's course for the room
                 const auto &room = relay->status();
                 const bool master = room.position == 1;

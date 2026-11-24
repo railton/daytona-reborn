@@ -89,6 +89,9 @@ struct Controls {
     // Build this frame's I/O board inputs. Keyboard steering ramps; analogue
     // steering and pedals are direct.
     rt::Inputs sample(const bool *keys, const Devices &d);
+    // The steering holds its position by itself: an analogue wheel (a joystick
+    // axis), no steering key pressed, no touch steering (app/selection_steer.h).
+    bool steering_holds(const bool *keys, const Devices &d) const;
 
     // Live values for the UI
     float steer = 0, accel = 0, brake = 0;

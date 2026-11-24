@@ -39,6 +39,7 @@
 #include "app/link_socket.h"
 #include "app/relay_link.h"
 #include "app/online_menu.h"
+#include "app/selection_steer.h"
 #include "app/online_overlay.h"
 #include "runtime/online_settings.h"
 #include "app/gpu/dxr_scene.h"
@@ -1032,6 +1033,7 @@ int main(int argc, char **argv) {
     bool online_wanted = false; // the next start_game is one
     uint32_t online_epoch = 0;  // the room's ring that race started on
     rt::online::AutoEntry online_entry;   // one Start for the whole room
+    app::SelectionSteer selection_steer;  // keys and sticks pick the course and gearbox one push at a time
     rt::online::CourseSync online_course; // and the MASTER's course
     rt::online::Standings online_standings; // the race's standings, for the players list
     uint64_t online_race_since = 0;       // when this online race began (its first race frame), 0: not racing
@@ -1503,6 +1505,9 @@ int main(int argc, char **argv) {
                     if (cfg.hold_test != test_hold.armed()) cfg.hold_test ? test_hold.arm() : test_hold.cancel();
                     if (test_hold.apply(game->frames(), inputs.in0)) cfg.hold_test = false; // held: the box clears
                 }
+                if (!solo) // the cabinet's own course and gearbox screens (a SLAVE's course follows the MASTER below)
+                    selection_steer.apply(game->board(), inputs.steer,
+                                          cfg.controls.steering_holds(SDL_GetKeyboardState(nullptr), devices));
                 if (online_game) { // one Start and one course for the whole room, and its standings
                     const auto &room = online_link->status();
                     const bool master = room.position == 1;

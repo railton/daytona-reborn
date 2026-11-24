@@ -27,9 +27,6 @@ by alphanu1. What it adds is listed in [CHANGELOG.md](CHANGELOG.md).
   player's name rides above their car. No router port to open. Rooms of 8
   linked cabinets have been run through the relay. See
   [server/daytona-relay](server/daytona-relay/README.md).
-- **A web page for the server**, in the game's style: see the open rooms and
-  create rooms with their own race settings (difficulty, game mode, who may
-  start...), with an invite code ready to copy.
 - **A PC home menu** (Revision A) over an animated sunset speedway: solo
   race or Time Attack, the course, automatic or manual gearbox, Settings,
   Online.
@@ -116,12 +113,12 @@ e.g. a second player on the same computer), `--online`, `--settings`,
 ## Online play
 
 1. Someone runs the relay server (`server/daytona-relay`,
-   `docker compose up -d --build`; TCP port 7777 for the games, 8080 for its
-   web page). Its environment variables set the race for rooms the games
-   create; rooms created on the web page carry their own settings.
-2. In the home menu, **Online**: type your name and the server, **Create the
-   room**, and send the invite code. Or create the room on the server's web
-   page and share the code it shows. A room takes up to 8 players.
+   `docker compose up -d --build`; only TCP port 7777). Its environment
+   variables are the race settings' defaults.
+2. In the home menu, **Online**: type your name and the server, **Connect**,
+   choose the room's race settings (difficulty, game mode, who may start...),
+   **Create the room**, and send the invite code. A room takes up to 8
+   players.
 3. Friends paste the code under **Join a room**. The room's owner presses
    **Start the race** when everyone is in; in the race the owner presses
    Start and chooses the course, the others follow. Who joins later waits

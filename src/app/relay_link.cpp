@@ -80,6 +80,7 @@ std::string server_error(const std::string &payload) {
     if (code == "version") return TXR("This server is not compatible with this version of the game.");
     if (code == "room") return TXR("Invalid room code.");
     if (code == "players") return TXR("Invalid number of players: 2 to 8.");
+    if (code == "settings") return TXR("The server refused the room's settings.");
     if (code == "game_version")
         return TXR("This room was created by another version of the game: every player needs the same version.");
     return std::string(TXR("The server refused the connection: ")) + text;
@@ -194,8 +195,14 @@ void RelayLink::fail(const std::string &why) {
     inbox_pos_ = 0;
 }
 
+void RelayLink::refused(const std::string &payload) {
+    const auto nl = payload.find('\n');
+    error_code_ = nl == std::string::npos ? std::string() : payload.substr(0, nl);
+    fail(server_error(payload));
+}
+
 void RelayLink::poll() {
-    if (state_ == State::Failed) return;
+    if (state_ == State::Failed || state_ == State::Info) return;
     const uint64_t now = now_ms();
     if (sock_ < 0) {
         std::lock_guard<std::mutex> lock(connect_->mu);
@@ -246,7 +253,11 @@ void RelayLink::receive() {
             const size_t len = size_t(uint8_t(in_[pos + 5])) << 8 | uint8_t(in_[pos + 6]);
             if (in_.size() - pos < online::kHeader + len) break;
             if (uint8_t(in_[pos]) == online::kError) {
-                fail(server_error(in_.substr(pos + online::kHeader, len)));
+                refused(in_.substr(pos + online::kHeader, len));
+                return;
+            }
+            if (uint8_t(in_[pos]) == online::kInfo) { // the answer to op=info, then the server closes
+                frame(online::kInfo, 0, in_.substr(pos + online::kHeader, len));
                 return;
             }
             pos += online::kHeader + len;
@@ -255,7 +266,7 @@ void RelayLink::receive() {
         return;
     }
     size_t pos = 0;
-    while (in_.size() - pos >= online::kHeader && state_ != State::Failed) {
+    while (in_.size() - pos >= online::kHeader && state_ != State::Failed && state_ != State::Info) {
         const auto *p = reinterpret_cast<const uint8_t *>(in_.data() + pos);
         const size_t len = size_t(p[5]) << 8 | p[6];
         if (len > online::kMaxPayload) {
@@ -268,11 +279,19 @@ void RelayLink::receive() {
         pos += online::kHeader + len;
     }
     if (state_ != State::Failed) in_.erase(0, pos);
+    if (state_ == State::Info && sock_ >= 0) {
+        close_socket(sock_);
+        sock_ = -1;
+    }
 }
 
 void RelayLink::frame(uint8_t type, uint32_t epoch, const std::string &payload) {
     switch (type) {
-    case online::kError: fail(server_error(payload)); break;
+    case online::kError: refused(payload); break;
+    case online::kInfo:
+        info_ = online::parse_info(payload);
+        state_ = State::Info;
+        break;
     case online::kStatus:
         if (auto s = online::parse_status(payload)) {
             status_ = *s;

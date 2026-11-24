@@ -4,14 +4,17 @@
 // The client opens one TCP connection and sends a single text line, values
 // percent-encoded:
 //
-//	DAYTONA-RELAY 2 op=create room=k7f3q9xz name=Railton pass=segredo\n
+//	DAYTONA-RELAY 3 op=create room=k7f3q9xz name=Railton pass=segredo set=difficulty:hard,cabinet:twin\n
 //
-// op: create (the room must not exist; its creator owns it), join (it must
-// exist) or auto (create or join, with players=N: the daytona-link helper's
-// fixed-size rooms, which start on their own once N have joined).
+// op: info (no room: the server answers one Info frame, its race settings'
+// defaults, then closes; a wrong password is refused as for any op), create
+// (the room must not exist; its creator owns it, and set= overrides the
+// server's race settings for it), join (it must exist) or auto (create or
+// join, with players=N: the daytona-link helper's fixed-size rooms, which
+// start on their own once N have joined).
 //
-// A room takes up to MaxPlayers. Its owner (the creator, or the first in a
-// room made on the web; the next in line when the owner leaves) starts a
+// A room takes up to MaxPlayers. Its owner (the creator; the next in line
+// when the owner leaves) starts a
 // race with a Begin frame: everyone in the room at that moment forms the
 // ring, the owner first (the MASTER). Who joins later waits in the room for
 // the next race; a new Begin forms a new ring with everyone.
@@ -49,7 +52,7 @@ import (
 
 const (
 	Magic      = "DAYTONA-RELAY"
-	Version    = 2
+	Version    = 3
 	MaxPlayers = 8
 	MinPlayers = 2
 	MaxPayload = 16 * 1024
@@ -61,6 +64,7 @@ const (
 	TypeError   byte = 'E' // server -> client: fatal error text, then the server closes
 	TypeControl byte = 'C' // client -> server -> every other member: the games' own coordination (course choice)
 	TypeBegin   byte = 'G' // client -> server: the room's owner starts a race with everyone in the room
+	TypeInfo    byte = 'I' // server -> client, answering op=info: "key=value" lines, the race settings' defaults
 )
 
 var roomRe = regexp.MustCompile(`^[a-z0-9_-]{1,32}$`)
@@ -68,7 +72,7 @@ var roomRe = regexp.MustCompile(`^[a-z0-9_-]{1,32}$`)
 // Error is a refusal with a code: an E frame's payload is "code\ntext", and
 // the game shows its own text for the code, in the player's language.
 // Codes: protocol, version, room, players, password, not_found, exists,
-// full, size, server_full, game_version, too_many.
+// full, size, server_full, game_version, too_many, settings.
 type Error struct{ Code, Text string }
 
 func (e *Error) Error() string { return e.Text }
@@ -119,17 +123,21 @@ func CleanName(s string) string {
 }
 
 type Hello struct {
-	Op       string // create, join, auto
-	Room     string
-	Players  int // auto only: the helper's fixed room size
+	Op       string // info, create, join, auto
+	Room     string // empty for info
+	Players  int    // auto only: the helper's fixed room size
 	Name     string
 	Password string
 	Game     string // the game's online version ("v"); a room only takes one; empty: the daytona-link helper
+	Settings string // create only: "key:value,..." over the server's race settings (package settings)
 }
 
 func (h Hello) Line() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s %d op=%s room=%s", Magic, Version, h.Op, url.PathEscape(h.Room))
+	fmt.Fprintf(&b, "%s %d op=%s", Magic, Version, h.Op)
+	if h.Room != "" {
+		fmt.Fprintf(&b, " room=%s", url.PathEscape(h.Room))
+	}
 	if h.Players > 0 {
 		fmt.Fprintf(&b, " players=%d", h.Players)
 	}
@@ -141,6 +149,9 @@ func (h Hello) Line() string {
 	}
 	if h.Game != "" {
 		fmt.Fprintf(&b, " v=%s", url.PathEscape(h.Game))
+	}
+	if h.Settings != "" {
+		fmt.Fprintf(&b, " set=%s", url.PathEscape(h.Settings))
 	}
 	return b.String() + "\n"
 }
@@ -176,9 +187,14 @@ func ParseHello(line string) (Hello, error) {
 			h.Password = val
 		case "v":
 			h.Game = val
+		case "set":
+			h.Settings = val
 		}
 	}
 	switch h.Op {
+	case "info":
+		h.Room, h.Players, h.Settings = "", 0, ""
+		return h, nil
 	case "create", "join", "auto":
 	default:
 		return Hello{}, Errf("protocol", "unknown operation")

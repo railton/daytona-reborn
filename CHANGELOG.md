@@ -4,6 +4,19 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
 
 ## Unreleased
 
+### Controls
+
+- **Course and gearbox selection with keys or a gamepad.** The cabinet's
+  course and gearbox screens choose by where the wheel is held, so keys and
+  sticks, which spring back to the centre, always fell back to the first
+  option. Now each push left or right moves the choice one option and it
+  stays when released (course steering <= 0x85 Beginner, 0x86-0xc5
+  Advanced, >= 0xc6 Expert; gearbox <= 0x97 / >= 0x98, measured with m2run
+  sweeps). An analogue wheel keeps its own position. Affects the Online
+  race and the arcade launcher; the PC solo race picks the course in the
+  home menu. `m2run --key-steering` applies the same logic headless (two
+  taps right confirmed Expert; without it the course fell back to Beginner).
+
 ### Online play
 
 - **Keep online cabinets on the same frame clock.** Online now enables the
@@ -27,9 +40,23 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
   room's are not saved. Mapped from the test menu: LINK ID, CAR NUMBER,
   CABINET, COUNTRY, DIFFICULTY, GAME MODE, RIVAL ARROW, ADVERTISE SOUND,
   free play, and the settings CRC (CRC-16/XMODEM of 0x0a..0x7f).
+- **The room's settings are chosen in the game.** The Online screen puts
+  **Join a room** first, under the name. **Create a room** asks for the
+  server, then **Connect** (a password field shows only once the server
+  asks for one: a room is already private by its random code, so servers
+  are meant to run without one): the server answers its default
+  race settings (`op=info`), and the room's settings (cabinet, country,
+  difficulty, game mode, rival arrow, advertise sound, free play, who may
+  start) become editable; **Create the room** sends them (`op=create
+  set=...`) and the game remembers them for the next room. The server's
+  `DAYTONA_*` race variables are now the defaults. The server's web interface
+  is removed (with `DAYTONA_WEB_PORT`, `DAYTONA_PUBLIC_ADDRESS`,
+  `DAYTONA_WEB_PASSWORD`): it only publishes TCP port 7777. Relay protocol
+  version 3, online version 6; `m2run --relay-settings KEY:VALUE,...`.
+  The server and every player's game are updated together: a version-2
+  game is refused by this server.
 - **Rooms of up to 8, started by their owner.** No player count to choose:
-  friends join, the room's owner (its creator, or the first to join a room
-  made on the web) presses **Start the race**, and everyone then in the room
+  friends join, the room's owner (its creator) presses **Start the race**, and everyone then in the room
   races. Who joins during a race waits on the room's screen for the next one;
   **New race with everyone** forms a new race with them. If a racer leaves,
   the others return to the room's screen until the owner starts again; if
@@ -89,27 +116,6 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
   limited in all and per address.
 - `daytona-link`: a helper (Linux and Windows) bridging the unmodified game's
   LAN link play to the server.
-- **Web interface** on its own port (`DAYTONA_WEB_PORT`, default 8080, 0
-  turns it off): one page, in the home screen's sunset-speedway style, that
-  lists the open rooms (code for public rooms only, players, waiting or
-  racing, settings, age; refreshed every 3 s) and creates rooms with their
-  own race settings (2 to 8 players, every option above, who may start,
-  public or private). It shows the new room's invite code with a Copy
-  button; the code needs `DAYTONA_PUBLIC_ADDRESS` (the relay's host:port as
-  players reach it). Creating asks a password when the server has one
-  (`DAYTONA_WEB_PASSWORD`, or else `DAYTONA_PASSWORD`, which travels in the
-  invite). JSON API behind it: `GET /api/config`, `GET /api/rooms`,
-  `POST /api/rooms`. Standard library only, the page embedded (20 KB); the
-  image grows from about 2.5 MB to 6 MB.
-- **Per-room race settings.** A room created on the web keeps its own
-  settings and start rule, sent to its players instead of the environment's;
-  it exists before anyone joins and is removed after 10 minutes empty. Rooms
-  created by a game keep the environment's settings and close with their
-  last player. `DAYTONA_MAX_ROOMS` counts both. The wire protocol is
-  unchanged.
-
-### Interface and languages
-
 - **English is the project's language.** Interface texts are written in
   English in the code (the translation key); French moved to `lang/fr.po`,
   Portuguese is keyed by English, `lang/en.po` is gone. English is also the
@@ -142,7 +148,7 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
 
 - README rewritten for this fork (highlights, quick start, playing, Online,
   link play, platforms, developers), with a screenshot of the home screen;
-  it now also describes the relay's web page, the name tags over the cars,
+  it now also describes the name tags over the cars,
   8-cabinet rooms and what happens when a race ends.
 - rules.md: this fork's rules (CHANGELOG on every visible change, English
   with interface text through lang/*.po, online version and error codes,

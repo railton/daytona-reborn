@@ -803,29 +803,83 @@ msgstr "O jogo não confirmou a largada."
 msgid "First choose the Daytona Revision A ROM set in Settings."
 msgstr "Escolha primeiro o conjunto de ROM Daytona Revision A em Configurações."
 
+msgid "Cabinet"
+msgstr "Gabinete"
+
+msgid "Twin"
+msgstr "Twin"
+
+msgid "Uplight"
+msgstr "Uplight"
+
+msgid "Deluxe"
+msgstr "Deluxe"
+
+msgid "Country"
+msgstr "País"
+
+msgid "USA (English)"
+msgstr "EUA (inglês)"
+
+msgid "Japan (Japanese)"
+msgstr "Japão (japonês)"
+
+msgid "Export"
+msgstr "Exportação"
+
+msgid "Difficulty"
+msgstr "Dificuldade"
+
+msgid "Easy"
+msgstr "Fácil"
+
+msgid "Normal"
+msgstr "Normal"
+
+msgid "Hard"
+msgstr "Difícil"
+
+msgid "Hardest"
+msgstr "Muito difícil"
+
+msgid "Grand Prix"
+msgstr "Grande Prêmio"
+
+msgid "Endurance"
+msgstr "Resistência"
+
+msgid "Rival arrow"
+msgstr "Seta do rival"
+
+msgid "On"
+msgstr "Ligado"
+
+msgid "Advertise sound"
+msgstr "Som na demonstração"
+
+msgid "Free play"
+msgstr "Jogo livre"
+
+msgid "On (Start only)"
+msgstr "Ligado (só Start)"
+
+msgid "Off (coins)"
+msgstr "Desligado (fichas)"
+
+msgid "Who may start the race"
+msgstr "Quem pode iniciar a corrida"
+
+msgid "The MASTER"
+msgstr "O MASTER"
+
+msgid "Anyone"
+msgstr "Qualquer um"
+
 msgid "Race over the Internet with up to 8 players, through a daytona-relay server."
 msgstr "Corra pela internet com até 8 jogadores, por meio de um servidor daytona-relay."
 
 msgid "Your name"
 msgstr "Seu nome"
-
-msgid "Create a room"
-msgstr "Criar uma sala"
-
-msgid "Server (IP or DNS)"
-msgstr "Servidor (IP ou DNS)"
-
-msgid "Server password (optional)"
-msgstr "Senha do servidor (opcional)"
-
-msgid "Up to 8 players. You start the race once your friends are in; who joins later races the next one."
-msgstr "Até 8 jogadores. Você começa a corrida quando seus amigos entrarem; quem entrar depois corre a próxima."
-
-msgid "Create the room"
-msgstr "Criar a sala"
-
-msgid "Invalid server address: an IP or name, with :port if it is not 7777."
-msgstr "Endereço do servidor inválido: um IP ou nome, com :porta se não for 7777."
 
 msgid "Join a room"
 msgstr "Entrar numa sala"
@@ -844,6 +898,42 @@ msgstr "Código de convite inválido: copie o código inteiro, ele começa com D
 
 msgid "The code already holds the server, the room and the password."
 msgstr "O código já contém o servidor, a sala e a senha."
+
+msgid "Create a room"
+msgstr "Criar uma sala"
+
+msgid "This server asks for a password."
+msgstr "Este servidor pede uma senha."
+
+msgid "Connecting..."
+msgstr "Conectando..."
+
+msgid "Connect again"
+msgstr "Conectar de novo"
+
+msgid "Connect"
+msgstr "Conectar"
+
+msgid "Invalid server address: an IP or name, with :port if it is not 7777."
+msgstr "Endereço do servidor inválido: um IP ou nome, com :porta se não for 7777."
+
+msgid "Server (IP or DNS)"
+msgstr "Servidor (IP ou DNS)"
+
+msgid "Server password"
+msgstr "Senha do servidor"
+
+msgid "Connected to %s: choose the room's settings."
+msgstr "Conectado a %s: escolha as configurações da sala."
+
+msgid "Connect to the server to choose the room's settings."
+msgstr "Conecte-se ao servidor para escolher as configurações da sala."
+
+msgid "Up to 8 players. You start the race once your friends are in; who joins later races the next one."
+msgstr "Até 8 jogadores. Você começa a corrida quando seus amigos entrarem; quem entrar depois corre a próxima."
+
+msgid "Create the room"
+msgstr "Criar a sala"
 
 msgid "Connecting to %s..."
 msgstr "Conectando a %s..."
@@ -976,6 +1066,9 @@ msgstr "Código de sala inválido."
 
 msgid "Invalid number of players: 2 to 8."
 msgstr "Número de jogadores inválido: de 2 a 8."
+
+msgid "The server refused the room's settings."
+msgstr "O servidor recusou as configurações da sala."
 
 msgid "This room was created by another version of the game: every player needs the same version."
 msgstr "Esta sala foi criada por outra versão do jogo: todos os jogadores precisam ter a mesma versão."

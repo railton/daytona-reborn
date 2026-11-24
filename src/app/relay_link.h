@@ -23,7 +23,8 @@ namespace app {
 
 class RelayLink : public rt::LinkTransport {
 public:
-    enum class State { Connecting, Waiting, Ready, Failed };
+    // Info: the server answered Hello::Op::Info (info()); the connection is closed.
+    enum class State { Connecting, Waiting, Ready, Failed, Info };
 
     // server: host:port (online::normalize_server).
     RelayLink(const std::string &server, const online::Hello &hello);
@@ -39,7 +40,10 @@ public:
 
     State state() const { return state_; }
     const std::string &error() const { return error_; }
+    // The server's refusal code (proto.go: "password", "full"...); empty for any other failure.
+    const std::string &error_code() const { return error_code_; }
     const online::Status &status() const { return status_; } // the last the server sent
+    const std::vector<std::pair<std::string, std::string>> &info() const { return info_; }
     uint32_t epoch() const { return epoch_; }                 // changes with every new ring
     const std::string &server() const { return server_; }
     const std::string &room() const { return room_; }
@@ -56,14 +60,16 @@ private:
     std::shared_ptr<Connect> connect_;
     long long sock_ = -1;
     State state_ = State::Connecting;
-    std::string error_, server_, room_, hello_;
+    std::string error_, error_code_, server_, room_, hello_;
     online::Status status_;
+    std::vector<std::pair<std::string, std::string>> info_;
     uint32_t epoch_ = 0;
     std::string out_, in_, inbox_; // to the server; from it (unparsed); for the game
     std::vector<std::string> controls_;
     size_t inbox_pos_ = 0;
     uint64_t last_rx_ms_ = 0, last_tx_ms_ = 0;
     void fail(const std::string &why);
+    void refused(const std::string &payload); // an E frame: its code, then fail
     void flush();
     void receive();
     void frame(uint8_t type, uint32_t epoch, const std::string &payload);

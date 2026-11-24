@@ -19,7 +19,7 @@ constexpr size_t kMaxName = 20;
 // data, how it starts and joins races). The server keeps a room to one
 // version, so every player of a room behaves the same. Raise it with any
 // such change.
-constexpr int kOnlineVersion = 5;
+constexpr int kOnlineVersion = 6;
 
 // What a friend needs to join: the server, the room, the server's password.
 struct Invite {
@@ -41,14 +41,18 @@ std::string clean_name(const std::string &name);
 bool valid_room(const std::string &room);
 
 struct Hello {
-    enum class Op { Create, Join } op = Op::Join;
+    // Info: no room; the server answers its race settings' defaults (kInfo)
+    enum class Op { Create, Join, Info } op = Op::Join;
     std::string room;
     std::string name, password;
+    std::string settings; // Create only: "key:value,..." over the server's defaults
 };
 std::string hello_line(const Hello &hello); // with the trailing newline
+// An Info frame: the server's race settings, "key=value" lines, in its order.
+std::vector<std::pair<std::string, std::string>> parse_info(const std::string &payload);
 
-// A room takes up to kMaxPlayers; its owner (the creator, or the first in a
-// room made on the web) starts each race with everyone then in the room.
+// A room takes up to kMaxPlayers; its owner (the creator; the next in line
+// when the owner leaves) starts each race with everyone then in the room.
 struct Status {
     int joined = 0;   // players in the room
     int size = 0;     // players in the race's ring; 0 while no race is formed
@@ -71,6 +75,7 @@ std::string percent_decode(const std::string &s);
 constexpr uint8_t kData = 'D', kStatus = 'S', kPing = 'P', kError = 'E';
 constexpr uint8_t kControl = 'C'; // to every other player of the room (rt::online::CourseSync)
 constexpr uint8_t kBegin = 'G';   // the room's owner starts a race with everyone in the room
+constexpr uint8_t kInfo = 'I';    // the server's answer to Hello::Op::Info
 constexpr size_t kHeader = 7, kMaxPayload = 16 * 1024;
 void append_frame(std::string &out, uint8_t type, uint32_t epoch, const uint8_t *payload, size_t n);
 

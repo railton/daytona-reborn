@@ -1,7 +1,7 @@
-// Package settings: the race settings every game in a room uses. A room
-// created by a game (or the daytona-link helper) takes them from the
-// server's environment (the Docker container's variables); a room created on
-// the web interface keeps its own. They are bytes of the I/O board's settings
+// Package settings: the race settings every game in a room uses. The
+// server's environment (the Docker container's variables) gives the
+// defaults; the game that creates a room may choose its own (Apply), and
+// the daytona-link helper's rooms take the defaults. They are bytes of the I/O board's settings
 // EEPROM, the test menu's GAME SYSTEM page, mapped on Daytona USA Revision A:
 //
 //	DAYTONA_CABINET          twin | uplight | deluxe        (0x1a: 01 02 00)
@@ -28,30 +28,30 @@ import (
 )
 
 // Race is one room's settings, as names (the environment's values, and the
-// web interface's JSON keys).
+// keys and values the game sends with op=create).
 type Race struct {
-	Cabinet        string `json:"cabinet"`
-	Country        string `json:"country"`
-	Difficulty     string `json:"difficulty"`
-	GameMode       string `json:"game_mode"`
-	RivalArrow     string `json:"rival_arrow"`
-	AdvertiseSound string `json:"advertise_sound"`
-	FreePlay       string `json:"free_play"`
-	Start          string `json:"start"`
+	Cabinet        string
+	Country        string
+	Difficulty     string
+	GameMode       string
+	RivalArrow     string
+	AdvertiseSound string
+	FreePlay       string
+	Start          string
 }
 
-// Value is one choice of an option: its name and how the web page shows it.
+// Value is one choice of an option: its name and a description.
 type Value struct {
-	Name  string `json:"name"`
-	Label string `json:"label"`
+	Name  string
+	Label string
 }
 
-// Option describes one setting, for the web page's form.
+// Option describes one setting.
 type Option struct {
-	Key    string  `json:"key"` // the JSON key in Race
-	Env    string  `json:"-"`
-	Label  string  `json:"label"`
-	Values []Value `json:"values"`
+	Key    string // as the game sends it (set=key:value)
+	Env    string
+	Label  string
+	Values []Value
 
 	def    string
 	offset byte            // EEPROM offset; 0: not a plain EEPROM byte (free play, start)
@@ -95,7 +95,7 @@ var options = []Option{
 // eepromOrder: the plain EEPROM bytes in the order the status lists them.
 var eepromOrder = []string{"advertise_sound", "cabinet", "country", "game_mode", "rival_arrow", "difficulty"}
 
-// Options lists the settings and their values, in the web page's order.
+// Options lists the settings and their values.
 func Options() []Option { return options }
 
 func (o Option) valid(v string) bool {
@@ -158,6 +158,44 @@ func (r Race) EEPROM() []proto.Setting {
 		out = append(out, proto.Setting{Offset: 0x10, Value: 26}, proto.Setting{Offset: 0x14, Value: 1})
 	}
 	return out
+}
+
+// Apply sets the values of spec, "key:value,key:value" (the game's set=),
+// over r; an unknown key or value is an error and leaves r unchanged.
+func (r *Race) Apply(spec string) error {
+	next := *r
+	for _, kv := range strings.Split(spec, ",") {
+		if strings.TrimSpace(kv) == "" {
+			continue
+		}
+		k, v, _ := strings.Cut(kv, ":")
+		k, v = strings.ToLower(strings.TrimSpace(k)), strings.ToLower(strings.TrimSpace(v))
+		found := false
+		for _, o := range options {
+			if o.Key != k {
+				continue
+			}
+			if !o.valid(v) {
+				return fmt.Errorf("invalid %s %q (use: %s)", k, v, o.names())
+			}
+			*o.field(&next) = v
+			found = true
+		}
+		if !found {
+			return fmt.Errorf("unknown setting %q", k)
+		}
+	}
+	*r = next
+	return nil
+}
+
+// Info is op=info's answer: "key=value" lines, every setting.
+func (r Race) Info() string {
+	var b strings.Builder
+	for _, o := range options {
+		b.WriteString(o.Key + "=" + *o.field(&r) + "\n")
+	}
+	return b.String()
 }
 
 // AnyStart: any player may start a race, not only the MASTER.

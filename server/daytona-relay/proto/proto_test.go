@@ -10,7 +10,8 @@ import (
 )
 
 func TestHelloRoundTrip(t *testing.T) {
-	in := Hello{Op: "create", Room: "k7f3q9xz", Players: 3, Name: "João da Silva", Password: "a b%c", Game: "2"}
+	in := Hello{Op: "create", Room: "k7f3q9xz", Name: "João da Silva", Password: "a b%c", Game: "6",
+		Settings: "difficulty:hard,cabinet:deluxe"}
 	out, err := ParseHello(in.Line())
 	if err != nil {
 		t.Fatal(err)
@@ -23,21 +24,24 @@ func TestHelloRoundTrip(t *testing.T) {
 func TestHelloRejects(t *testing.T) {
 	for _, line := range []string{
 		"HTTP/1.1 GET /",
-		"DAYTONA-RELAY 1 op=join room=x", // the version before rooms of up to 8
-		"DAYTONA-RELAY 2 op=steal room=x",
-		"DAYTONA-RELAY 2 op=auto room=x players=9",
-		"DAYTONA-RELAY 2 op=auto room=x players=1",
-		"DAYTONA-RELAY 2 op=join room=bad%20room",
+		"DAYTONA-RELAY 2 op=join room=x", // the version before room settings from the game
+		"DAYTONA-RELAY 3 op=steal room=x",
+		"DAYTONA-RELAY 3 op=auto room=x players=9",
+		"DAYTONA-RELAY 3 op=auto room=x players=1",
+		"DAYTONA-RELAY 3 op=join room=bad%20room",
 	} {
 		if _, err := ParseHello(line); err == nil {
 			t.Errorf("accepted %q", line)
 		}
 	}
-	if h, err := ParseHello("DAYTONA-RELAY 2 op=join room=ABC"); err != nil || h.Room != "abc" {
+	if h, err := ParseHello("DAYTONA-RELAY 3 op=join room=ABC"); err != nil || h.Room != "abc" {
 		t.Errorf("join without players: %+v %v", h, err)
 	}
-	if h, err := ParseHello("DAYTONA-RELAY 2 op=create room=abc"); err != nil || h.Players != 0 {
+	if h, err := ParseHello("DAYTONA-RELAY 3 op=create room=abc"); err != nil || h.Players != 0 {
 		t.Errorf("create without players: %+v %v", h, err)
+	}
+	if h, err := ParseHello("DAYTONA-RELAY 3 op=info pass=x room=y set=a:b"); err != nil || h.Op != "info" || h.Room != "" || h.Settings != "" || h.Password != "x" {
+		t.Errorf("info: %+v %v", h, err)
 	}
 }
 

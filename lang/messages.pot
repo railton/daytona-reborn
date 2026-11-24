@@ -752,28 +752,82 @@ msgstr ""
 msgid "First choose the Daytona Revision A ROM set in Settings."
 msgstr ""
 
+msgid "Cabinet"
+msgstr ""
+
+msgid "Twin"
+msgstr ""
+
+msgid "Uplight"
+msgstr ""
+
+msgid "Deluxe"
+msgstr ""
+
+msgid "Country"
+msgstr ""
+
+msgid "USA (English)"
+msgstr ""
+
+msgid "Japan (Japanese)"
+msgstr ""
+
+msgid "Export"
+msgstr ""
+
+msgid "Difficulty"
+msgstr ""
+
+msgid "Easy"
+msgstr ""
+
+msgid "Normal"
+msgstr ""
+
+msgid "Hard"
+msgstr ""
+
+msgid "Hardest"
+msgstr ""
+
+msgid "Grand Prix"
+msgstr ""
+
+msgid "Endurance"
+msgstr ""
+
+msgid "Rival arrow"
+msgstr ""
+
+msgid "On"
+msgstr ""
+
+msgid "Advertise sound"
+msgstr ""
+
+msgid "Free play"
+msgstr ""
+
+msgid "On (Start only)"
+msgstr ""
+
+msgid "Off (coins)"
+msgstr ""
+
+msgid "Who may start the race"
+msgstr ""
+
+msgid "The MASTER"
+msgstr ""
+
+msgid "Anyone"
+msgstr ""
+
 msgid "Race over the Internet with up to 8 players, through a daytona-relay server."
 msgstr ""
 
 msgid "Your name"
-msgstr ""
-
-msgid "Create a room"
-msgstr ""
-
-msgid "Server (IP or DNS)"
-msgstr ""
-
-msgid "Server password (optional)"
-msgstr ""
-
-msgid "Up to 8 players. You start the race once your friends are in; who joins later races the next one."
-msgstr ""
-
-msgid "Create the room"
-msgstr ""
-
-msgid "Invalid server address: an IP or name, with :port if it is not 7777."
 msgstr ""
 
 msgid "Join a room"
@@ -792,6 +846,42 @@ msgid "Invalid invite code: copy all of it, it starts with DTN1."
 msgstr ""
 
 msgid "The code already holds the server, the room and the password."
+msgstr ""
+
+msgid "Create a room"
+msgstr ""
+
+msgid "This server asks for a password."
+msgstr ""
+
+msgid "Connecting..."
+msgstr ""
+
+msgid "Connect again"
+msgstr ""
+
+msgid "Connect"
+msgstr ""
+
+msgid "Invalid server address: an IP or name, with :port if it is not 7777."
+msgstr ""
+
+msgid "Server (IP or DNS)"
+msgstr ""
+
+msgid "Server password"
+msgstr ""
+
+msgid "Connected to %s: choose the room's settings."
+msgstr ""
+
+msgid "Connect to the server to choose the room's settings."
+msgstr ""
+
+msgid "Up to 8 players. You start the race once your friends are in; who joins later races the next one."
+msgstr ""
+
+msgid "Create the room"
 msgstr ""
 
 msgid "Connecting to %s..."
@@ -924,6 +1014,9 @@ msgid "Invalid room code."
 msgstr ""
 
 msgid "Invalid number of players: 2 to 8."
+msgstr ""
+
+msgid "The server refused the room's settings."
 msgstr ""
 
 msgid "This room was created by another version of the game: every player needs the same version."

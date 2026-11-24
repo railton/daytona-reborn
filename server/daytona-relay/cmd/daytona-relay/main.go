@@ -7,15 +7,12 @@
 // Configuration: flags, or the environment (Docker):
 //
 //	DAYTONA_PORT (7777), DAYTONA_PASSWORD (none), DAYTONA_MAX_ROOMS (100),
-//	DAYTONA_MAX_CONNECTIONS (1000), DAYTONA_MAX_PER_IP (16), the race
-//	settings (see package settings), and the web interface (web.go):
-//	DAYTONA_WEB_PORT (8080, 0: off), DAYTONA_PUBLIC_ADDRESS (none),
-//	DAYTONA_WEB_PASSWORD (none: DAYTONA_PASSWORD).
+//	DAYTONA_MAX_CONNECTIONS (1000), DAYTONA_MAX_PER_IP (16), and the race
+//	settings' defaults (see package settings).
 //
-// A room created by a game takes the environment's race settings and is
-// gone when its last player leaves. A room created on the web interface
-// keeps its own settings, exists before anyone joins (op=join), and is
-// removed once it has stayed empty for webRoomIdle.
+// The game asks the defaults (op=info) and creates a room with the owner's
+// choices over them (op=create set=...). A room is gone when its last
+// player leaves.
 package main
 
 import (
@@ -32,7 +29,6 @@ import (
 	"sync"
 	"time"
 
-	"daytona-relay/invite"
 	"daytona-relay/proto"
 	"daytona-relay/settings"
 )
@@ -42,12 +38,6 @@ const (
 	idleTimeout      = 30 * time.Second // no frame (not even a ping) for this long: gone
 	pingEvery        = 10 * time.Second
 	sendQueue        = 512 // frames waiting for a slow client before it is dropped
-
-	// webRoomIdle: a room created on the web interface is removed when it
-	// has stayed empty this long, counted from its creation or from when
-	// its last player left.
-	webRoomIdle = 10 * time.Minute
-	expireEvery = 30 * time.Second
 )
 
 type client struct {
@@ -83,20 +73,14 @@ type room struct {
 	code    string
 	game    string    // the online version of the games in it (Hello.Game)
 	members []*client // everyone in the room, in join order
-	owner   *client   // starts races (Begin); nil until someone joins a web room
+	owner   *client   // starts races (Begin); nil in the helper's rooms
 	ring    []*client // the race's cabinets in ring order (the owner first); nil: no race formed
 	epoch   uint32    // changes with every new ring (and when one breaks)
 	auto    int       // the daytona-link helper's rooms: a ring forms on its own at this many; 0: the owner starts
 
-	race    settings.Race   // the room's settings: the environment's, for a room a game created
+	race    settings.Race   // the room's settings: the environment's, with its creator's choices over them
 	eeprom  []proto.Setting // race.EEPROM()
 	created time.Time
-
-	// Rooms created on the web interface:
-	web       bool      // stays while empty, until webRoomIdle
-	public    bool      // listed with its code
-	idleSince time.Time // when it was created or its last player left
-	creator   string    // the creating address (maxIdleWebRoomsPerIP)
 }
 
 type server struct {
@@ -111,12 +95,8 @@ type server struct {
 	conns              int
 	maxConns, maxPerIP int
 
-	race settings.Race    // the environment's race settings, for rooms a game creates
+	race settings.Race    // the environment's race settings: every room's defaults
 	now  func() time.Time // time.Now; a parameter for tests
-
-	// web interface
-	publicAddr  string // host:port for invite codes; empty: no invite code
-	webPassword string // what creating a room on the web asks; empty: nothing
 }
 
 func newServer(race settings.Race, password string, maxRooms, maxConns, maxPerIP int) *server {
@@ -137,7 +117,14 @@ func (s *server) join(c *client, h proto.Hello) error {
 		if len(s.rooms) >= s.maxRooms {
 			return proto.Errf("server_full", "server full: %d rooms at most", s.maxRooms)
 		}
-		r = &room{code: h.Room, game: h.Game, race: s.race, eeprom: s.race.EEPROM(), created: s.now()}
+		race := s.race
+		if h.Op == "create" {
+			if err := race.Apply(h.Settings); err != nil {
+				return proto.Errf("settings", "%v", err)
+			}
+		}
+		r = &room{code: h.Room, game: h.Game, race: race, eeprom: race.EEPROM(), created: s.now()}
+		log.Printf("room %s: created (%s)", h.Room, race)
 		if h.Op == "auto" {
 			r.auto = h.Players
 		}
@@ -238,29 +225,10 @@ func (s *server) leave(c *client) {
 	}
 	log.Printf("room %s: %q (%s) left (%d in the room)", r.code, c.name, c.addr, len(r.members))
 	if len(r.members) == 0 {
-		if r.web {
-			// it waits for players again, of any game version
-			r.idleSince = s.now()
-			r.game = ""
-		} else {
-			delete(s.rooms, r.code)
-		}
+		delete(s.rooms, r.code)
 		return
 	}
 	s.notify(r)
-}
-
-// expire removes the web rooms that have stayed empty for webRoomIdle.
-func (s *server) expire() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	now := s.now()
-	for code, r := range s.rooms {
-		if r.web && len(r.members) == 0 && now.Sub(r.idleSince) >= webRoomIdle {
-			delete(s.rooms, code)
-			log.Printf("room %s: removed, empty for %v", code, webRoomIdle)
-		}
-	}
 }
 
 // notify tells every member the room's state, in the current epoch. Caller holds s.mu.
@@ -386,6 +354,11 @@ func (s *server) handle(conn net.Conn) {
 		return
 	}
 	c.name = h.Name
+	if h.Op == "info" { // the defaults the game shows before creating a room
+		conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+		proto.WriteFrame(conn, proto.Frame{Type: proto.TypeInfo, Payload: []byte(s.race.Info())})
+		return
+	}
 
 	// writer: the only goroutine writing to conn from here on
 	go func() {
@@ -491,9 +464,6 @@ func main() {
 	maxRooms := flag.Int("max-rooms", envInt("DAYTONA_MAX_ROOMS", 100), "rooms open at the same time, at most (DAYTONA_MAX_ROOMS)")
 	maxConns := flag.Int("max-connections", envInt("DAYTONA_MAX_CONNECTIONS", 1000), "connections at the same time, at most (DAYTONA_MAX_CONNECTIONS)")
 	maxPerIP := flag.Int("max-per-ip", envInt("DAYTONA_MAX_PER_IP", 16), "connections from one address, at most (DAYTONA_MAX_PER_IP)")
-	webPort := flag.Int("web-port", envInt("DAYTONA_WEB_PORT", 8080), "web interface's TCP port, 0 to turn it off (DAYTONA_WEB_PORT)")
-	publicAddr := flag.String("public-address", os.Getenv("DAYTONA_PUBLIC_ADDRESS"), "host:port the players reach this server at, for invite codes (DAYTONA_PUBLIC_ADDRESS)")
-	webPassword := flag.String("web-password", os.Getenv("DAYTONA_WEB_PASSWORD"), "password to create rooms on the web interface; default: the server's password (DAYTONA_WEB_PASSWORD)")
 	flag.Parse()
 
 	race, err := settings.FromEnv(os.Getenv)
@@ -501,40 +471,12 @@ func main() {
 		log.Fatal(err)
 	}
 	s := newServer(race, *password, *maxRooms, *maxConns, *maxPerIP)
-	if strings.TrimSpace(*publicAddr) != "" {
-		addr, ok := invite.NormalizeServer(*publicAddr)
-		if !ok {
-			log.Fatalf("invalid DAYTONA_PUBLIC_ADDRESS=%q (use host or host:port)", *publicAddr)
-		}
-		s.publicAddr = addr
-	}
-	s.webPassword = *webPassword
-	if s.webPassword == "" {
-		s.webPassword = *password
-	}
 
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
 	if err != nil {
 		log.Fatalf("cannot listen on port %d: %v", *port, err)
 	}
 	log.Printf("daytona-relay listening on port %d (rooms of %d to %d players, password: %v)", *port, proto.MinPlayers, proto.MaxPlayers, *password != "")
-	log.Printf("race settings: %s", race)
-	if *webPort > 0 {
-		wl, err := net.Listen("tcp", fmt.Sprintf(":%d", *webPort))
-		if err != nil {
-			log.Fatalf("cannot listen on web port %d: %v", *webPort, err)
-		}
-		hint := "invite codes for " + s.publicAddr
-		if s.publicAddr == "" {
-			hint = "no invite codes: set DAYTONA_PUBLIC_ADDRESS"
-		}
-		log.Printf("web interface on port %d (%s; creating a room asks a password: %v)", *webPort, hint, s.webPassword != "")
-		go func() { log.Fatal(s.webServer().Serve(wl)) }()
-	}
-	go func() {
-		for range time.Tick(expireEvery) {
-			s.expire()
-		}
-	}()
+	log.Printf("race settings (defaults): %s", race)
 	s.serve(ln)
 }

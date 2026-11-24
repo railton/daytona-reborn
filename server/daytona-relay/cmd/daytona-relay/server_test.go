@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -70,141 +71,6 @@ func nextStatus(t *testing.T, p *player) proto.Status {
 		case proto.TypeError:
 			t.Fatalf("refused: %s", f.Payload)
 		}
-	}
-}
-
-// A web room's own settings reach its players; a game's room on the same
-// server keeps the environment's.
-func TestRoomSettingsInStatus(t *testing.T) {
-	env := envRace(t, map[string]string{"DAYTONA_DIFFICULTY": "easy"})
-	s := newServer(env, "", 100, 1000, 16)
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer ln.Close()
-	go s.serve(ln)
-
-	web := env
-	web.Difficulty, web.GameMode, web.FreePlay, web.Start, web.Country = "hardest", "endurance", "off", "anyone", "jpn"
-	code, err := s.createWebRoom(web, true, "127.0.0.1")
-	if err != nil {
-		t.Fatal(err)
-	}
-	a, st := dial(t, ln.Addr().String(), proto.Hello{Op: "join", Room: code, Name: "A", Game: "3"})
-	if st.Size != 0 || st.Joined != 1 || st.Position != 0 || st.Ready || !st.Owner || st.Racing {
-		t.Errorf("first status %+v", st)
-	}
-	if !reflect.DeepEqual(st.EEPROM, web.EEPROM()) || !st.AnyStart {
-		t.Errorf("web room: eeprom %v anyStart %v, want %v true", st.EEPROM, st.AnyStart, web.EEPROM())
-	}
-	b, st := dial(t, ln.Addr().String(), proto.Hello{Op: "join", Room: code, Name: "B", Game: "3"})
-	if st.Ready || st.Owner || !reflect.DeepEqual(st.Names, []string{"A", "B"}) || !reflect.DeepEqual(st.EEPROM, web.EEPROM()) {
-		t.Errorf("second status %+v", st)
-	}
-	if st := nextStatus(t, a); st.Ready || st.Joined != 2 || !st.AnyStart {
-		t.Errorf("first player's update %+v", st)
-	}
-	// only the owner starts: B's Begin is ignored, A's forms the ring
-	proto.WriteFrame(b, proto.Frame{Type: proto.TypeBegin})
-	proto.WriteFrame(a, proto.Frame{Type: proto.TypeBegin})
-	if st := nextStatus(t, a); !st.Ready || st.Position != 1 || st.Size != 2 || !st.Racing {
-		t.Errorf("owner after Begin %+v", st)
-	}
-	if st := nextStatus(t, b); !st.Ready || st.Position != 2 || !reflect.DeepEqual(st.EEPROM, web.EEPROM()) {
-		t.Errorf("second after Begin %+v", st)
-	}
-
-	_, st = dial(t, ln.Addr().String(), proto.Hello{Op: "create", Room: "game1", Players: 2, Name: "C", Game: "3"})
-	if !reflect.DeepEqual(st.EEPROM, env.EEPROM()) || st.AnyStart {
-		t.Errorf("game room: eeprom %v anyStart %v, want %v false", st.EEPROM, st.AnyStart, env.EEPROM())
-	}
-}
-
-func TestWebRoomExpiry(t *testing.T) {
-	s := newTestServer(t)
-	c := &clock{time.Date(2026, 1, 1, 12, 0, 0, 0, time.UTC)}
-	s.now = c.now
-	code, err := s.createWebRoom(s.race, false, "1.2.3.4")
-	if err != nil {
-		t.Fatal(err)
-	}
-	c.add(webRoomIdle - time.Second)
-	s.expire()
-	if s.rooms[code] == nil {
-		t.Fatal("removed before webRoomIdle")
-	}
-	c.add(time.Second)
-	s.expire()
-	if s.rooms[code] != nil {
-		t.Fatal("still there after webRoomIdle empty")
-	}
-
-	// a player joins and leaves: counted again from when it left
-	code, _ = s.createWebRoom(s.race, false, "1.2.3.4")
-	c.add(5 * time.Minute)
-	p := fakeClient("A")
-	if err := s.join(p, proto.Hello{Op: "join", Room: code, Game: "3"}); err != nil {
-		t.Fatal(err)
-	}
-	c.add(time.Hour) // occupied: never expires
-	s.expire()
-	if s.rooms[code] == nil {
-		t.Fatal("an occupied room expired")
-	}
-	s.leave(p)
-	if s.rooms[code] == nil {
-		t.Fatal("a web room was removed when its last player left")
-	}
-	c.add(webRoomIdle - time.Second)
-	s.expire()
-	if s.rooms[code] == nil {
-		t.Fatal("removed before webRoomIdle after the last player left")
-	}
-	// emptied, it takes a game of another version
-	q := fakeClient("B")
-	if err := s.join(q, proto.Hello{Op: "join", Room: code, Game: "4"}); err != nil {
-		t.Fatalf("other game version after the room emptied: %v", err)
-	}
-	s.leave(q)
-	c.add(webRoomIdle)
-	s.expire()
-	if s.rooms[code] != nil {
-		t.Fatal("still there after webRoomIdle")
-	}
-
-	// a game's room: gone with its last player, as before
-	g := fakeClient("G")
-	if err := s.join(g, proto.Hello{Op: "create", Room: "g", Players: 2}); err != nil {
-		t.Fatal(err)
-	}
-	s.leave(g)
-	if s.rooms["g"] != nil {
-		t.Fatal("a game's empty room stayed")
-	}
-}
-
-func TestWebRoomJoinRules(t *testing.T) {
-	s := newTestServer(t)
-	code, _ := s.createWebRoom(s.race, false, "x")
-	var e *proto.Error
-	if err := s.join(fakeClient("A"), proto.Hello{Op: "create", Room: code, Players: 2}); !errors.As(err, &e) || e.Code != "exists" {
-		t.Errorf("create over a web room: %v", err)
-	}
-	if err := s.join(fakeClient("A"), proto.Hello{Op: "auto", Room: code, Players: 3}); !errors.As(err, &e) || e.Code != "size" {
-		t.Errorf("auto with another size: %v", err)
-	}
-	s.join(fakeClient("A"), proto.Hello{Op: "join", Room: code, Game: "3"})
-	if err := s.join(fakeClient("B"), proto.Hello{Op: "join", Room: code, Game: "2"}); !errors.As(err, &e) || e.Code != "game_version" {
-		t.Errorf("another game version: %v", err)
-	}
-	for i := 1; i < proto.MaxPlayers; i++ {
-		if err := s.join(fakeClient("B"), proto.Hello{Op: "join", Room: code, Game: "3"}); err != nil {
-			t.Fatalf("player %d: %v", i+1, err)
-		}
-	}
-	if err := s.join(fakeClient("I"), proto.Hello{Op: "join", Room: code, Game: "3"}); !errors.As(err, &e) || e.Code != "full" {
-		t.Errorf("ninth in a room: %v", err)
 	}
 }
 
@@ -301,37 +167,117 @@ func TestAutoRoomStartsAtSize(t *testing.T) {
 	}
 }
 
-// DAYTONA_MAX_ROOMS counts the games' rooms and the web's.
-func TestMaxRoomsCountsBoth(t *testing.T) {
-	s := newServer(envRace(t, nil), "", 2, 1000, 16)
-	if err := s.join(fakeClient("A"), proto.Hello{Op: "create", Room: "game", Players: 2}); err != nil {
+// A room's creator chooses its settings over the server's defaults; another
+// room on the same server keeps the defaults.
+func TestRoomSettingsInStatus(t *testing.T) {
+	env := envRace(t, map[string]string{"DAYTONA_DIFFICULTY": "easy"})
+	s := newServer(env, "", 100, 1000, 16)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s.createWebRoom(s.race, true, "x"); err != nil {
-		t.Fatal(err)
+	defer ln.Close()
+	go s.serve(ln)
+
+	want := env
+	want.Difficulty, want.GameMode, want.FreePlay, want.Start, want.Country = "hardest", "endurance", "off", "anyone", "jpn"
+	a, st := dial(t, ln.Addr().String(), proto.Hello{Op: "create", Room: "chosen", Name: "A", Game: "3",
+		Settings: "difficulty:hardest,game_mode:endurance,free_play:off,start:anyone,country:jpn"})
+	if st.Size != 0 || st.Joined != 1 || st.Position != 0 || st.Ready || !st.Owner || st.Racing {
+		t.Errorf("first status %+v", st)
 	}
-	var e *proto.Error
-	if _, err := s.createWebRoom(s.race, true, "x"); !errors.As(err, &e) || e.Code != "server_full" {
-		t.Errorf("third room on the web: %v", err)
+	if !reflect.DeepEqual(st.EEPROM, want.EEPROM()) || !st.AnyStart {
+		t.Errorf("chosen room: eeprom %v anyStart %v, want %v true", st.EEPROM, st.AnyStart, want.EEPROM())
 	}
-	if err := s.join(fakeClient("B"), proto.Hello{Op: "create", Room: "game2", Players: 2}); !errors.As(err, &e) || e.Code != "server_full" {
-		t.Errorf("third room from a game: %v", err)
+	// a joiner's set= is ignored: the room keeps its creator's
+	b, st := dial(t, ln.Addr().String(), proto.Hello{Op: "join", Room: "chosen", Name: "B", Game: "3", Settings: "difficulty:easy"})
+	if st.Ready || st.Owner || !reflect.DeepEqual(st.Names, []string{"A", "B"}) || !reflect.DeepEqual(st.EEPROM, want.EEPROM()) {
+		t.Errorf("second status %+v", st)
+	}
+	if st := nextStatus(t, a); st.Ready || st.Joined != 2 || !st.AnyStart {
+		t.Errorf("first player's update %+v", st)
+	}
+	// only the owner starts: B's Begin is ignored, A's forms the ring
+	proto.WriteFrame(b, proto.Frame{Type: proto.TypeBegin})
+	proto.WriteFrame(a, proto.Frame{Type: proto.TypeBegin})
+	if st := nextStatus(t, a); !st.Ready || st.Position != 1 || st.Size != 2 || !st.Racing {
+		t.Errorf("owner after Begin %+v", st)
+	}
+	if st := nextStatus(t, b); !st.Ready || st.Position != 2 || !reflect.DeepEqual(st.EEPROM, want.EEPROM()) {
+		t.Errorf("second after Begin %+v", st)
+	}
+
+	_, st = dial(t, ln.Addr().String(), proto.Hello{Op: "create", Room: "plain", Name: "C", Game: "3"})
+	if !reflect.DeepEqual(st.EEPROM, env.EEPROM()) || st.AnyStart {
+		t.Errorf("default room: eeprom %v anyStart %v, want %v false", st.EEPROM, st.AnyStart, env.EEPROM())
 	}
 }
 
-func TestRandomRoom(t *testing.T) {
-	seen := map[string]bool{}
-	for i := 0; i < 200; i++ {
-		r, err := randomRoom()
+// op=info answers the defaults (after the password check) and closes.
+func TestInfo(t *testing.T) {
+	env := envRace(t, map[string]string{"DAYTONA_CABINET": "deluxe"})
+	s := newServer(env, "pw", 100, 1000, 16)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	go s.serve(ln)
+	ask := func(pass string) proto.Frame {
+		conn, err := net.Dial("tcp", ln.Addr().String())
 		if err != nil {
 			t.Fatal(err)
 		}
-		if n, err := proto.NormalizeRoom(r); err != nil || n != r || len(r) != 8 {
-			t.Fatalf("room %q", r)
+		defer conn.Close()
+		conn.Write([]byte(proto.Hello{Op: "info", Password: pass, Game: "6"}.Line()))
+		conn.SetReadDeadline(time.Now().Add(5 * time.Second))
+		f, err := proto.ReadFrame(bufio.NewReader(conn))
+		if err != nil {
+			t.Fatal(err)
 		}
-		seen[r] = true
+		return f
 	}
-	if len(seen) < 199 {
-		t.Errorf("%d distinct codes of 200", len(seen))
+	if f := ask("pw"); f.Type != proto.TypeInfo || string(f.Payload) != env.Info() {
+		t.Errorf("info: %c %q", f.Type, f.Payload)
+	}
+	if f := ask("nope"); f.Type != proto.TypeError || !strings.HasPrefix(string(f.Payload), "password\n") {
+		t.Errorf("wrong password: %c %q", f.Type, f.Payload)
+	}
+	if len(s.rooms) != 0 {
+		t.Errorf("info opened a room")
+	}
+}
+
+func TestCreateRules(t *testing.T) {
+	s := newServer(envRace(t, nil), "", 2, 1000, 16)
+	var e *proto.Error
+	if err := s.join(fakeClient("A"), proto.Hello{Op: "create", Room: "bad", Settings: "difficulty:insane"}); !errors.As(err, &e) || e.Code != "settings" {
+		t.Errorf("invalid setting: %v", err)
+	}
+	if len(s.rooms) != 0 {
+		t.Errorf("a refused room stayed")
+	}
+	if err := s.join(fakeClient("A"), proto.Hello{Op: "create", Room: "one", Game: "3"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.join(fakeClient("A"), proto.Hello{Op: "create", Room: "one", Game: "3"}); !errors.As(err, &e) || e.Code != "exists" {
+		t.Errorf("create over a room: %v", err)
+	}
+	if err := s.join(fakeClient("B"), proto.Hello{Op: "join", Room: "one", Game: "2"}); !errors.As(err, &e) || e.Code != "game_version" {
+		t.Errorf("another game version: %v", err)
+	}
+	for i := 1; i < proto.MaxPlayers; i++ {
+		if err := s.join(fakeClient("B"), proto.Hello{Op: "join", Room: "one", Game: "3"}); err != nil {
+			t.Fatalf("player %d: %v", i+1, err)
+		}
+	}
+	if err := s.join(fakeClient("I"), proto.Hello{Op: "join", Room: "one", Game: "3"}); !errors.As(err, &e) || e.Code != "full" {
+		t.Errorf("ninth in a room: %v", err)
+	}
+	if err := s.join(fakeClient("C"), proto.Hello{Op: "create", Room: "two"}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.join(fakeClient("D"), proto.Hello{Op: "create", Room: "three"}); !errors.As(err, &e) || e.Code != "server_full" {
+		t.Errorf("third room with DAYTONA_MAX_ROOMS=2: %v", err)
 	}
 }

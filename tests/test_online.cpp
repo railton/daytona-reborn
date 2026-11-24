@@ -78,12 +78,24 @@ int main() {
     h.room = "abc";
     h.name = "Jo\xC3\xA3o S";
     h.password = "a b";
-    CHECK(hello_line(h) == "DAYTONA-RELAY 2 op=create room=abc name=Jo%C3%A3o%20S pass=a%20b v=" +
+    CHECK(hello_line(h) == "DAYTONA-RELAY 3 op=create room=abc name=Jo%C3%A3o%20S pass=a%20b v=" +
                                std::to_string(kOnlineVersion) + "\n");
     h.op = Hello::Op::Join;
     h.name.clear();
     h.password.clear();
-    CHECK(hello_line(h) == "DAYTONA-RELAY 2 op=join room=abc v=" + std::to_string(kOnlineVersion) + "\n");
+    CHECK(hello_line(h) == "DAYTONA-RELAY 3 op=join room=abc v=" + std::to_string(kOnlineVersion) + "\n");
+    // settings go with a create only; info has no room
+    h.settings = "difficulty:hard,start:anyone";
+    CHECK(hello_line(h) == "DAYTONA-RELAY 3 op=join room=abc v=" + std::to_string(kOnlineVersion) + "\n");
+    h.op = Hello::Op::Create;
+    CHECK(hello_line(h) == "DAYTONA-RELAY 3 op=create room=abc v=" + std::to_string(kOnlineVersion) +
+                               " set=difficulty%3Ahard%2Cstart%3Aanyone\n");
+    h.op = Hello::Op::Info;
+    h.password = "pw";
+    CHECK(hello_line(h) == "DAYTONA-RELAY 3 op=info pass=pw v=" + std::to_string(kOnlineVersion) + "\n");
+    // the server's answer (Race.Info)
+    const auto info = parse_info("cabinet=twin\ndifficulty=hard\nbad\n=x\n");
+    CHECK(info.size() == 2 && info[0].first == "cabinet" && info[1].second == "hard");
 
     // status (as the Go server's Status.Encode writes it); offsets the
     // server may not set are dropped

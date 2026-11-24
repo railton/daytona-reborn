@@ -190,14 +190,26 @@ std::string percent_decode(const std::string &s) {
 }
 
 std::string hello_line(const Hello &hello) {
-    std::string line = "DAYTONA-RELAY 2 op=";
-    line += hello.op == Hello::Op::Create ? "create" : "join";
-    line += " room=" + percent_encode(hello.room);
+    std::string line = "DAYTONA-RELAY 3 op=";
+    line += hello.op == Hello::Op::Create ? "create" : hello.op == Hello::Op::Join ? "join" : "info";
+    if (hello.op != Hello::Op::Info) line += " room=" + percent_encode(hello.room);
     const std::string name = clean_name(hello.name);
     if (!name.empty()) line += " name=" + percent_encode(name);
     if (!hello.password.empty()) line += " pass=" + percent_encode(hello.password);
     line += " v=" + std::to_string(kOnlineVersion);
+    if (hello.op == Hello::Op::Create && !hello.settings.empty()) line += " set=" + percent_encode(hello.settings);
     return line + "\n";
+}
+
+std::vector<std::pair<std::string, std::string>> parse_info(const std::string &payload) {
+    std::vector<std::pair<std::string, std::string>> out;
+    std::istringstream in(payload);
+    std::string line;
+    while (std::getline(in, line)) {
+        const auto eq = line.find('=');
+        if (eq != std::string::npos && eq > 0) out.emplace_back(line.substr(0, eq), line.substr(eq + 1));
+    }
+    return out;
 }
 
 std::optional<Status> parse_status(const std::string &payload) {
