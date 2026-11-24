@@ -81,6 +81,7 @@ std::string server_error(const std::string &payload) {
     if (code == "room") return TXR("Invalid room code.");
     if (code == "players") return TXR("Invalid number of players: 2 to 8.");
     if (code == "settings") return TXR("The server refused the room's settings.");
+    if (code == "room_kind") return TXR("This room belongs to the daytona-link helper, not to the game's Online mode.");
     if (code == "game_version")
         return TXR("This room was created by another version of the game: every player needs the same version.");
     return std::string(TXR("The server refused the connection: ")) + text;
@@ -299,15 +300,24 @@ void RelayLink::frame(uint8_t type, uint32_t epoch, const std::string &payload) 
                 inbox_.clear();
                 inbox_pos_ = 0;
                 controls_.clear();
+                tx_codec_.reset();
+                rx_codec_.reset();
             }
             epoch_ = epoch;
             state_ = s->ready ? State::Ready : State::Waiting;
         }
         break;
-    case online::kData:
+    case online::kData: // one compressed wire frame of the previous player's
         if (state_ == State::Ready && epoch == epoch_) {
-            if (inbox_.size() - inbox_pos_ + payload.size() > kMaxQueued) fail(TXR("The game is not reading the data it receives."));
-            else inbox_ += payload;
+            if (inbox_.size() - inbox_pos_ > kMaxQueued) fail(TXR("The game is not reading the data it receives."));
+            else if (!rx_codec_.decode(reinterpret_cast<const uint8_t *>(payload.data()), payload.size(), inbox_))
+                fail(TXR("Invalid data from another player: is everyone on the same version of the game?"));
+        }
+        break;
+    case online::kPing: // the server measuring this player's latency: its stamp straight back
+        if (!payload.empty()) {
+            online::append_frame(out_, online::kPong, epoch, reinterpret_cast<const uint8_t *>(payload.data()), payload.size());
+            flush();
         }
         break;
     case online::kControl:
@@ -347,14 +357,14 @@ int RelayLink::read(uint8_t *buf, int max) {
     return int(n);
 }
 
+// One wire frame of the comm board's a call (CommBoard::send_frame): one
+// compressed message (app/link_codec.h).
 bool RelayLink::write(const uint8_t *buf, int n) {
     if (state_ != State::Ready) return false;
-    while (n > 0) {
-        const int chunk = std::min(n, int(online::kMaxPayload));
-        online::append_frame(out_, online::kData, epoch_, buf, size_t(chunk));
-        buf += chunk;
-        n -= chunk;
-    }
+    if (n <= 0 || size_t(n) > online::LinkCodec::kMaxFrame) return n == 0;
+    std::string message;
+    tx_codec_.encode(buf, size_t(n), message);
+    online::append_frame(out_, online::kData, epoch_, reinterpret_cast<const uint8_t *>(message.data()), message.size());
     flush();
     return state_ == State::Ready;
 }

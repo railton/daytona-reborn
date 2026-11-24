@@ -24,23 +24,23 @@ func TestHelloRoundTrip(t *testing.T) {
 func TestHelloRejects(t *testing.T) {
 	for _, line := range []string{
 		"HTTP/1.1 GET /",
-		"DAYTONA-RELAY 2 op=join room=x", // the version before room settings from the game
-		"DAYTONA-RELAY 3 op=steal room=x",
-		"DAYTONA-RELAY 3 op=auto room=x players=9",
-		"DAYTONA-RELAY 3 op=auto room=x players=1",
-		"DAYTONA-RELAY 3 op=join room=bad%20room",
+		"DAYTONA-RELAY 3 op=join room=x", // the version before compressed link data and latency
+		"DAYTONA-RELAY 4 op=steal room=x",
+		"DAYTONA-RELAY 4 op=auto room=x players=9",
+		"DAYTONA-RELAY 4 op=auto room=x players=1",
+		"DAYTONA-RELAY 4 op=join room=bad%20room",
 	} {
 		if _, err := ParseHello(line); err == nil {
 			t.Errorf("accepted %q", line)
 		}
 	}
-	if h, err := ParseHello("DAYTONA-RELAY 3 op=join room=ABC"); err != nil || h.Room != "abc" {
+	if h, err := ParseHello("DAYTONA-RELAY 4 op=join room=ABC"); err != nil || h.Room != "abc" {
 		t.Errorf("join without players: %+v %v", h, err)
 	}
-	if h, err := ParseHello("DAYTONA-RELAY 3 op=create room=abc"); err != nil || h.Players != 0 {
+	if h, err := ParseHello("DAYTONA-RELAY 4 op=create room=abc"); err != nil || h.Players != 0 {
 		t.Errorf("create without players: %+v %v", h, err)
 	}
-	if h, err := ParseHello("DAYTONA-RELAY 3 op=info pass=x room=y set=a:b"); err != nil || h.Op != "info" || h.Room != "" || h.Settings != "" || h.Password != "x" {
+	if h, err := ParseHello("DAYTONA-RELAY 4 op=info pass=x room=y set=a:b"); err != nil || h.Op != "info" || h.Room != "" || h.Settings != "" || h.Password != "x" {
 		t.Errorf("info: %+v %v", h, err)
 	}
 }
@@ -57,7 +57,8 @@ func TestCleanName(t *testing.T) {
 func TestStatusRoundTrip(t *testing.T) {
 	in := Status{Joined: 3, Size: 2, Position: 2, Ready: true,
 		EEPROM: []Setting{{0x1a, 1}, {0x20, 3}}, Names: []string{"Railton", "João"}, AnyStart: true,
-		Owner: true, Racing: true, Waiting: []string{"Ana Maria"}, Me: 2}
+		Owner: true, Racing: true, Waiting: []string{"Ana Maria"}, Me: 2,
+		Latency: []int{18, -1}, WaitingLatency: []int{132}}
 	out, err := DecodeStatus(in.Encode())
 	if err != nil {
 		t.Fatal(err)

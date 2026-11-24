@@ -1036,6 +1036,8 @@ int main(int argc, char **argv) {
     app::SelectionSteer selection_steer;  // keys and sticks pick the course and gearbox one push at a time
     rt::online::CourseSync online_course; // and the MASTER's course
     rt::online::Standings online_standings; // the race's standings, for the players list
+    rt::online::StartBarrier online_barrier; // everyone starts the race together (no frame sync)
+    bool online_waiting = false;             // this game holds at the barrier: the others are still selecting
     uint64_t online_race_since = 0;       // when this online race began (its first race frame), 0: not racing
     float online_names = 0.f;             // the players list's opacity over the race (app/online_overlay.h)
     app::CarTagOverlay online_tags;       // the other players' name tags over their cars, all race long
@@ -1108,14 +1110,17 @@ int main(int argc, char **argv) {
                 // server's race settings, written before the first frame
                 const auto &st = online_link->status();
                 rt::online::configure(game->board(), st.position, st.eeprom);
-                // Keep the cabinets on the ring's frame clock: independent
-                // pacing lets a faster client finish the countdown first.
-                game->board().set_link(online_link.get(), true);
+                // no frame sync over the Internet: the start barrier lines up the race
+                // (rt::online::StartBarrier); the game runs at the arcade's rate
+                // here, whatever the display (pc_home pacing)
+                game->board().set_link(online_link.get(), false);
                 online_game = true;
                 online_epoch = online_link->epoch();
                 online_entry = {};
                 online_course = {};
                 online_standings.clear();
+                online_barrier.clear();
+                online_waiting = false;
                 std::printf("daytona: online: room %s, player %d of %d\n", online_link->room().c_str(), st.position, st.size);
             } else if (cfg.link && !solo_mode) { // link play: the communication board on TCP
                 link = std::make_unique<app::TcpLink>(uint16_t(cfg.link_port), cfg.link_next);
@@ -1513,7 +1518,8 @@ int main(int argc, char **argv) {
                     const bool master = room.position == 1;
                     rt::online::StartGate::apply(game->board(), inputs, master || room.any_start);
                     for (const auto &message : online_link->take_controls())
-                        if (!online_standings.receive(message) && !master) online_course.receive(message);
+                        if (!online_barrier.receive(message) && !online_standings.receive(message) && !master)
+                            online_course.receive(message);
                     if (master) {
                         if (const auto told = online_course.master(game->board()); !told.empty())
                             online_link->send_control(told);
@@ -1523,8 +1529,21 @@ int main(int argc, char **argv) {
                     if (const auto told = online_standings.own(game->board(), room.position); !told.empty())
                         online_link->send_control(told);
                     online_entry.apply(game->board(), inputs); // another player started: join
+                    const bool was_waiting = online_waiting;
+                    online_waiting = online_barrier.holding(room.size, SDL_GetTicks());
+                    if (online_waiting) { // held before the race: no game frame until the others arrive, the link still answers
+                        game->board().link_idle_tick();
+                        continue;
+                    }
+                    if (was_waiting)
+                        std::printf("daytona: online: waited %llu ms for the others at the start\n",
+                                    (unsigned long long)online_barrier.waited_ms());
                 }
                 game->run_frame(inputs);
+                if (online_game)
+                    if (const auto told = online_barrier.after_frame(game->board(), online_link->status().position, SDL_GetTicks());
+                        !told.empty())
+                        online_link->send_control(told);
 #ifndef M2_MOBILE
                 if (interpolate_poses && !pose_session && (solo || pc_race)) {
                     pose_session = game->board().enable_pose_presentation();
@@ -2015,6 +2034,16 @@ int main(int argc, char **argv) {
                 online_tags.draw(online_link->status(),
                                  app::game_picture(view->Size.x, view->Size.y, screen_w, H, cfg.arcade_43()),
                                  screen_w, H, reveal);
+            }
+            if (online_waiting && online_game && !in_launcher) { // held at the start barrier
+                const auto *view = ImGui::GetMainViewport();
+                ImGui::SetNextWindowPos({view->Pos.x + view->Size.x * 0.5f, view->Pos.y + view->Size.y * 0.5f},
+                                        ImGuiCond_Always, {0.5f, 0.5f});
+                ImGui::SetNextWindowBgAlpha(0.8f);
+                ImGui::Begin("##online_waiting", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
+                             ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing);
+                ImGui::TextUnformatted(TX("Waiting for the other players to finish choosing..."));
+                ImGui::End();
             }
             if (online_names > 0.f && online_link && !in_launcher) {
                 std::array<int, 9> ranks;

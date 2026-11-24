@@ -18,6 +18,7 @@ package main
 import (
 	"bufio"
 	"crypto/subtle"
+	"encoding/binary"
 	"errors"
 	"flag"
 	"fmt"
@@ -27,6 +28,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"daytona-relay/proto"
@@ -36,8 +38,8 @@ import (
 const (
 	handshakeTimeout = 10 * time.Second
 	idleTimeout      = 30 * time.Second // no frame (not even a ping) for this long: gone
-	pingEvery        = 10 * time.Second
-	sendQueue        = 512 // frames waiting for a slow client before it is dropped
+	pingEvery        = 2 * time.Second  // also measures each player's latency (TypePong)
+	sendQueue        = 512              // frames waiting for a slow client before it is dropped
 )
 
 type client struct {
@@ -48,6 +50,16 @@ type client struct {
 	out  chan proto.Frame
 	once sync.Once
 	done chan struct{}
+	rtt  atomic.Int64 // latency to this server, round trip, smoothed, in µs; 0: not measured yet
+}
+
+// latencyMs: the client's round trip in ms, -1 before the first measure.
+func (c *client) latencyMs() int {
+	us := c.rtt.Load()
+	if us == 0 {
+		return -1
+	}
+	return int((us + 500) / 1000)
 }
 
 func (c *client) close() {
@@ -75,6 +87,7 @@ type room struct {
 	members []*client // everyone in the room, in join order
 	owner   *client   // starts races (Begin); nil in the helper's rooms
 	ring    []*client // the race's cabinets in ring order (the owner first); nil: no race formed
+	shown   [2][]int  // the latencies the members were last told, names and waiting (refreshLatency)
 	epoch   uint32    // changes with every new ring (and when one breaks)
 	auto    int       // the daytona-link helper's rooms: a ring forms on its own at this many; 0: the owner starts
 
@@ -129,6 +142,9 @@ func (s *server) join(c *client, h proto.Hello) error {
 			r.auto = h.Players
 		}
 		s.rooms[h.Room] = r
+	case (r.auto > 0) != (h.Op == "auto"):
+		// the helper's rooms pass raw link bytes, the game's compressed ones (app/link_codec.h)
+		return proto.Errf("room_kind", "room %q belongs to the other kind of client (game or daytona-link helper)", h.Room)
 	case h.Op == "auto" && r.auto != h.Players:
 		return proto.Errf("size", "room %q is not for %d players", h.Room, h.Players)
 	}
@@ -258,13 +274,80 @@ func (s *server) notify(r *room) {
 			}
 		}
 	}
+	latency, waitingLatency := r.latencies()
+	r.shown = [2][]int{latency, waitingLatency}
 	for _, m := range r.members {
 		pos := r.inRing(m)
 		st := proto.Status{Joined: len(r.members), Size: len(r.ring), Position: pos, Ready: pos > 0,
 			EEPROM: r.eeprom, Names: names, AnyStart: r.race.AnyStart(), Owner: m == r.owner,
-			Racing: r.ring != nil, Waiting: waiting, Me: line[m]}
+			Racing: r.ring != nil, Waiting: waiting, Me: line[m], Latency: latency, WaitingLatency: waitingLatency}
 		m.send(proto.Frame{Type: proto.TypeStatus, Epoch: r.epoch, Payload: st.Encode()})
 	}
+}
+
+// order: the members as the status lists them (names, then waiting).
+func (r *room) order() (names, waiting []*client) {
+	if r.ring != nil {
+		names = append(names, r.ring...)
+		for _, m := range r.members {
+			if r.inRing(m) == 0 {
+				waiting = append(waiting, m)
+			}
+		}
+		return names, waiting
+	}
+	if r.owner != nil {
+		names = append(names, r.owner)
+	}
+	for _, m := range r.members {
+		if m != r.owner {
+			names = append(names, m)
+		}
+	}
+	return names, nil
+}
+
+func (r *room) latencies() (names, waiting []int) {
+	n, w := r.order()
+	for _, m := range n {
+		names = append(names, m.latencyMs())
+	}
+	for _, m := range w {
+		waiting = append(waiting, m.latencyMs())
+	}
+	return names, waiting
+}
+
+// refreshLatency tells each room's members their latencies when they have
+// changed by a few ms since the last status (every pingEvery).
+func (s *server) refreshLatency() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, r := range s.rooms {
+		if r.auto > 0 || len(r.members) == 0 {
+			continue
+		}
+		names, waiting := r.latencies()
+		if latencyMoved(r.shown, names, waiting) {
+			s.notify(r)
+		}
+	}
+}
+
+// latencyMoved: a player measured for the first time, or one moved by 3 ms
+// or more (jitter alone sends no status).
+func latencyMoved(prev [2][]int, names, waiting []int) bool {
+	for i, now := range [2][]int{names, waiting} {
+		if len(now) != len(prev[i]) {
+			return true
+		}
+		for k := range now {
+			if d := now[k] - prev[i][k]; (now[k] < 0) != (prev[i][k] < 0) || d >= 3 || d <= -3 {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // broadcast passes a control frame from c to every other member of its room.
@@ -380,8 +463,10 @@ func (s *server) handle(conn net.Conn) {
 					c.close()
 					return
 				}
-			case <-ping.C:
-				if !write(proto.Frame{Type: proto.TypePing}) || bw.Flush() != nil {
+			case <-ping.C: // stamped: the game sends it back (TypePong), the round trip is its latency
+				stamp := make([]byte, 8)
+				binary.BigEndian.PutUint64(stamp, uint64(time.Now().UnixNano()))
+				if !write(proto.Frame{Type: proto.TypePing, Payload: stamp}) || bw.Flush() != nil {
 					c.close()
 					return
 				}
@@ -416,6 +501,17 @@ func (s *server) handle(conn net.Conn) {
 		case proto.TypeControl:
 			if len(f.Payload) <= 256 {
 				s.broadcast(c, f)
+			}
+		case proto.TypePong:
+			if len(f.Payload) == 8 {
+				sent := int64(binary.BigEndian.Uint64(f.Payload))
+				if us := (time.Now().UnixNano() - sent) / 1000; us > 0 && us < 60_000_000 {
+					if old := c.rtt.Load(); old == 0 {
+						c.rtt.Store(us)
+					} else {
+						c.rtt.Store((3*old + us) / 4) // smoothed: a moment's jitter does not jump the number
+					}
+				}
 			}
 		case proto.TypePing:
 		default:
@@ -478,5 +574,10 @@ func main() {
 	}
 	log.Printf("daytona-relay listening on port %d (rooms of %d to %d players, password: %v)", *port, proto.MinPlayers, proto.MaxPlayers, *password != "")
 	log.Printf("race settings (defaults): %s", race)
+	go func() {
+		for range time.Tick(pingEvery) {
+			s.refreshLatency()
+		}
+	}()
 	s.serve(ln)
 }

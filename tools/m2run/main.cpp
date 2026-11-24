@@ -158,6 +158,16 @@ int main(int argc, char **argv) {
     std::optional<rt::RaceTransmission> transmission;
     std::optional<rt::RaceMode> race_mode;
     bool link_sync = false, native_check = false, realtime = false;
+    // M2_TEST_RELAY_SYNC=on: frame sync all along instead of the game's start barrier (comparisons)
+    const bool relay_framesync = [] {
+        const char *v = std::getenv("M2_TEST_RELAY_SYNC");
+        return v && !std::strcmp(v, "on");
+    }();
+    // M2_TEST_RELAY_BARRIER=0: no start barrier (comparisons)
+    const bool relay_barrier = [] {
+        const char *v = std::getenv("M2_TEST_RELAY_BARRIER");
+        return !(v && !std::strcmp(v, "0"));
+    }();
     bool key_steering = false; // --key-steering: the course and gearbox picked as the app does with keys (app/selection_steer.h)
     app::SelectionSteer selection_steer;
     bool snapshot_stamps = false, scene_stamps = false;
@@ -403,10 +413,9 @@ int main(int argc, char **argv) {
             std::printf("m2run: relay room %s race: player %d of %d (%s)\n", relay->room().c_str(), st.position, st.size,
                         st.position == 1 ? "MASTER" : "SLAVE");
             rt::online::configure(game.board(), st.position, st.eeprom);
-            // Match the desktop Online mode. The override is for A/B probes
-            // against the previous asynchronous behavior, not normal play.
-            const char *async_probe = std::getenv("M2_TEST_RELAY_ASYNC");
-            game.board().set_link(relay.get(), !(async_probe && !std::strcmp(async_probe, "1")));
+            // As the desktop Online mode: no frame sync, the start barrier
+            // (rt::online::StartBarrier) lines up the race.
+            game.board().set_link(relay.get(), relay_framesync);
         }
         game.set_frame_skip(frame_skip);
         if (aspect > 0) {
@@ -437,16 +446,33 @@ int main(int argc, char **argv) {
             online_trace << "frame,wall_ms,mode,step,course,link\n";
         }
         int previous_mode = -1, previous_step = -1, previous_link = -1;
+        bool relay_failure_told = false;
+        rt::online::StartBarrier relay_barrier_state; // as the app: everyone starts the race together
+        bool relay_holding = false;
+        auto steady_ms = [] {
+            return uint64_t(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                std::chrono::steady_clock::now().time_since_epoch()).count());
+        };
         // Fault injection for the headless timing probe only; never enabled by default.
         const char *delay_env = std::getenv("M2_TEST_FRAME_DELAY_MS");
         const int test_delay_ms = delay_env ? std::max(0, std::atoi(delay_env)) : 0;
         const char *delay_from_env = std::getenv("M2_TEST_FRAME_DELAY_FROM");
         const uint64_t test_delay_from = delay_from_env ? std::strtoull(delay_from_env, nullptr, 10) : 2500;
+        // Fault injection: one stall, as the app's Esc pauses the game (M2_TEST_STALL_AT=FRAME, M2_TEST_STALL_MS=MS).
+        const char *stall_at_env = std::getenv("M2_TEST_STALL_AT");
+        const uint64_t stall_at = stall_at_env ? std::strtoull(stall_at_env, nullptr, 10) : 0;
+        const char *stall_ms_env = std::getenv("M2_TEST_STALL_MS");
+        const int stall_ms = stall_ms_env ? std::max(0, std::atoi(stall_ms_env)) : 0;
+        auto stalled_ns = std::chrono::nanoseconds(0); // the realtime pacing carries on after the stall
         for (uint64_t f = 0; f < frames; f++) {
             if (test_delay_ms && f >= test_delay_from)
                 std::this_thread::sleep_for(std::chrono::milliseconds(test_delay_ms));
+            if (stall_ms && f == stall_at) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(stall_ms));
+                stalled_ns += std::chrono::milliseconds(stall_ms);
+            }
             if (realtime) // linked cabinets running at the arcade's pace, as players' games do
-                std::this_thread::sleep_until(paced_from + std::chrono::nanoseconds(int64_t(double(f) * 1e9 / 57.524)));
+                std::this_thread::sleep_until(paced_from + stalled_ns + std::chrono::nanoseconds(int64_t(double(f) * 1e9 / 57.524)));
             const bool omit_this_tick = omit_cell && f == omit_cell->first;
             if (omit_this_tick) scenery.omit_cell = omit_cell->second;
             rt::Inputs inputs = script.at(game.board().frame());
@@ -456,7 +482,8 @@ int main(int argc, char **argv) {
                 const bool master = room.position == 1;
                 rt::online::StartGate::apply(game.board(), inputs, master || room.any_start);
                 for (const auto &message : relay->take_controls())
-                    if (!relay_standings.receive(message) && !master) relay_course.receive(message);
+                    if (!relay_barrier_state.receive(message) && !relay_standings.receive(message) && !master)
+                        relay_course.receive(message);
                 if (master) {
                     if (const auto told = relay_course.master(game.board()); !told.empty()) relay->send_control(told);
                 } else {
@@ -465,8 +492,31 @@ int main(int argc, char **argv) {
                 if (const auto told = relay_standings.own(game.board(), room.position); !told.empty())
                     relay->send_control(told);
                 relay_entry.apply(game.board(), inputs);
+                if (relay_barrier) {
+                    const bool was_holding = relay_holding;
+                    relay_holding = relay_barrier_state.holding(room.size, steady_ms());
+                    if (relay_holding) { // as the app: no game frame until the others arrive, the link still answers
+                        const auto frame_ns = std::chrono::nanoseconds(int64_t(1e9 / 57.524));
+                        std::this_thread::sleep_for(frame_ns);
+                        stalled_ns += frame_ns;
+                        game.board().link_idle_tick();
+                        --f;
+                        continue;
+                    }
+                    if (was_holding)
+                        std::printf("m2run: frame %" PRIu64 ": waited %llu ms for the others at the start\n", game.frames(),
+                                    (unsigned long long)relay_barrier_state.waited_ms());
+                }
             }
             game.run_frame(inputs);
+            if (relay && relay_barrier)
+                if (const auto told = relay_barrier_state.after_frame(game.board(), relay->status().position, steady_ms());
+                    !told.empty())
+                    relay->send_control(told);
+            if (relay && relay->state() == app::RelayLink::State::Failed && !relay_failure_told) {
+                std::printf("m2run: relay connection failed at frame %" PRIu64 ": %s\n", game.frames(), relay->error().c_str());
+                relay_failure_told = true;
+            }
             if (online_trace.is_open()) {
                 const int mode = game.board().read_byte(0x5010a0);
                 const int step = game.board().read_byte(0x5010f8);

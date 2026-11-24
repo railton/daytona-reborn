@@ -635,9 +635,15 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
             ImGui::EndTabItem();
         }
 
-        // ---- Link play: cabinets on a local network (the Online mode is in the home menu)
-        if (ImGui::BeginTabItem(TX("Link play"), nullptr, tab_flags(3))) {
+        // ---- Link play: cabinets linked directly, without the relay (advanced: the
+        // Online mode in the home menu covers racing over the Internet)
+        if (ImGui::BeginTabItem(TX("Link play (advanced)"), nullptr, tab_flags(3))) {
             ImGui::Spacing();
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 0.74f, 0.45f, 1));
+            ImGui::TextWrapped("%s", TX("To race friends over the Internet, use Online in the home menu: no port to open, "
+                                        "player names, standings, the room's settings for everyone. Link play joins "
+                                        "cabinets directly, on a local network, or through the daytona-link helper."));
+            ImGui::PopStyleColor();
             ImGui::SeparatorText(TX("Link play (experimental, reset)"));
             if (ImGui::Checkbox(TX("Link to other cabinets"), &cfg_.link)) cfg_.save();
             ImGui::BeginDisabled(!cfg_.link);
@@ -657,6 +663,8 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
                 }
             });
             if (ImGui::Checkbox(TX("Synchronise frames (each cabinet waits for the master)"), &cfg_.link_framesync)) cfg_.save();
+            hint("%s", TX("On a local network only: every frame waits for the data to go round all the cabinets, so "
+                          "over the Internet the game slows down (22 frames/s with 20 ms between two cabinets)."));
             ImGui::EndDisabled();
             ImGui::Spacing();
             ImGui::TextWrapped(TX("Network: %s"), link_status_.c_str());

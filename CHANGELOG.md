@@ -6,6 +6,9 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
 
 ### Controls
 
+- **Link play tab marked advanced.** Settings' "Link play (advanced)" says
+  to use Online in the home menu for the Internet, and that its frame sync
+  is for a local network only.
 - **Course and gearbox selection with keys or a gamepad.** The cabinet's
   course and gearbox screens choose by where the wheel is held, so keys and
   sticks, which spring back to the centre, always fell back to the first
@@ -19,12 +22,40 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
 
 ### Online play
 
-- **Keep online cabinets on the same frame clock.** Online now enables the
-  communication board's existing frame synchronization. With an artificial
-  22 ms delay on the master, the previous asynchronous mode let the slave
-  enter the race 6.926 s earlier; synchronization reduced that gap to 27 ms
-  on the local relay. Online compatibility version is now 5. See
-  `docs/ONLINE_FRAME_SYNC.md` for measurements and limits.
+- **No frame sync over the Internet; a start barrier instead.** The comm
+  board's frame sync holds every game to the ring's round trip each frame:
+  through the relay the whole session slowed down with latency (2 players:
+  57.5 frames/s at 0 ms, 22.1 at 20 ms, 11.7 at 40 ms) and a paused player
+  froze the others for 3 s, then lost the link for both (Esc, then
+  Resume). Online now runs without it, at full speed. Each game, entering
+  the last mode before the race (21), tells the room and holds there (its
+  link still answering) until every game has arrived, so all start
+  together (`rt::online::StartBarrier`; a "waiting for the other players"
+  box shows meanwhile). Through a relay in Europe from Brazil (2 players,
+  ~230 ms round trip, one +80 ms more): without the barrier the MASTER
+  started 0.02 to 10.5 s after the other depending on the run; with it,
+  0.28 s (the first waited 2.7 s). `docs/ONLINE_FRAME_SYNC.md` has the
+  measurements.
+- **Link data fetched while the game waits for it.** The comm board fetched
+  what the network had brought only once a frame (or in frame sync's
+  wait): a game waiting for the other cabinets' data inside a frame waited
+  out its own timeout instead, 6 to 9 s at once entering the selection
+  (measured), which also made the MASTER reach the race seconds late. It
+  now also fetches while the game polls the board (at most once a
+  millisecond). Online and link play without frame sync both gain.
+- **Compressed link data.** Each comm-board wire frame goes as one message
+  against the sender's last two blocks (`src/app/link_codec.h`, no
+  library): a game frame of 7170 bytes became 121 / 197 / 323 bytes on
+  average over captured 2 / 4 / 8 player sessions (no mismatch on the round
+  trip), under 10 µs to encode. About 0.1 to 0.3 Mbit/s each way a player
+  instead of 3.3; a room of 8 on the server about 2 Mbit/s instead of 26.5.
+- **Each player's latency in the room's list**, round trip to the server,
+  green up to 60 ms, yellow up to 120 ms, red above: the server stamps its
+  ping every 2 s, the game sends the stamp back, the server smooths it and
+  tells the room when it moves by 3 ms or more.
+- The game's rooms and the `daytona-link` helper's no longer mix (error
+  `room_kind`): the helper passes raw link bytes. Relay protocol version 4,
+  online version 7.
 - **Online mode** in the home menu (Revision A, `daytona`): race over the
   Internet with up to 8 players through a relay server. No port to open on
   any player's router; works behind CGNAT. The game connects out to the
@@ -178,6 +209,13 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
 - `--capture-home` waits three frames, so auto-sized windows are captured;
   `M2_CAPTURE_ONLINE_NAMES=1` (or `=2`, as standings) draws the players list
   with sample names in a capture, `=3` the name tags over three cars.
+- `tests/test_link_codec.cpp`: the link codec's round trip on synthetic
+  frames shaped as the comm board's, and malformed messages refused.
+- `m2run`: `M2_TEST_RELAY_SYNC=on` holds frame sync on for a whole relay
+  session, `M2_TEST_RELAY_BARRIER=0` turns the start barrier off
+  (comparisons); `M2_TEST_STALL_AT=FRAME M2_TEST_STALL_MS=MS` stalls once,
+  as the game's Esc pause does; a failed relay connection is printed with
+  its frame.
 - `tests/test_car_tags.cpp`: the tags' place from synthetic polygons (the
   car records' number byte, projection, widescreen origin, what hides a
   car) and the game's picture in the window.
@@ -187,13 +225,16 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
 - Not yet tested between players on different networks.
 - Headless test cabinets must run at the arcade's pace (`m2run --realtime`)
   for large rooms: free-running ones at different speeds flood each other
-  and lose the link. Frame sync drops the link after 3 s without its token;
-  this timeout still applies to the synchronized Online mode.
+  and lose the link.
+- Rooms of 4 players or more with long round trips (4 players through a
+  relay in Europe from Brazil, ~230 to 310 ms each) do not get past the
+  game's own network check at boot: the cabinets restart the link every
+  ~14 s and never reach attract. 2 players on the same path play.
   At the arcade's pace 8 cabinets through the relay link and stay linked
   (two runs of 104 s and 157 s, no link lost before the end).
-- Traffic: about 3.5 KB per cabinet per frame, passed round the ring, so
-  roughly 3.3 Mbit/s each way per player with 2 players and 13 Mbit/s with
-  8; the server carries the sum.
+- Traffic: compressed, about 0.1 to 0.3 Mbit/s each way per player (2 to
+  8 players, measured on captured sessions); the server carries the sum.
+  Before compression it was 3.3 Mbit/s whatever the number of players.
 - The relay is not encrypted: the server password travels in clear, is in
   the invite code and is stored in `launcher.ini`.
 - A brief network drop restarts the room's race.

@@ -119,8 +119,9 @@ e.g. a second player on the same computer), `--online`, `--settings`,
    choose the room's race settings (difficulty, game mode, who may start...),
    **Create the room**, and send the invite code. A room takes up to 8
    players.
-3. Friends paste the code under **Join a room**. The room's owner presses
-   **Start the race** when everyone is in; in the race the owner presses
+3. Friends paste the code under **Join a room**. The room's screen lists the
+   players with each one's latency to the server (green, yellow, red). The
+   room's owner presses **Start the race** when everyone is in; in the race the owner presses
    Start and chooses the course, the others follow. Who joins later waits
    for the next race (**New race with everyone**).
 4. In the race, the players list (first 10 s, then hold Tab) shows the live
@@ -128,7 +129,9 @@ e.g. a second player on the same computer), `--online`, `--settings`,
    the race ends the games return to the attract screen still linked: the
    first player presses Start again for the next race.
 
-Details, settings and the protocol: [server/daytona-relay/README.md](server/daytona-relay/README.md).
+The link data is compressed: about 0.1 to 0.3 Mbit/s each way a player
+(2 to 8 players) instead of 3.3. Details, settings and the protocol:
+[server/daytona-relay/README.md](server/daytona-relay/README.md).
 Not yet tried between distant networks; see the known limits in
 [CHANGELOG.md](CHANGELOG.md).
 

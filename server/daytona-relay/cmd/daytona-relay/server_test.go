@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/binary"
 	"errors"
 	"net"
 	"reflect"
@@ -280,4 +281,85 @@ func TestCreateRules(t *testing.T) {
 	if err := s.join(fakeClient("D"), proto.Hello{Op: "create", Room: "three"}); !errors.As(err, &e) || e.Code != "server_full" {
 		t.Errorf("third room with DAYTONA_MAX_ROOMS=2: %v", err)
 	}
+}
+
+// The game's rooms and the daytona-link helper's do not mix: the game's
+// link data is compressed, the helper's raw.
+func TestRoomKinds(t *testing.T) {
+	s := newTestServer(t)
+	var e *proto.Error
+	s.join(fakeClient("A"), proto.Hello{Op: "create", Room: "game", Game: "7"})
+	if err := s.join(fakeClient("H"), proto.Hello{Op: "auto", Room: "game", Players: 2}); !errors.As(err, &e) || e.Code != "room_kind" {
+		t.Errorf("helper into a game room: %v", err)
+	}
+	s.join(fakeClient("H"), proto.Hello{Op: "auto", Room: "helper", Players: 2})
+	if err := s.join(fakeClient("B"), proto.Hello{Op: "join", Room: "helper", Game: "7"}); !errors.As(err, &e) || e.Code != "room_kind" {
+		t.Errorf("game into a helper room: %v", err)
+	}
+}
+
+// Pongs set a player's latency, smoothed; the room hears of it once it moves.
+func TestLatency(t *testing.T) {
+	s := newTestServer(t)
+	a, b := fakeClient("A"), fakeClient("B")
+	s.join(a, proto.Hello{Op: "create", Room: "lat", Game: "7"})
+	s.join(b, proto.Hello{Op: "join", Room: "lat", Game: "7"})
+	lastStatus(t, a)
+	lastStatus(t, b)
+	if st, _ := func() (proto.Status, uint32) {
+		s.mu.Lock()
+		s.notify(s.rooms["lat"])
+		s.mu.Unlock()
+		return lastStatus(t, a)
+	}(); !reflect.DeepEqual(st.Latency, []int{-1, -1}) {
+		t.Errorf("before any pong: %v", st.Latency)
+	}
+	a.rtt.Store(20_000)
+	b.rtt.Store(45_400)
+	s.refreshLatency()
+	if st, _ := lastStatus(t, b); !reflect.DeepEqual(st.Latency, []int{20, 45}) {
+		t.Errorf("measured: %v", st.Latency)
+	}
+	lastStatus(t, a)
+	b.rtt.Store(46_000) // jitter: no new status
+	s.refreshLatency()
+	select {
+	case f := <-a.out:
+		t.Errorf("a status for 1 ms of jitter: %c", f.Type)
+	default:
+	}
+	b.rtt.Store(60_000)
+	s.refreshLatency()
+	if st, _ := lastStatus(t, a); !reflect.DeepEqual(st.Latency, []int{20, 60}) {
+		t.Errorf("moved: %v", st.Latency)
+	}
+}
+
+// A pong over TCP: the stamp of the server's ping, sent back.
+func TestPongOverTCP(t *testing.T) {
+	s := newTestServer(t)
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	go s.serve(ln)
+	p, _ := dial(t, ln.Addr().String(), proto.Hello{Op: "create", Room: "pong", Name: "A", Game: "7"})
+	stamp := make([]byte, 8)
+	binary.BigEndian.PutUint64(stamp, uint64(time.Now().Add(-30*time.Millisecond).UnixNano()))
+	proto.WriteFrame(p, proto.Frame{Type: proto.TypePong, Payload: stamp})
+	deadline := time.Now().Add(5 * time.Second)
+	for time.Now().Before(deadline) {
+		s.mu.Lock()
+		var ms int
+		for _, m := range s.rooms["pong"].members {
+			ms = m.latencyMs()
+		}
+		s.mu.Unlock()
+		if ms >= 30 && ms < 1000 {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Error("the pong set no latency")
 }

@@ -502,7 +502,10 @@ msgid ""
 "Applies the next time the game starts."
 msgstr ""
 
-msgid "Link play"
+msgid "Link play (advanced)"
+msgstr ""
+
+msgid "To race friends over the Internet, use Online in the home menu: no port to open, player names, standings, the room's settings for everyone. Link play joins cabinets directly, on a local network, or through the daytona-link helper."
 msgstr ""
 
 msgid "Link play (experimental, reset)"
@@ -518,6 +521,9 @@ msgid "Next cabinet (host:port)"
 msgstr ""
 
 msgid "Synchronise frames (each cabinet waits for the master)"
+msgstr ""
+
+msgid "On a local network only: every frame waits for the data to go round all the cabinets, so over the Internet the game slows down (22 frames/s with 20 ms between two cabinets)."
 msgstr ""
 
 msgid "Network: %s"
@@ -752,6 +758,9 @@ msgstr ""
 msgid "First choose the Daytona Revision A ROM set in Settings."
 msgstr ""
 
+msgid "Waiting for the other players to finish choosing..."
+msgstr ""
+
 msgid "Cabinet"
 msgstr ""
 
@@ -905,6 +914,9 @@ msgstr ""
 msgid "Players"
 msgstr ""
 
+msgid "%d ms"
+msgstr ""
+
 msgid "Player %d"
 msgstr ""
 
@@ -915,6 +927,9 @@ msgid " (you)"
 msgstr ""
 
 msgid "Next race:"
+msgstr ""
+
+msgid "Latency to the server, round trip; between two players it is about the sum."
 msgstr ""
 
 msgid "Waiting for at least one more player."
@@ -1019,6 +1034,9 @@ msgstr ""
 msgid "The server refused the room's settings."
 msgstr ""
 
+msgid "This room belongs to the daytona-link helper, not to the game's Online mode."
+msgstr ""
+
 msgid "This room was created by another version of the game: every player needs the same version."
 msgstr ""
 
@@ -1047,4 +1065,7 @@ msgid "Invalid answer from the server."
 msgstr ""
 
 msgid "The game is not reading the data it receives."
+msgstr ""
+
+msgid "Invalid data from another player: is everyone on the same version of the game?"
 msgstr ""

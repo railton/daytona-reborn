@@ -52,7 +52,7 @@ import (
 
 const (
 	Magic      = "DAYTONA-RELAY"
-	Version    = 3
+	Version    = 4
 	MaxPlayers = 8
 	MinPlayers = 2
 	MaxPayload = 16 * 1024
@@ -65,6 +65,7 @@ const (
 	TypeControl byte = 'C' // client -> server -> every other member: the games' own coordination (course choice)
 	TypeBegin   byte = 'G' // client -> server: the room's owner starts a race with everyone in the room
 	TypeInfo    byte = 'I' // server -> client, answering op=info: "key=value" lines, the race settings' defaults
+	TypePong    byte = 'O' // client -> server: a ping's payload (the server's time stamp) sent straight back
 )
 
 var roomRe = regexp.MustCompile(`^[a-z0-9_-]{1,32}$`)
@@ -295,6 +296,8 @@ type Status struct {
 	Racing   bool     // a race's ring is formed
 	Waiting  []string // in the room but not in the race: the next one
 	Me       int      // this client's line in Names, 1-based; 0: in Waiting
+	// Latency to the server, round trip in ms, as Names and Waiting; -1: not measured yet.
+	Latency, WaitingLatency []int
 }
 
 func (s Status) Encode() []byte {
@@ -332,6 +335,23 @@ func (s Status) Encode() []byte {
 	for _, n := range s.Waiting {
 		fmt.Fprintf(&b, "waiting=%s\n", url.PathEscape(n))
 	}
+	writeInts := func(key string, v []int) {
+		if len(v) == 0 {
+			return
+		}
+		b.WriteString(key + "=")
+		for i, n := range v {
+			if i > 0 {
+				b.WriteByte(',')
+			}
+			if n >= 0 {
+				b.WriteString(strconv.Itoa(n))
+			}
+		}
+		b.WriteByte('\n')
+	}
+	writeInts("lat", s.Latency)
+	writeInts("wlat", s.WaitingLatency)
 	return []byte(b.String())
 }
 
@@ -369,6 +389,20 @@ func DecodeStatus(p []byte) (Status, error) {
 			s.Racing = v == "1"
 		case "me":
 			s.Me, _ = strconv.Atoi(v)
+		case "lat", "wlat":
+			var list []int
+			for _, x := range strings.Split(v, ",") {
+				n, err := strconv.Atoi(x)
+				if err != nil {
+					n = -1
+				}
+				list = append(list, n)
+			}
+			if k == "lat" {
+				s.Latency = list
+			} else {
+				s.WaitingLatency = list
+			}
 		case "waiting":
 			n, _ := url.PathUnescape(v)
 			s.Waiting = append(s.Waiting, n)

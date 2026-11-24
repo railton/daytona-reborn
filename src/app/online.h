@@ -19,7 +19,7 @@ constexpr size_t kMaxName = 20;
 // data, how it starts and joins races). The server keeps a room to one
 // version, so every player of a room behaves the same. Raise it with any
 // such change.
-constexpr int kOnlineVersion = 6;
+constexpr int kOnlineVersion = 7;
 
 // What a friend needs to join: the server, the room, the server's password.
 struct Invite {
@@ -65,6 +65,9 @@ struct Status {
     bool racing = false;    // a race's ring is formed
     std::vector<std::string> waiting; // in the room, not in the race: the next one
     int me = 0; // this player's line in names, 1-based; 0: in waiting
+    // Each player's latency to the server, round trip in ms, as names and
+    // waiting; -1: not measured yet. Between two players: about the sum.
+    std::vector<int> latency, waiting_latency;
 };
 std::optional<Status> parse_status(const std::string &payload);
 
@@ -76,6 +79,7 @@ constexpr uint8_t kData = 'D', kStatus = 'S', kPing = 'P', kError = 'E';
 constexpr uint8_t kControl = 'C'; // to every other player of the room (rt::online::CourseSync)
 constexpr uint8_t kBegin = 'G';   // the room's owner starts a race with everyone in the room
 constexpr uint8_t kInfo = 'I';    // the server's answer to Hello::Op::Info
+constexpr uint8_t kPong = 'O';    // a ping with a payload (the server's stamp), sent straight back
 constexpr size_t kHeader = 7, kMaxPayload = 16 * 1024;
 void append_frame(std::string &out, uint8_t type, uint32_t epoch, const uint8_t *payload, size_t n);
 

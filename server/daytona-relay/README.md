@@ -67,6 +67,10 @@ In the game's home menu, **Online**:
    **Copy the code** and send it to the friends. It holds the server, the room
    and the password, with a check, so a cut or mistyped code is refused.
 2. The friends type a name, paste the code under **Join a room**, **Join**.
+   The room's screen lists the players, each with their latency to the
+   server (round trip, measured every 2 s; green up to 60 ms, yellow up to
+   120 ms, red above). Between two players the delay is about the sum of
+   theirs.
 3. The room's owner presses **Start the race** when everyone is in: the game
    starts for everyone then in the room, the owner being the MASTER. Who joins
    later waits on the room's screen for the next race, which the owner starts
@@ -117,27 +121,37 @@ after another has closed is expected.
 
 - Not yet tried with players on different networks and cities. Every hop goes
   through the server: pick one close to every player.
+- The arcade's link expects the ring's round trip within a frame (cables
+  between cabinets). Online games run at full speed without frame sync;
+  before the race each waits for the others (a start barrier) so all start
+  together, and in the race the other cars are as old as the network makes
+  them. Rooms of 4 or more with long round trips (from Brazil to Europe,
+  ~230 ms each) do not get past the game's network check at boot yet; 2
+  players do. See `../../docs/ONLINE_FRAME_SYNC.md`.
+- Traffic: the game compresses its link data (`src/app/link_codec.h`): a
+  game frame of 7170 bytes became 121 / 197 / 323 bytes on average over
+  captured 2 / 4 / 8 player sessions, about 0.1 to 0.3 Mbit/s each way a
+  player; the server carries the room's sum.
 - Only Revision A (`daytona`) has link play.
 
 Every game tells the server its online version; a room only takes games of
 the version that created it, so every player of a room behaves the same.
 
-Online version 5 enables the communication board's frame synchronization in
-both the desktop game and `m2run --relay`. A faster cabinet waits for the
-ring instead of advancing its countdown independently. The existing
-3-second token timeout still applies, and a slow cabinet can slow the room.
-All players must rebuild to join the same room; the relay needs no update
-for this version change. Local timing measurements and diagnostic commands
-are in `../../docs/ONLINE_FRAME_SYNC.md`.
+The game's rooms and the `daytona-link` helper's do not mix (error
+`room_kind`): the game compresses its link data, the helper passes the
+unmodified game's bytes.
 
 ## Protocol
 
 One TCP connection a player. A greeting line
-(`DAYTONA-RELAY 3 op=create|join room=... name=... pass=... v=... [set=key:value,...]`;
+(`DAYTONA-RELAY 4 op=create|join room=... name=... pass=... v=... [set=key:value,...]`;
 `op=info`, answered by one `I` frame with the defaults; `op=auto players=N`
 for the helper's fixed-size rooms), then
-frames `type (1) | epoch (4) | length (2) | data`: `D` the game's bytes, `S`
-the room's state, `P` ping, `C` the games' own coordination (the MASTER's
+frames `type (1) | epoch (4) | length (2) | data`: `D` one comm-board wire
+frame (compressed by the game, `src/app/link_codec.h`; raw from the helper),
+`S` the room's state (with each player's latency, `lat=` and `wlat=` in ms),
+`P` ping (the server's every 2 s carry an 8-byte time stamp), `O` the
+game's answer to it (the same stamp: the round trip is the latency), `C` the games' own coordination (the MASTER's
 course, to every other player), `G` the owner starting a race, `E` a refusal (`code\ntext`; the game shows its
 own text for the code, in the player's language). The epoch changes whenever
 someone joins or leaves, and an old ring's data is dropped. Details in

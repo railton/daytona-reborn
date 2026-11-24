@@ -11,6 +11,7 @@
 // lookup and the connect run on a thread of their own.
 #pragma once
 
+#include "app/link_codec.h"
 #include "app/online.h"
 #include "runtime/comm_board.h"
 
@@ -66,6 +67,7 @@ private:
     uint32_t epoch_ = 0;
     std::string out_, in_, inbox_; // to the server; from it (unparsed); for the game
     std::vector<std::string> controls_;
+    online::LinkCodec tx_codec_, rx_codec_; // this ring's wire frames, each way (app/link_codec.h)
     size_t inbox_pos_ = 0;
     uint64_t last_rx_ms_ = 0, last_tx_ms_ = 0;
     void fail(const std::string &why);

@@ -540,8 +540,11 @@ msgstr ""
 "Images intermédiaires entre celles du jeu. Demande le rendu Matériel et le double tampon.\n"
 "Pris en compte au prochain lancement du jeu."
 
-msgid "Link play"
-msgstr "Jeu en réseau"
+msgid "Link play (advanced)"
+msgstr "Jeu en réseau (avancé)"
+
+msgid "To race friends over the Internet, use Online in the home menu: no port to open, player names, standings, the room's settings for everyone. Link play joins cabinets directly, on a local network, or through the daytona-link helper."
+msgstr "Pour courir avec des amis sur Internet, utilisez En ligne dans le menu d'accueil : aucun port à ouvrir, noms des joueurs, classement, les réglages de la salle pour tous. Le jeu en réseau relie les bornes directement, sur un réseau local, ou via l'utilitaire daytona-link."
 
 msgid "Link play (experimental, reset)"
 msgstr "Jeu en réseau (expérimental, réinitialiser)"
@@ -557,6 +560,9 @@ msgstr "Borne suivante (hôte:port)"
 
 msgid "Synchronise frames (each cabinet waits for the master)"
 msgstr "Synchroniser les images (chaque borne attend la principale)"
+
+msgid "On a local network only: every frame waits for the data to go round all the cabinets, so over the Internet the game slows down (22 frames/s with 20 ms between two cabinets)."
+msgstr "Sur un réseau local seulement : chaque image attend que les données fassent le tour de toutes les bornes, donc sur Internet le jeu ralentit (22 images/s avec 20 ms entre deux bornes)."
 
 msgid "Network: %s"
 msgstr "Réseau : %s"
@@ -803,6 +809,9 @@ msgstr "Le jeu n’a pas confirmé le départ."
 msgid "First choose the Daytona Revision A ROM set in Settings."
 msgstr "Choisissez d'abord le jeu de ROM Daytona Revision A dans Réglages."
 
+msgid "Waiting for the other players to finish choosing..."
+msgstr "En attente que les autres joueurs finissent de choisir..."
+
 msgid "Cabinet"
 msgstr "Borne"
 
@@ -956,6 +965,9 @@ msgstr "Envoyez-le à vos amis : ils le collent dans Rejoindre."
 msgid "Players"
 msgstr "Joueurs"
 
+msgid "%d ms"
+msgstr "%d ms"
+
 msgid "Player %d"
 msgstr "Joueur %d"
 
@@ -967,6 +979,9 @@ msgstr " (vous)"
 
 msgid "Next race:"
 msgstr "Prochaine course :"
+
+msgid "Latency to the server, round trip; between two players it is about the sum."
+msgstr "Latence jusqu'au serveur, aller-retour ; entre deux joueurs, c'est environ la somme."
 
 msgid "Waiting for at least one more player."
 msgstr "En attente d'au moins un autre joueur."
@@ -1070,6 +1085,9 @@ msgstr "Nombre de joueurs invalide : de 2 à 8."
 msgid "The server refused the room's settings."
 msgstr "Le serveur a refusé les réglages de la salle."
 
+msgid "This room belongs to the daytona-link helper, not to the game's Online mode."
+msgstr "Cette salle appartient à l'utilitaire daytona-link, pas au mode En ligne du jeu."
+
 msgid "This room was created by another version of the game: every player needs the same version."
 msgstr "Cette salle a été créée par une autre version du jeu : tous les joueurs doivent avoir la même version."
 
@@ -1099,3 +1117,6 @@ msgstr "Réponse invalide du serveur."
 
 msgid "The game is not reading the data it receives."
 msgstr "Le jeu ne lit pas les données reçues."
+
+msgid "Invalid data from another player: is everyone on the same version of the game?"
+msgstr "Données invalides d'un autre joueur : tout le monde a-t-il la même version du jeu ?"

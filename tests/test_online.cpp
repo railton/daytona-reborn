@@ -78,21 +78,21 @@ int main() {
     h.room = "abc";
     h.name = "Jo\xC3\xA3o S";
     h.password = "a b";
-    CHECK(hello_line(h) == "DAYTONA-RELAY 3 op=create room=abc name=Jo%C3%A3o%20S pass=a%20b v=" +
+    CHECK(hello_line(h) == "DAYTONA-RELAY 4 op=create room=abc name=Jo%C3%A3o%20S pass=a%20b v=" +
                                std::to_string(kOnlineVersion) + "\n");
     h.op = Hello::Op::Join;
     h.name.clear();
     h.password.clear();
-    CHECK(hello_line(h) == "DAYTONA-RELAY 3 op=join room=abc v=" + std::to_string(kOnlineVersion) + "\n");
+    CHECK(hello_line(h) == "DAYTONA-RELAY 4 op=join room=abc v=" + std::to_string(kOnlineVersion) + "\n");
     // settings go with a create only; info has no room
     h.settings = "difficulty:hard,start:anyone";
-    CHECK(hello_line(h) == "DAYTONA-RELAY 3 op=join room=abc v=" + std::to_string(kOnlineVersion) + "\n");
+    CHECK(hello_line(h) == "DAYTONA-RELAY 4 op=join room=abc v=" + std::to_string(kOnlineVersion) + "\n");
     h.op = Hello::Op::Create;
-    CHECK(hello_line(h) == "DAYTONA-RELAY 3 op=create room=abc v=" + std::to_string(kOnlineVersion) +
+    CHECK(hello_line(h) == "DAYTONA-RELAY 4 op=create room=abc v=" + std::to_string(kOnlineVersion) +
                                " set=difficulty%3Ahard%2Cstart%3Aanyone\n");
     h.op = Hello::Op::Info;
     h.password = "pw";
-    CHECK(hello_line(h) == "DAYTONA-RELAY 3 op=info pass=pw v=" + std::to_string(kOnlineVersion) + "\n");
+    CHECK(hello_line(h) == "DAYTONA-RELAY 4 op=info pass=pw v=" + std::to_string(kOnlineVersion) + "\n");
     // the server's answer (Race.Info)
     const auto info = parse_info("cabinet=twin\ndifficulty=hard\nbad\n=x\n");
     CHECK(info.size() == 2 && info[0].first == "cabinet" && info[1].second == "hard");
@@ -111,6 +111,10 @@ int main() {
                              "owner=1\nracing=1\nme=1\nwaiting=Ana%20Maria\n");
     CHECK(race && race->owner && race->racing && race->me == 1 && race->size == 2 && race->joined == 3);
     CHECK(race->waiting.size() == 1 && race->waiting[0] == "Ana Maria");
+    // latencies (ms, round trip), as names and waiting; empty: not measured yet
+    auto lat = parse_status("joined=3 size=0 pos=0 ready=0\neeprom=\nname=A\nname=B\nwaiting=C\nlat=18,\nwlat=132\n");
+    CHECK(lat && lat->latency.size() == 2 && lat->latency[0] == 18 && lat->latency[1] == -1);
+    CHECK(lat->waiting_latency.size() == 1 && lat->waiting_latency[0] == 132);
     CHECK(st && st->ready && st->any_start && st->eeprom.empty());
     CHECK(!parse_status("garbage"));
 

@@ -339,6 +339,18 @@ OnlineMenu::Action OnlineMenu::draw(Config &cfg, const RelayLink *link, bool rac
         // will take (the room's owner first); then who waits for the next race
         section(TX("Players"));
         const bool me_in_race = st.position > 0;
+        // each player's latency to the server, at the right: green, yellow, red
+        const float latency_x = ImGui::GetContentRegionMax().x - ImGui::CalcTextSize("9999 ms").x;
+        auto latency = [&](const std::vector<int> &list, size_t i) {
+            const int ms = i < list.size() ? list[i] : -1;
+            ImGui::SameLine(latency_x);
+            if (ms < 0) {
+                ImGui::TextDisabled("--");
+                return;
+            }
+            const ImVec4 colour = ms <= 60 ? good : ms <= 120 ? ImVec4(1, 0.85f, 0.35f, 1) : ImVec4(1, 0.42f, 0.38f, 1);
+            ImGui::TextColored(colour, TX("%d ms"), ms);
+        };
         for (int i = 0; i < int(st.names.size()); ++i) {
             const bool me = i + 1 == st.me;
             char unnamed[64];
@@ -346,11 +358,17 @@ OnlineMenu::Action OnlineMenu::draw(Config &cfg, const RelayLink *link, bool rac
             ImGui::TextColored(me ? good : ImVec4(0.91f, 0.97f, 1, 1), "%d. %s%s%s", i + 1,
                                st.names[i].empty() ? unnamed : st.names[i].c_str(), i == 0 ? TX(" (starts the race)") : "",
                                me ? TX(" (you)") : "");
+            latency(st.latency, size_t(i));
         }
         if (!st.waiting.empty()) {
             ImGui::TextDisabled("%s", TX("Next race:"));
-            for (const auto &name : st.waiting) ImGui::TextDisabled("   %s", name.empty() ? "-" : name.c_str());
+            for (size_t i = 0; i < st.waiting.size(); ++i) {
+                ImGui::TextDisabled("   %s", st.waiting[i].empty() ? "-" : st.waiting[i].c_str());
+                latency(st.waiting_latency, i);
+            }
         }
+        if (!st.latency.empty())
+            ImGui::TextDisabled("%s", TX("Latency to the server, round trip; between two players it is about the sum."));
         ImGui::Dummy({0, 4.f * scale});
         ImGui::PushTextWrapPos(0);
         if (!st.racing) {

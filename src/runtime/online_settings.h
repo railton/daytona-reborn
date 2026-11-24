@@ -107,6 +107,73 @@ struct StartGate {
     }
 };
 
+// Online: everyone starts the race together, without frame sync. The game's
+// link protocol expects the ring's round trip within a frame (cables between
+// cabinets); over the Internet frame sync slows every frame to that round
+// trip (measured through the relay, 2 cabinets: 57.5 frames/s at 0 ms, 22.1
+// at 20 ms, 11.7 at 40 ms) and a paused player stops everyone. Without it
+// the games run at full speed, but the MASTER's selection waits on the
+// others' answers and it reached the race seconds after them (4 cabinets,
+// 40 ms: 4.6 to 5.4 s; through a relay in Europe from Brazil, 10.5 s). So
+// each game, on entering mode 21 (the last before the race), tells the room
+// ("arrived=RACE:PLACE") and holds there, its game frames stopped, until
+// every game of the ring has arrived (or `timeout_ms`); then all start,
+// within a message's trip of each other. While held its comm board keeps
+// ticking (M2Board::link_idle_tick): a game still selecting needs the held
+// ones' answers (with the link frozen too, the MASTER never finished its
+// selection).
+class StartBarrier {
+public:
+    static constexpr int hold_mode = 21;
+    static constexpr uint64_t timeout_ms = 30000;
+
+    // After each game frame: the message to send when this game has just
+    // arrived (and holds from now), else empty.
+    template <class Board> std::string after_frame(Board &board, int place, uint64_t now_ms) {
+        const int mode = board.read_byte(AutoEntry::mode_address);
+        std::string out;
+        if (mode == hold_mode && last_mode_ != hold_mode) {
+            ++race_;
+            arrived_[race_ % 2] |= 1u << (place & 31);
+            holding_ = true;
+            since_ms_ = now_ms;
+            out = "arrived=" + std::to_string(race_) + ":" + std::to_string(place);
+        }
+        last_mode_ = mode;
+        return out;
+    }
+
+    // A message from another game: true if it was the barrier's.
+    bool receive(const std::string &message) {
+        int race = 0, place = 0;
+        if (std::sscanf(message.c_str(), "arrived=%d:%d", &race, &place) != 2) return false;
+        if (race == race_ + 1) arrived_[race % 2] |= 1u << (place & 31); // ahead of this game: kept for its arrival
+        else if (race == race_) arrived_[race % 2] |= 1u << (place & 31);
+        return true;
+    }
+
+    // Whether this game waits now; ring_size: the games of the race.
+    bool holding(int ring_size, uint64_t now_ms) {
+        if (!holding_) return false;
+        const uint32_t all = ring_size >= 32 ? ~0u : ((1u << (ring_size + 1)) - 2); // places 1..ring_size
+        if ((arrived_[race_ % 2] & all) == all || now_ms - since_ms_ >= timeout_ms) {
+            holding_ = false;
+            arrived_[race_ % 2] = 0; // this slot serves the race after next
+            waited_ms_ = now_ms - since_ms_;
+        }
+        return holding_;
+    }
+
+    uint64_t waited_ms() const { return waited_ms_; } // the last wait, for the log
+    void clear() { *this = StartBarrier{}; }
+
+private:
+    int race_ = 0, last_mode_ = -1;
+    uint32_t arrived_[2] = {}; // by race parity: places (bit N = place N) arrived
+    bool holding_ = false;
+    uint64_t since_ms_ = 0, waited_ms_ = 0;
+};
+
 // Online: the MASTER's course for the whole room. Linked cabinets each choose
 // their own course, and the guest settles a disagreement by itself (observed
 // 23/11: MASTER Expert, SLAVE Beginner -> both race Beginner). So the MASTER

@@ -155,6 +155,12 @@ public:
     // nullptr: no link, the registers stay plain). Set before the game runs.
     void set_link(LinkTransport *transport, bool framesync = false);
     const CommBoard *comm_board() const { return comm_board_.get(); }
+    // A frame of the link alone, the game held (rt::online::StartBarrier): the
+    // comm board still reads, answers with the game's last state and passes the
+    // tokens on, so the other games are not starved while this one waits.
+    void link_idle_tick() {
+        if (comm_board_) comm_board_->vblank();
+    }
 #ifdef M2_DC_SPIN_SKIP
     uint64_t spin_skipped() const { return spin_skipped_; } // instructions skipped in the frame wait (read_byte)
 #endif

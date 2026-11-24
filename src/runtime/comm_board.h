@@ -18,6 +18,7 @@
 // here at all: M2Board keeps its plain registers and the game sees no link.
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 #include <vector>
 
@@ -65,6 +66,7 @@ private:
     uint8_t zfg_ = 0, cn_ = 0, fg_ = 0, framesync_ = 0;
     uint8_t linkenable_ = 0, linkalive_ = 0, linkid_ = 0, linkcount_ = 0, zfg_delay_ = 0;
     uint16_t linktimer_ = 0;
+    std::chrono::steady_clock::time_point last_fg_poll_{}; // read_fg's transport poll, at most once a ms
     uint8_t buffer0_[0x1000] = {};
     std::vector<uint8_t> rx_; // bytes received toward the next whole frame
     void comm_tick();

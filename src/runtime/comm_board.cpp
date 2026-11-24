@@ -243,6 +243,17 @@ void CommBoard::read_fg() {
         return;
     }
     if (linkalive_ != 0x01 || !transport_) return;
+    // The guest polls fg while it waits for the other cabinets' data. MAME
+    // reads its sockets right here; our non-blocking transport only fetches
+    // what arrived when polled, and without frame sync nothing else polled it
+    // until the next vblank: a guest waiting inside a frame waited out its own
+    // timeout instead (6 to 9 s stalls entering the selection, measured
+    // through the relay). At most once a millisecond: the guest reads fg in
+    // tight loops.
+    if (const auto now = std::chrono::steady_clock::now(); now - last_fg_poll_ >= std::chrono::milliseconds(1)) {
+        last_fg_poll_ = now;
+        transport_->poll();
+    }
     const int frame_start = 0x2000;
     const int frame_size = shared_[0x13] << 8 | shared_[0x12];
     const int frame_offset = frame_start | shared_[0x15] << 8 | shared_[0x14];

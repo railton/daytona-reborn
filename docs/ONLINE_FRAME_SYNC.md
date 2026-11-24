@@ -6,6 +6,58 @@ ordinary scripted Start, steering and pedal inputs. No live guest RAM or
 generated code was changed. The observed milestone is entry into mode 22
 at `0x5010a0`, not a screenshot-based measurement of the green light.
 
+## Superseded: no frame sync online, a start barrier
+
+The measurements below were taken without network latency. With latency
+added to the local relay's outgoing packets (`tc netem`), frame sync held
+for the whole session slows every frame to the ring's round trip, and a
+pause stops everyone:
+
+| Frame sync | 0 ms | 20 ms | 40 ms |
+| --- | ---: | ---: | ---: |
+| On, all session (2 cabinets) | 57.5 frames/s | 22.1 | 11.7 |
+| Off (2 cabinets) | 57.5 | | 57.5 |
+
+- A 5 s stall of one cabinet (`M2_TEST_STALL_AT/MS`, as the game's Esc
+  pause): with frame sync on, the other cabinet froze about 3 s and both
+  lost the link; the stalled one froze another 3 s after it resumed. With
+  frame sync off both carried on, the link up.
+- Frame sync held only from the entry to the start (tried first) deadlocked
+  2 cabinets at 0 and 20 ms: the MASTER went straight to the selection and
+  waited for its token while the SLAVE was still in attract.
+- Off, the comm board fetched received data only once a frame: a guest
+  waiting for the other cabinets inside a frame waited out its own timeout
+  (6.6 s at frame 2510 entering the selection, 0 ms of latency). `read_fg`
+  now polls the transport (at most once a millisecond).
+
+So Online runs without frame sync and lines up the start itself
+(`rt::online::StartBarrier`, `src/runtime/online_settings.h`): each game,
+entering mode 21 (the last before the race), sends "arrived" and holds
+(`M2Board::link_idle_tick` keeps its comm board answering) until every game
+of the ring has arrived. `m2run --relay` does the same
+(`M2_TEST_RELAY_BARRIER=0` turns it off, `M2_TEST_RELAY_SYNC=on` forces
+frame sync).
+
+2 realtime cabinets through a relay in Europe from Brazil (round trip ~229
+ms; the second through a local proxy adding 40 ms each way), scripted
+Start, course, gearbox confirmations, race entry (first mode 22) on the
+same host clock:
+
+| Run | Start to race (MASTER) | Race entry, MASTER after SLAVE | Barrier wait |
+| --- | ---: | ---: | ---: |
+| No barrier, before the `read_fg` fix | | 10.5 s | |
+| No barrier | 21.5 s | 0.02 s | |
+| No barrier (again) | 39.4 s | 6.1 s | |
+| Barrier | 28.6 s | 0.28 s | 2.7 s (SLAVE) |
+| Barrier, 0 ms (local relay) | 20.9 s | 0.03 s | 0.03 s |
+
+The selection's exchanges vary with the route (the same steps took 3 to 7 s,
+the pre-race mode 20 from 5.8 to 10.8 s), hence the barrier. With 4
+cabinets on the same route (two direct, two +80 ms) the game's network check
+at boot failed in every run (with or without the barrier): the link came up
+around frame 500, the cabinets stayed in mode 0, and two of them restarted
+the link every ~825 frames.
+
 ## Results
 
 | Test | Master race frame | Slave race frame | Slave wall time minus master |
@@ -87,7 +139,7 @@ frames 6500
 2740-2759 accel=0xe0
 ```
 
-For the former behavior, set `M2_TEST_RELAY_ASYNC=1` on **both** processes.
+To hold frame sync on for the whole session (as the measurements below this note did; see "Superseded" above), set `M2_TEST_RELAY_SYNC=on` on **all** processes; `M2_TEST_RELAY_BARRIER=0` turns the start barrier off.
 For normal pacing, omit `M2_TEST_FRAME_DELAY_MS`. Fault injection is only in
 the headless tool; `M2_TEST_FRAME_DELAY_FROM` optionally changes its default
 starting frame of 2500. The trace records state/link transitions and a

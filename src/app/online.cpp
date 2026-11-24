@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
 #include <cstdio>
 #include <random>
 #include <sstream>
@@ -190,7 +191,7 @@ std::string percent_decode(const std::string &s) {
 }
 
 std::string hello_line(const Hello &hello) {
-    std::string line = "DAYTONA-RELAY 3 op=";
+    std::string line = "DAYTONA-RELAY 4 op=";
     line += hello.op == Hello::Op::Create ? "create" : hello.op == Hello::Op::Join ? "join" : "info";
     if (hello.op != Hello::Op::Info) line += " room=" + percent_encode(hello.room);
     const std::string name = clean_name(hello.name);
@@ -239,6 +240,16 @@ std::optional<Status> parse_status(const std::string &payload) {
             s.owner = true;
         } else if (line == "racing=1") {
             s.racing = true;
+        } else if (line.rfind("lat=", 0) == 0 || line.rfind("wlat=", 0) == 0) {
+            auto &list = line[0] == 'l' ? s.latency : s.waiting_latency;
+            const std::string values = line.substr(line.find('=') + 1);
+            for (size_t start = 0;;) { // "18,,40": an empty value is one not measured yet
+                const size_t comma = values.find(',', start);
+                const std::string v = values.substr(start, comma == std::string::npos ? std::string::npos : comma - start);
+                list.push_back(v.empty() ? -1 : std::atoi(v.c_str()));
+                if (comma == std::string::npos) break;
+                start = comma + 1;
+            }
         } else if (line.rfind("me=", 0) == 0) {
             s.me = std::atoi(line.c_str() + 3);
         } else if (line.rfind("waiting=", 0) == 0) {
