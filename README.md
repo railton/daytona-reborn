@@ -3,7 +3,7 @@
 **Daytona USA (Sega Model 2, 1994) rebuilt as native code for the PC, with
 online play for up to 8 players.**
 
-![The home screen: a sunset speedway behind the menu](docs/images/home-screen.jpg)
+![The home screen: the Solo and Online cards over a sunset speedway](docs/images/home-screen.jpg)
 
 The arcade's programs are statically recompiled to portable C++: the i960
 game code, the TGP program it uploads and the sound board's 68000 code. The
@@ -120,6 +120,19 @@ Command line: `--rom FILE.zip`, `--fullscreen`, `--gpu vulkan|direct3d12|metal`,
 `--audio native|reference`, `--profile NAME` (separate settings and saves,
 e.g. a second player on the same computer), `--online`, `--settings`,
 `--arcade` (the cabinet launcher instead of the home menu), `--autostart`.
+
+## Screenshots
+
+The PC home and its screens (Revision A). Every picture is the application's
+own interface and its 3D speedway, captured with `--capture-home`; no game
+frame is shown.
+
+| | |
+| --- | --- |
+| ![The Online card: an invite code pasted on its own, Create a new room, Join the room](docs/images/home-online.jpg) | ![In a room: its eight places in the cars' colours, the owner crowned, Start the race](docs/images/home-room.jpg) |
+| **Online**: the invite code is pasted on its own; or create a room. | **In a room**: its places in the cars' colours, what it waits for. |
+| ![The room's settings: name, server, and the race settings as choices](docs/images/room-settings.jpg) | ![Settings: six tabs in one scrolling column](docs/images/settings.jpg) |
+| **Room settings**: name, server, and the race for every player. | **Settings**: display, enhancements, controls, sound. |
 
 ## Online play
 

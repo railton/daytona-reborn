@@ -14,6 +14,8 @@ rule 14); each version has its section here.
   that answered; `M2_CAPTURE_ONLINE_CONNECTED=1` fills the room's settings
   with an example name and server (shown, not saved). For the README's
   pictures.
+- **README: new pictures** of the home screen (Solo, Online, in a room),
+  the room's settings and Settings, in `docs/images/`.
 
 ## 0.14.2 (2026-11-24)
 
