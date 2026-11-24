@@ -2093,17 +2093,19 @@ int main(int argc, char **argv) {
                         if (st.me >= 1 && size_t(st.me) <= st.latency.size()) home_online.latency_ms = st.latency[size_t(st.me - 1)];
                     }
                 }
-                // diagnostic: M2_CAPTURE_HOME_ONLINE=online|room shows the Online card (a code pasted, or in a
-                // room of 3), as with a server that answered, for a --capture-home image
+                // diagnostic: M2_CAPTURE_HOME_ONLINE=solo|online|room shows the home as with a name and a server
+                // that answered: the Solo card, the Online card (a code pasted), or in a room of 3; for a
+                // --capture-home image
                 if (const char *fake = capture_image ? std::getenv("M2_CAPTURE_HOME_ONLINE") : nullptr) {
                     static const std::string code = app::online::encode_invite({"relay-eu.example:7777", app::online::random_room(), ""});
                     static bool once = [&] {
+                        if (!std::strcmp(fake, "solo")) return true;
                         home_menu.show_online();
                         if (std::strcmp(fake, "room") != 0) home_menu.paste_invite(code);
                         return true;
                     }();
                     (void)once;
-                    if (home_online.name.empty()) home_online.name = "Railton";
+                    if (home_online.name.empty()) home_online.name = "Alex";
                     home_online.server = "relay-eu.example";
                     home_online.settings = "difficulty:normal,cabinet:twin,start:master";
                     home_online.probe = Probe::Ok;
@@ -2221,7 +2223,7 @@ int main(int argc, char **argv) {
                 app::online::Status demo;
                 demo.size = demo.joined = 8;
                 demo.position = 2;
-                demo.names = {"Railton", "Jo\xc3\xa3o", "Ana", "Pedro", "", "Marina", "Luiz", "Bia"};
+                demo.names = {"Alex", "Jo\xc3\xa3o", "Ana", "Pedro", "", "Marina", "Luiz", "Bia"};
                 const char mode = std::getenv("M2_CAPTURE_ONLINE_NAMES")[0];
                 if (mode == '3') { // =3: the name tags, over three cars of a 496x384 picture
                     app::CarTagOverlay tags;

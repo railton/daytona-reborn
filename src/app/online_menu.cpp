@@ -286,6 +286,8 @@ OnlineMenu::Action OnlineMenu::draw(Config &cfg, const RelayLink *link, bool rac
         load(cfg);
         // diagnostic: M2_CAPTURE_ONLINE_CONNECTED=1 shows the room settings as after Connect, for a --capture-home image
         if (const char *v = std::getenv("M2_CAPTURE_ONLINE_CONNECTED"); v && *v == '1') {
+            if (!*name_) copy_to(name_, sizeof name_, "Alex"); // shown only, not saved
+            if (!*server_buf_) copy_to(server_buf_, sizeof server_buf_, "relay-eu.example");
             server_ = online::normalize_server(server_buf_).value_or("127.0.0.1:7777");
             probed_ = server_;
             connected(cfg, {{"cabinet", "twin"}, {"difficulty", "hard"}});

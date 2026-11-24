@@ -4,6 +4,17 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`). The
 fork's version is in `VERSION`, raised with every code change (rules.md
 rule 14); each version has its section here.
 
+## 0.14.3 (2026-11-24)
+
+### Changed
+
+- **Example names are generic**: the capture diagnostics, the tests and the
+  relay's protocol comments use "Alex" where a real name was.
+- `M2_CAPTURE_HOME_ONLINE=solo` shows the Solo card with a name and a server
+  that answered; `M2_CAPTURE_ONLINE_CONNECTED=1` fills the room's settings
+  with an example name and server (shown, not saved). For the README's
+  pictures.
+
 ## 0.14.2 (2026-11-24)
 
 ### Fixed

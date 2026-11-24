@@ -4,7 +4,7 @@
 // The client opens one TCP connection and sends a single text line, values
 // percent-encoded:
 //
-//	DAYTONA-RELAY 3 op=create room=k7f3q9xz name=Railton pass=segredo set=difficulty:hard,cabinet:twin\n
+//	DAYTONA-RELAY 3 op=create room=k7f3q9xz name=Alex pass=segredo set=difficulty:hard,cabinet:twin\n
 //
 // op: info (no room: the server answers one Info frame, its race settings'
 // defaults, then closes; a wrong password is refused as for any op), create
@@ -30,7 +30,7 @@
 //
 //	joined=2 size=3 pos=1 ready=0
 //	eeprom=19:00,1a:01,1b:01,1c:00,1d:00,20:01
-//	name=Railton
+//	name=Alex
 //	name=Jo%C3%A3o
 //
 // eeprom: the race settings every player's game applies (offset:value in the

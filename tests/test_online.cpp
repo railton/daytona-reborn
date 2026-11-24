@@ -107,7 +107,7 @@ int main() {
 
     // status (as the Go server's Status.Encode writes it); offsets the
     // server may not set are dropped
-    auto st = parse_status("joined=2 size=3 pos=2 ready=0\neeprom=1a:01,20:03,0b:00,10:1a\nname=Railton\nname=Jo%C3%A3o\n");
+    auto st = parse_status("joined=2 size=3 pos=2 ready=0\neeprom=1a:01,20:03,0b:00,10:1a\nname=Alex\nname=Jo%C3%A3o\n");
     CHECK(st && st->joined == 2 && st->size == 3 && st->position == 2 && !st->ready);
     CHECK(st->eeprom.size() == 3 && st->eeprom[0].offset == 0x1a && st->eeprom[1].value == 3 && st->eeprom[2].offset == 0x10);
     CHECK(st->names.size() == 2 && st->names[1] == "Jo\xC3\xA3o");

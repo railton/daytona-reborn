@@ -57,7 +57,7 @@ func TestCleanName(t *testing.T) {
 
 func TestStatusRoundTrip(t *testing.T) {
 	in := Status{Joined: 3, Size: 2, Position: 2, Ready: true,
-		EEPROM: []Setting{{0x1a, 1}, {0x20, 3}}, Names: []string{"Railton", "João"}, AnyStart: true,
+		EEPROM: []Setting{{0x1a, 1}, {0x20, 3}}, Names: []string{"Alex", "João"}, AnyStart: true,
 		Owner: true, Racing: true, Waiting: []string{"Ana Maria"}, Me: 2,
 		Latency: []int{18, -1}, WaitingLatency: []int{132}}
 	out, err := DecodeStatus(in.Encode())
