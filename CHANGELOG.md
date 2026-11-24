@@ -4,6 +4,20 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`). The
 fork's version is in `VERSION`, raised with every code change (rules.md
 rule 14); each version has its section here.
 
+## 0.14.5 (2026-11-24)
+
+### Fixed
+
+- **Windows: paths with accents open.** A ROM set in a folder such as
+  "Área de Trabalho" was refused ("cannot open"): the game keeps its paths
+  in UTF-8, but Windows read them in the system's regional code page. The
+  game's executable now carries a manifest that makes its code page UTF-8
+  (`src/app/windows/daytona.manifest`; Windows 10 1903 or later), for every
+  file it opens: the ROM set, its settings, translations and log (a Windows
+  user name with accents too). MinGW builds (`Build Daytona.bat`, the
+  Docker cross-build) embed it through `daytona.rc`, Visual Studio builds
+  take the manifest itself.
+
 ## 0.14.4 (2026-11-24)
 
 ### Home screen

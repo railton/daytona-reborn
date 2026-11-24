@@ -68,7 +68,7 @@ private:
     std::string invite_text_, name_text_, seen_clip_;
     bool pasted_ = false;       // the invite came from the clipboard
     double clipboard_at_ = -10; // when the clipboard was last looked at
-    bool invite_active_ = false, name_active_ = false; // their fields being edited (last frame)
+    bool invite_active_ = false; // its field being edited (last frame)
     bool ask_name_ = false, ask_leave_ = false, copied_ = false;
     Action pending_ = Stay; // Join or Create, once the name asked for is given
 };

@@ -1,0 +1,3 @@
+// The game's Windows manifest (daytona.manifest), for MinGW builds: resource
+// 1 of type 24 (RT_MANIFEST). Visual Studio builds take the .manifest itself.
+1 24 "daytona.manifest"
