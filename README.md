@@ -119,12 +119,16 @@ The Revision A game opens on its home menu. **Settings** has six tabs:
 
 | Tab | What it holds |
 | --- | --- |
-| Game | the ROM set (Browse, Check) |
+| Game | the ROM set (Browse, Check); logs (Generate logs, on by default; Open the logs folder) |
 | Display | picture format, graphics API, renderer, render resolution, draw mode, fullscreen, display pacing |
 | Enhancements | draw distance, 3D scenery, opponents' detail, polygon budget, widescreen options, screen colours, smoothing |
 | Link play | linking cabinets on a local network |
 | Controls | devices, steering, force feedback, every control's key, gamepad and wheel assignment |
 | Sound | volume, music and effects balance, native sound |
+
+When something goes wrong, the game's log tells what happened: send
+**daytona.log** (Settings > Game > **Open the logs folder**; the five
+sessions before it are kept too).
 
 The language is chosen at the top right. Settings are saved as they change,
 in your user data folder (`launcher.ini`).
@@ -179,7 +183,8 @@ frame is shown.
    waits for; **Room details...** lists each player's latency to the server
    (green, yellow, red). The room's owner presses **Start the race** when
    everyone is in; in the race the owner presses Start and chooses the
-   course, the others follow. Who joins later waits for the next race
+   course and the gearbox, the others' screens follow and confirm with the
+   owner's. Who joins later waits for the next race
    (**New race with everyone**).
 4. In the race, the players list (first 10 s, then hold Tab) shows the live
    standings, and a tag with each player's name floats above their car. When
