@@ -52,6 +52,9 @@ private:
     ImFont *display_ = nullptr, *body_ = nullptr;
     // Outside a room: the room's settings, in the home screen's look.
     Action draw_settings(Config &cfg, const RelayLink *link, const std::string &message);
+    // In a room (or connecting to one): its players, in the same look.
+    Action draw_room(const online::Status &st, const std::string &code, bool connecting, const std::string &server,
+                     bool racing, bool link_ready, const std::string &message);
     void load(const Config &cfg);
     void connected(const Config &cfg, const std::vector<std::pair<std::string, std::string>> &defaults);
     std::string room_settings() const;

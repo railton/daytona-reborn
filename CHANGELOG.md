@@ -4,6 +4,24 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`). The
 fork's version is in `VERSION`, raised with every code change (rules.md
 rule 14); each version has its section here.
 
+## 0.14.4 (2026-11-24)
+
+### Home screen
+
+- **Room details in the neon look**, as the room's settings: a panel over
+  the dimmed speedway with the room's count, its invite code and **Copy**;
+  a row a player with their car's colour and number, the owner's crown,
+  **(you)**, signal bars and the latency in green, yellow or red; who waits
+  for the next race apart. The main button is **Start the race** (the
+  owner), **Resume the race** (during one) or waits; **Leave the room** is
+  lit red, **Back** dark; **New race with everyone** for the owner during a
+  race. Esc goes back into the race when one is on. The same screen shows
+  while connecting to a room.
+- The dark buttons' text no longer shrinks for a play sign they do not
+  have (**Back** on the room's screens).
+- `M2_CAPTURE_ONLINE_ROOM=1|race` shows the room's details with example
+  players, for a `--capture-home` image. The online guide shows it.
+
 ## 0.14.3 (2026-11-24)
 
 ### Changed

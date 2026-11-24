@@ -71,7 +71,10 @@ nothing else.
 - The line under them says what the room waits for.
 - **Room details...** lists every player with their latency to the server:
   green up to 60 ms, yellow up to 120 ms, red above. Between two players
-  the delay is about the sum of theirs.
+  the delay is about the sum of theirs. Who joined during a race waits for
+  the next one, under **Next race**.
+
+![Room details: each player's car colour, the owner's crown, signal bars and latency](images/online/room-details.jpg)
 - **Leave the room** takes you out; pressing **Play** on the Solo card asks
   first.
 
@@ -84,7 +87,10 @@ When everyone is in, the owner presses **Start the race**.
   gearbox.
 - **Tab** (or the gamepad's left stick button) shows the players list with
   the live standings; each player's name also floats above their car.
-- **Esc** comes back to the home screen; **Resume the race** goes back in.
+- **Esc** opens the room's details: **Resume the race** goes back in,
+  **Leave the room** ends it for you.
+
+![During a race: Resume the race, and New race with everyone for the owner](images/online/room-details-race.jpg)
 - When the race ends, the games stay linked: the owner presses Start again
   for the next one. Who joins during a race waits for the next one; the
   owner can start a **New race with everyone** from **Room details...**.

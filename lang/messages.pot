@@ -1059,22 +1059,13 @@ msgstr ""
 msgid "Create the room"
 msgstr ""
 
-msgid "Room %s: %d / %d players"
+msgid "Room"
 msgstr ""
 
-msgid "Copy the code"
+msgid "Copy"
 msgstr ""
 
-msgid "Send it to your friends: they paste it under Join."
-msgstr ""
-
-msgid "Players"
-msgstr ""
-
-msgid " (starts the race)"
-msgstr ""
-
-msgid " (you)"
+msgid "(you)"
 msgstr ""
 
 msgid "Next race:"
@@ -1083,13 +1074,13 @@ msgstr ""
 msgid "Latency to the server, round trip; between two players it is about the sum."
 msgstr ""
 
-msgid "Press Start (Enter) to play. Esc comes back to this menu."
-msgstr ""
-
 msgid "New race with everyone"
 msgstr ""
 
-msgid "Restarts every player's game with everyone in the room."
+msgid "Waiting for the race"
+msgstr ""
+
+msgid " (you)"
 msgstr ""
 
 msgid "STANDINGS"

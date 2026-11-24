@@ -2,6 +2,7 @@
 #include "app/i18n.h"
 #include "app/i18n_mark.h"
 #include "app/neon_ui.h"
+#include "app/online_overlay.h"
 #include "app/relay_link.h"
 
 #include "imgui.h"
@@ -294,120 +295,226 @@ OnlineMenu::Action OnlineMenu::draw(Config &cfg, const RelayLink *link, bool rac
         }
     }
     using State = RelayLink::State;
+    // diagnostic: M2_CAPTURE_ONLINE_ROOM=1 (before a race) or =race shows the room's details with
+    // example players, for a --capture-home image
+    if (const char *v = std::getenv("M2_CAPTURE_ONLINE_ROOM"); v && *v && !link) {
+        online::Status st;
+        const bool race = !std::strcmp(v, "race");
+        st.joined = 4;
+        st.names = {"Alex", "Ana", "Bruno"};
+        st.latency = {32, 48, 110};
+        st.waiting = {"Carla"};
+        st.waiting_latency = {190};
+        st.owner = true;
+        st.me = 1;
+        st.racing = race;
+        st.position = race ? 1 : 0;
+        st.size = race ? 3 : 0;
+        static const std::string code = online::encode_invite({"relay-eu.example:7777", online::random_room(), ""});
+        return draw_room(st, code, false, "relay-eu.example:7777", race, race, message);
+    }
     if (!link || link->state() == State::Failed) return draw_settings(cfg, link, message);
+    const std::string code = online::encode_invite({link->server(), link->room(), room_password_});
+    return draw_room(link->status(), code, link->state() == State::Connecting, link->server(), racing,
+                     link->state() == State::Ready, message);
+}
+
+OnlineMenu::Action OnlineMenu::draw_room(const online::Status &st, const std::string &code, bool connecting,
+                                         const std::string &server, bool racing, bool link_ready,
+                                         const std::string &message) {
+    using namespace neon;
     Action action = Stay;
     const auto *view = ImGui::GetMainViewport();
-    const float scale = std::max(0.7f, std::min(view->Size.y / 900.f, view->Size.x / 980.f));
-    const float width = std::min(view->Size.x - 32.f, 900.f * scale);
-    // as tall as its content, up to the screen (then it scrolls)
-    ImGui::SetNextWindowSizeConstraints({width, 0}, {width, view->Size.y - 32.f});
-    ImGui::SetNextWindowPos({view->Pos.x + view->Size.x * 0.5f, view->Pos.y + view->Size.y * 0.5f}, ImGuiCond_Always, {0.5f, 0.5f});
-    ImGui::PushFont(nullptr, 21.f * scale);
-    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {24.f * scale, 20.f * scale});
-    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {12.f * scale, 10.f * scale});
-    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, {12.f * scale, 10.f * scale});
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 5.f * scale);
-    ImGui::PushStyleVar(ImGuiStyleVar_GrabMinSize, 28.f * scale);
-    ImGui::Begin(TX("Online##online"), nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize |
-                 ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings);
-    const ImVec4 warn(1, 0.74f, 0.45f, 1), good(0.48f, 0.98f, 0.79f, 1);
-    const float full = ImGui::GetContentRegionAvail().x, button_h = 48.f * scale;
-    auto section = [&](const char *title) {
-        ImGui::Dummy({0, 6.f * scale});
-        ImGui::SeparatorText(title);
-    };
+    const float w = view->Size.x, h = view->Size.y;
+    const float scale = std::max(0.13f, std::min(h / 900.f, w / 980.f));
+    ImFont *body = body_ ? body_ : ImGui::GetFont(), *display = display_ ? display_ : body;
+    const ImU32 white = rgba(0.97f, 0.98f, 1), muted = rgba(0.70f, 0.78f, 0.90f), cyan = rgba(0.38f, 0.80f, 1);
+    const ImU32 green = rgba(0.25f, 0.88f, 0.48f), amber = rgba(1, 0.80f, 0.28f), alarm = rgba(1, 0.42f, 0.38f);
+    const float row = 40 * scale, step = 46 * scale, pad = 28 * scale;
+    const int racers = int(st.names.size()), waiting = int(st.waiting.size());
+    const bool me_in_race = st.position > 0;
+    const bool can_resume = racing && link_ready && me_in_race;
+    const bool new_race = st.owner && st.racing; // a new race with everyone (who waits too)
 
-    if (link->state() == State::Connecting) {
-        ImGui::Text(TX("Connecting to %s..."), link->server().c_str());
-        ImGui::Dummy({0, 4.f * scale});
-        if (ImGui::Button(TX("Cancel"), {full, button_h})) action = Leave;
-    } else {
-        const auto &st = link->status();
-        ImGui::Text(TX("Room %s: %d / %d players"), link->room().c_str(), st.joined, online::kMaxPlayers);
+    // its height from what it lists
+    float content = 54 + 34; // title, state
+    if (connecting) content += 90;
+    else content += racers * 46 + (waiting ? 34 + waiting * 46 : 0) + 30 + (new_race ? 56 : 0);
+    if (!message.empty()) content += 28;
+    const float pw = std::min(w - 32.f, 760 * scale);
+    const float ph = std::min(h - 32.f, (content + 22 + 26 + 64 + 28) * scale);
+    const float x0 = view->Pos.x + (w - pw) * 0.5f, y0 = view->Pos.y + std::max(16.f, (h - ph) * 0.5f);
 
-        section(TX("Invite code"));
-        // read-only field: the whole code shows, and it can be selected as well as copied
-        std::string code = online::encode_invite({link->server(), link->room(), room_password_});
-        ImGui::SetNextItemWidth(-FLT_MIN);
-        ImGui::InputText("##code", code.data(), code.size() + 1, ImGuiInputTextFlags_ReadOnly);
-        if (ImGui::Button(copied_ ? TX("Copied!") : TX("Copy the code"), {full, button_h})) {
-            ImGui::SetClipboardText(code.c_str());
-            copied_ = true;
-        }
-        ImGui::TextDisabled("%s", TX("Send it to your friends: they paste it under Join."));
+    ImGui::SetNextWindowPos(view->Pos);
+    ImGui::SetNextWindowSize(view->Size);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    ImGui::Begin("##room_details_screen", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+                 ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
+    auto *draw = ImGui::GetWindowDrawList();
+    draw->AddRectFilled(view->Pos, {view->Pos.x + w, view->Pos.y + h}, rgba(0.01f, 0.03f, 0.08f, racing ? 0.70f : 0.55f));
+    const auto panel = rounded({x0, y0}, {x0 + pw, y0 + ph}, 0, 16 * scale);
+    fill(draw, panel, rgba(0.05f, 0.11f, 0.25f, 0.97f), rgba(0.02f, 0.05f, 0.12f, 0.97f), y0, y0 + ph);
+    glow(draw, panel, kBlue, 0.9f, scale);
+    const float lx = x0 + pad, inner = pw - 2 * pad;
 
-        // the players: the race's (car 1, 2...) or, before one, the order a race
-        // will take (the room's owner first); then who waits for the next race
-        section(TX("Players"));
-        const bool me_in_race = st.position > 0;
-        // each player's latency to the server, at the right: green, yellow, red
-        const float latency_x = ImGui::GetContentRegionMax().x - ImGui::CalcTextSize("9999 ms").x;
-        auto latency = [&](const std::vector<int> &list, size_t i) {
-            const int ms = i < list.size() ? list[i] : -1;
-            ImGui::SameLine(latency_x);
-            if (ms < 0) {
-                ImGui::TextDisabled("--");
-                return;
+    // title: the players' badge, the room's count; its code and Copy at the right
+    float y = y0 + 22 * scale;
+    {
+        const ImVec2 badge = {lx + 22 * scale, y + 22 * scale};
+        draw->AddCircleFilled(badge, 22 * scale, rgba(0.02f, 0.06f, 0.15f, 0.95f), 32);
+        draw->AddCircle(badge, 22 * scale, cyan, 32, 2 * scale);
+        const ImU32 back = rgba(0.30f, 0.70f, 0.95f);
+        draw->AddCircleFilled({badge.x + 6 * scale, badge.y - 6 * scale}, 5 * scale, back);
+        draw->PathArcTo({badge.x + 6 * scale, badge.y + 8 * scale}, 8 * scale, IM_PI, 2 * IM_PI, 12);
+        draw->PathFillConvex(back);
+        draw->AddCircleFilled({badge.x - 4 * scale, badge.y - 4 * scale}, 6 * scale, cyan);
+        draw->PathArcTo({badge.x - 4 * scale, badge.y + 12 * scale}, 10 * scale, IM_PI, 2 * IM_PI, 12);
+        draw->PathFillConvex(cyan);
+        char title[64];
+        if (connecting) std::snprintf(title, sizeof title, "%s", TX("Room"));
+        else std::snprintf(title, sizeof title, TX("Room  %d / %d"), st.joined, online::kMaxPlayers);
+        italic(draw, display, fit(display, 32 * scale, title, inner * 0.45f), {lx + 58 * scale, y + 4 * scale}, white, title, 0.18f);
+        if (!connecting && !code.empty()) {
+            const float copy_w = 110 * scale;
+            if (blue_button(draw, body, scale, "##copy_code", copied_ ? TX("Copied!") : TX("Copy"), {lx + inner - copy_w, y + 4 * scale},
+                            {lx + inner, y + 42 * scale}, 0, 18)) {
+                ImGui::SetClipboardText(code.c_str());
+                copied_ = true;
             }
-            const ImVec4 colour = ms <= 60 ? good : ms <= 120 ? ImVec4(1, 0.85f, 0.35f, 1) : ImVec4(1, 0.42f, 0.38f, 1);
-            ImGui::TextColored(colour, TX("%d ms"), ms);
-        };
-        for (int i = 0; i < int(st.names.size()); ++i) {
-            const bool me = i + 1 == st.me;
-            char unnamed[64];
-            std::snprintf(unnamed, sizeof unnamed, TX("Player %d"), i + 1);
-            ImGui::TextColored(me ? good : ImVec4(0.91f, 0.97f, 1, 1), "%d. %s%s%s", i + 1,
-                               st.names[i].empty() ? unnamed : st.names[i].c_str(), i == 0 ? TX(" (starts the race)") : "",
-                               me ? TX(" (you)") : "");
-            latency(st.latency, size_t(i));
-        }
-        if (!st.waiting.empty()) {
-            ImGui::TextDisabled("%s", TX("Next race:"));
-            for (size_t i = 0; i < st.waiting.size(); ++i) {
-                ImGui::TextDisabled("   %s", st.waiting[i].empty() ? "-" : st.waiting[i].c_str());
-                latency(st.waiting_latency, i);
+            // the code, its start and end when long
+            const float room = inner * 0.5f - copy_w - 16 * scale, s = 15.5f * scale;
+            std::string shown = code;
+            if (measure(body, s, shown.c_str()).x > room && shown.size() > 16) {
+                const auto dash = shown.rfind('-');
+                const std::string tail = "..." + shown.substr(dash + 1);
+                std::string head = shown.substr(0, dash);
+                while (head.size() > 6 && measure(body, s, (head + tail).c_str()).x > room) {
+                    const auto d = head.rfind('-');
+                    head.resize(d != std::string::npos && d > 4 ? d : head.size() - 1);
+                }
+                shown = head + tail;
             }
+            const ImVec2 cw = measure(body, s, shown.c_str());
+            draw->AddText(body, s, {lx + inner - copy_w - 14 * scale - cw.x, y + 23 * scale - s * 0.5f}, cyan, shown.c_str());
         }
-        if (!st.latency.empty())
-            ImGui::TextDisabled("%s", TX("Latency to the server, round trip; between two players it is about the sum."));
-        ImGui::Dummy({0, 4.f * scale});
-        ImGui::PushTextWrapPos(0);
-        if (!st.racing) {
-            if (st.owner)
-                ImGui::TextColored(warn, "%s", st.joined < online::kMinPlayers
-                                                   ? TX("Waiting for at least one more player.")
-                                                   : TX("Start the race when everyone is in."));
-            else
-                ImGui::TextColored(warn, TX("Waiting for %s to start the race."),
-                                   st.names.empty() || st.names[0].empty() ? TX("the room's owner") : st.names[0].c_str());
-        } else if (!me_in_race) {
-            ImGui::TextColored(warn, "%s", TX("A race is on: you will join the next one."));
-        } else {
-            ImGui::TextColored(good, "%s", racing ? TX("Online race in progress.") : TX("Starting the race..."));
-            ImGui::TextUnformatted(TX("Press Start (Enter) to play. Esc comes back to this menu."));
-        }
-        if (!message.empty()) ImGui::TextColored(warn, "%s", message.c_str());
-        ImGui::PopTextWrapPos();
-        ImGui::Dummy({0, 4.f * scale});
-        if (st.owner) { // a race with everyone in the room; during one, a new race with whoever is waiting too
-            ImGui::BeginDisabled(st.joined < online::kMinPlayers);
-            if (ImGui::Button(st.racing ? TX("New race with everyone") : TX("Start the race"), {full, button_h}))
-                action = Begin;
-            ImGui::EndDisabled();
-            if (st.racing) ImGui::TextDisabled("%s", TX("Restarts every player's game with everyone in the room."));
-        }
-        if (racing && link->state() == State::Ready && ImGui::Button(TX("Resume the race"), {full, button_h}))
-            action = Resume;
-        if (ImGui::Button(TX("Leave the room"), {full, button_h})) action = Leave;
     }
-    ImGui::Dummy({0, 6.f * scale});
-    ImGui::Separator();
-    if (ImGui::Button(TX("Back"), {full, button_h})) action = Back;
-    if (action == Stay && ImGui::IsKeyPressed(ImGuiKey_Escape, false))
-        action = racing && link && link->state() == RelayLink::State::Ready ? Resume : Back;
+    y += 54 * scale;
+
+    // what the room waits for
+    {
+        char state[192];
+        ImU32 col = amber;
+        const std::string owner_name = st.names.empty() || st.names[0].empty() ? TX("the room's owner") : st.names[0];
+        if (connecting) std::snprintf(state, sizeof state, TX("Connecting to %s..."), server.c_str());
+        else if (!st.racing) {
+            if (st.owner)
+                std::snprintf(state, sizeof state, "%s", st.joined < online::kMinPlayers ? TX("Waiting for at least one more player.")
+                                                                                       : TX("Start the race when everyone is in."));
+            else std::snprintf(state, sizeof state, TX("Waiting for %s to start the race."), owner_name.c_str());
+        } else if (!me_in_race) {
+            std::snprintf(state, sizeof state, "%s", TX("A race is on: you will join the next one."));
+        } else {
+            std::snprintf(state, sizeof state, "%s", racing ? TX("Online race in progress.") : TX("Starting the race..."));
+            col = green;
+        }
+        draw->AddText(body, 17 * scale, {lx, y}, col, state, nullptr, inner);
+    }
+    y += 34 * scale;
+
+    if (connecting) {
+        const int dots = int(ImGui::GetTime() * 3) % 4;
+        for (int i = 0; i < dots; ++i) draw->AddCircleFilled({lx + (8 + i * 16) * scale, y + 20 * scale}, 5 * scale, cyan);
+        y += 90 * scale;
+    } else {
+        // one row a player: the car's colour and number, the name, the latency
+        auto player = [&](int index, const std::string &name, int ms, bool racer, bool you, bool crowned) {
+            const ImVec2 a = {lx, y}, b = {lx + inner, y + row};
+            const auto box = rounded(a, b, 0, 8 * scale);
+            fill(draw, box, rgba(0.03f, 0.07f, 0.16f, 0.85f), rgba(0.02f, 0.05f, 0.12f, 0.85f), a.y, b.y);
+            if (you) draw->AddPolyline(box.data(), int(box.size()), rgba(0.55f, 0.85f, 1, 0.8f), ImDrawFlags_Closed, 1.6f * scale);
+            const uint32_t c = racer ? online_car_colour(index + 1) : 0x50607a;
+            const ImU32 chip = rgba(((c >> 16) & 255) / 255.f, ((c >> 8) & 255) / 255.f, (c & 255) / 255.f);
+            const auto tag = rounded({a.x + 6 * scale, a.y + 6 * scale}, {a.x + 58 * scale, b.y - 6 * scale}, 5 * scale, 4 * scale);
+            fill(draw, tag, chip, chip, a.y, b.y);
+            const float luma = (((c >> 16) & 255) * 0.3f + ((c >> 8) & 255) * 0.59f + (c & 255) * 0.11f) / 255.f;
+            const ImU32 ink = luma > 0.6f ? rgba(0.06f, 0.05f, 0.03f) : white;
+            char n[8];
+            std::snprintf(n, sizeof n, racer ? "%d" : "-", index + 1);
+            const float ns = 17 * scale;
+            const ImVec2 nw = measure(body, ns, n);
+            float nx = a.x + 32 * scale - nw.x * 0.5f;
+            if (crowned) { // the owner's crown beside the number
+                const float cx = nx - 9 * scale, cy = (a.y + b.y) * 0.5f, s = 11 * scale;
+                const ImVec2 p[] = {{cx - s * 0.45f, cy + s * 0.3f}, {cx - s * 0.45f, cy - s * 0.25f}, {cx - s * 0.18f, cy + s * 0.02f},
+                                    {cx, cy - s * 0.35f}, {cx + s * 0.18f, cy + s * 0.02f}, {cx + s * 0.45f, cy - s * 0.25f},
+                                    {cx + s * 0.45f, cy + s * 0.3f}};
+                draw->AddConcavePolyFilled(p, 7, ink);
+                nx += 6 * scale;
+            }
+            draw->AddText(body, ns, {nx, (a.y + b.y - ns) * 0.5f}, ink, n);
+            char unnamed[32];
+            std::snprintf(unnamed, sizeof unnamed, TX("Player %d"), index + 1);
+            const char *shown = name.empty() ? unnamed : name.c_str();
+            const float ts = 19 * scale;
+            italic(draw, body, ts, {a.x + 74 * scale, (a.y + b.y - ts) * 0.5f}, racer ? white : muted, shown, 0.14f);
+            if (you) {
+                const float sx = a.x + 74 * scale + measure(body, ts, shown).x + 12 * scale;
+                draw->AddText(body, 15 * scale, {sx, (a.y + b.y) * 0.5f - 8 * scale}, cyan, TX("(you)"));
+            }
+            char lat[24];
+            if (ms >= 0) std::snprintf(lat, sizeof lat, TX("%d ms"), ms);
+            else std::snprintf(lat, sizeof lat, "--");
+            const ImU32 lc = ms < 0 ? muted : ms <= 60 ? green : ms <= 120 ? amber : alarm;
+            const ImVec2 lw = measure(body, 17 * scale, lat);
+            draw->AddText(body, 17 * scale, {b.x - 14 * scale - lw.x, (a.y + b.y) * 0.5f - 9 * scale}, lc, lat);
+            signal(draw, {b.x - 30 * scale - 76 * scale, (a.y + b.y) * 0.5f + 8 * scale}, scale, ms);
+            y += step;
+        };
+        for (int i = 0; i < racers; ++i)
+            player(i, st.names[size_t(i)], i < int(st.latency.size()) ? st.latency[size_t(i)] : -1, true, i + 1 == st.me, i == 0);
+        if (waiting) {
+            italic(draw, body, 17 * scale, {lx, y + 4 * scale}, cyan, TX("Next race:"), 0.14f);
+            y += 34 * scale;
+            for (int i = 0; i < waiting; ++i)
+                player(i, st.waiting[size_t(i)], i < int(st.waiting_latency.size()) ? st.waiting_latency[size_t(i)] : -1, false,
+                       false, false); // which of them is this player: the server does not say
+        }
+        draw->AddText(body, 14 * scale, {lx, y}, muted, TX("Latency to the server, round trip; between two players it is about the sum."),
+                      nullptr, inner);
+        y += 30 * scale;
+        if (new_race) {
+            if (blue_button(draw, body, scale, TX("New race with everyone"), TX("New race with everyone"), {lx, y},
+                            {lx + inner, y + 44 * scale}, 0, 19))
+                action = Begin;
+            y += 56 * scale;
+        }
+    }
+    if (!message.empty()) draw->AddText(body, 15 * scale, {lx, y}, amber, message.c_str(), nullptr, inner);
+
+    // the call to action, Leave, Back
+    const float by = y0 + ph - pad - 64 * scale, back_w = 160 * scale, leave_w = 190 * scale, gap = 12 * scale;
+    const ImVec2 ma = {lx, by}, mb = {lx + inner - back_w - leave_w - 2 * gap, by + 64 * scale};
+    if (connecting) {
+        main_button(draw, body, scale, TX("Connecting..."), ma, mb, false, 28);
+    } else if (can_resume) {
+        if (main_button(draw, body, scale, TX("Resume the race"), ma, mb, true, 32)) action = Resume;
+    } else if (st.owner && !st.racing) {
+        ImGui::BeginDisabled(st.joined < online::kMinPlayers);
+        if (main_button(draw, body, scale, TX("Start the race"), ma, mb, true, 32) && st.joined >= online::kMinPlayers) action = Begin;
+        ImGui::EndDisabled();
+    } else {
+        ImGui::BeginDisabled();
+        main_button(draw, body, scale, TX("Waiting for the race"), ma, mb, false, 26);
+        ImGui::EndDisabled();
+    }
+    ImGui::SetItemDefaultFocus();
+    if (outline_button(draw, body, scale, connecting ? TX("Cancel") : TX("Leave the room"), {mb.x + gap, by},
+                       {mb.x + gap + leave_w, by + 64 * scale}, ImVec4(1, 0.36f, 0.36f, 1), 20))
+        action = Leave;
+    if (main_button(draw, body, scale, TX("Back"), {lx + inner - back_w, by}, {lx + inner, by + 64 * scale}, false, 26)) action = Back;
+    if (action == Stay && ImGui::IsKeyPressed(ImGuiKey_Escape, false)) action = can_resume ? Resume : Back;
     ImGui::End();
-    ImGui::PopStyleVar(5);
-    ImGui::PopFont();
+    ImGui::PopStyleVar();
     return action;
 }
 

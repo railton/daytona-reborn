@@ -161,6 +161,32 @@ inline bool blue_button(ImDrawList *draw, ImFont *font, float scale, const char 
     return h.clicked;
 }
 
+// A dark button lit in a colour of its own (red for Leave).
+inline bool outline_button(ImDrawList *draw, ImFont *font, float scale, const char *label, ImVec2 a, ImVec2 b, ImVec4 colour,
+                           float text_size = 20.f) {
+    const Hit h = hit(label, a, b);
+    const auto shape = rounded(a, b, (b.y - a.y) * 0.2f, 8 * scale);
+    const float lift = h.focused || h.hovered ? 1.f : 0.f;
+    fill(draw, shape, rgba(0.08f + 0.05f * lift, 0.10f + 0.04f * lift, 0.20f + 0.06f * lift, 0.95f), rgba(0.04f, 0.05f, 0.12f, 0.95f),
+         a.y, b.y);
+    glow(draw, shape, colour, 0.55f + 0.4f * lift, scale);
+    focus_ring(draw, h, shape, scale);
+    const float s = fit(font, text_size * scale, label, b.x - a.x - 24 * scale);
+    const ImVec2 wide = measure(font, s, label);
+    italic(draw, font, s, {(a.x + b.x - wide.x) * 0.5f, (a.y + b.y - s) * 0.5f}, rgba(0.97f, 0.98f, 1), label, 0.14f);
+    return h.clicked;
+}
+
+// Signal bars for a latency: three lit up to 60 ms, two up to 120, one above.
+inline void signal(ImDrawList *draw, ImVec2 at, float scale, int ms) {
+    const int lit = ms < 0 ? 0 : ms <= 60 ? 3 : ms <= 120 ? 2 : 1;
+    const ImU32 on = ms < 0 ? 0 : ms <= 60 ? rgba(0.25f, 0.88f, 0.48f) : ms <= 120 ? rgba(1, 0.80f, 0.28f) : rgba(1, 0.42f, 0.38f);
+    for (int i = 0; i < 3; ++i) {
+        const float x = at.x + i * 7 * scale, h = (6 + i * 5) * scale;
+        draw->AddRectFilled({x, at.y - h}, {x + 4.5f * scale, at.y}, i < lit ? on : rgba(1, 1, 1, 0.15f), 1 * scale);
+    }
+}
+
 // A text field in a dark, lit frame. Returns whether its text changed.
 inline bool field(ImDrawList *draw, ImFont *font, float scale, const char *id, char *buf, size_t size, ImVec2 a, ImVec2 b,
                   ImGuiInputTextFlags flags = 0) {
@@ -219,7 +245,7 @@ inline bool main_button(ImDrawList *draw, ImFont *font, float scale, const char 
         glow(draw, shape, kBlue, 0.5f, scale);
     }
     focus_ring(draw, h, shape, scale);
-    const float size = fit(font, text_size * scale, label, b.x - a.x - 140 * scale);
+    const float size = fit(font, text_size * scale, label, b.x - a.x - (go ? 140 : 36) * scale); // room for the play sign
     const ImVec2 wide = measure(font, size, label);
     const float play = go ? 46 * scale : 0;
     const float x0 = (a.x + b.x - wide.x - play) * 0.5f, mid = (a.y + b.y) * 0.5f;

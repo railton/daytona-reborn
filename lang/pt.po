@@ -1114,23 +1114,14 @@ msgstr "Configurações da corrida"
 msgid "Create the room"
 msgstr "Criar a sala"
 
-msgid "Room %s: %d / %d players"
-msgstr "Sala %s: %d / %d jogadores"
+msgid "Room"
+msgstr "Sala"
 
-msgid "Copy the code"
-msgstr "Copiar o código"
+msgid "Copy"
+msgstr "Copiar"
 
-msgid "Send it to your friends: they paste it under Join."
-msgstr "Envie aos seus amigos: eles colam em Entrar."
-
-msgid "Players"
-msgstr "Jogadores"
-
-msgid " (starts the race)"
-msgstr " (começa a corrida)"
-
-msgid " (you)"
-msgstr " (você)"
+msgid "(you)"
+msgstr "(você)"
 
 msgid "Next race:"
 msgstr "Próxima corrida:"
@@ -1138,14 +1129,14 @@ msgstr "Próxima corrida:"
 msgid "Latency to the server, round trip; between two players it is about the sum."
 msgstr "Latência até o servidor, ida e volta; entre dois jogadores é mais ou menos a soma."
 
-msgid "Press Start (Enter) to play. Esc comes back to this menu."
-msgstr "Aperte Start (Enter) para jogar. Esc volta a este menu."
-
 msgid "New race with everyone"
 msgstr "Nova corrida com todos"
 
-msgid "Restarts every player's game with everyone in the room."
-msgstr "Reinicia o jogo de cada jogador com todos da sala."
+msgid "Waiting for the race"
+msgstr "Aguardando a corrida"
+
+msgid " (you)"
+msgstr " (você)"
 
 msgid "STANDINGS"
 msgstr "CLASSIFICAÇÃO"
