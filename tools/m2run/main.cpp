@@ -11,6 +11,7 @@
 //         [--transmission automatic|manual] [--race-mode normal|time-attack] (requires --pc-solo)
 //         [--link-listen PORT --link-next HOST:PORT [--link-sync]]
 //         [--relay HOST:PORT (--relay-create ROOM[:N] [--relay-settings KEY:VALUE,...] | --relay-join ROOM) [--relay-name NAME]
+//         [--relay-invite DTN1-... (the game's invite code: server, room and password; joins)]
 //          [--relay-password PASS]] (online play through a daytona-relay server)
 //         [--realtime] (hold each frame to the arcade's 57.52 Hz, as the game paces itself)
 //         [--draw-budget N] [--draw-order-only] [--original-selection] [--scenery-log FILE]
@@ -240,6 +241,16 @@ int main(int argc, char **argv) {
         else if (!std::strcmp(argv[i], "--relay-name")) relay_name = argv[i + 1];
         else if (!std::strcmp(argv[i], "--relay-settings")) relay_settings = argv[i + 1]; // create: key:value,...
         else if (!std::strcmp(argv[i], "--relay-password")) relay_password = argv[i + 1];
+        else if (!std::strcmp(argv[i], "--relay-invite")) { // an invite code (DTN1-...): its server, room and password
+            const auto invite = app::online::decode_invite(argv[i + 1]);
+            if (!invite) {
+                std::fprintf(stderr, "m2run: invalid invite code (copy all of it, it starts with DTN1)\n");
+                return 1;
+            }
+            relay_server = invite->server;
+            relay_join = invite->room;
+            relay_password = invite->password;
+        }
         else if (!std::strcmp(argv[i], "--draw-distance")) rt::GameLoop::set_draw_distance(std::atoi(argv[i + 1]));
         else if (!std::strcmp(argv[i], "--draw-budget")) {
             if (!rt::parse_scenery_budget(argv[i + 1], draw_budget)) {
@@ -394,6 +405,8 @@ int main(int argc, char **argv) {
         std::unique_ptr<app::RelayLink> relay;
         rt::online::AutoEntry relay_entry;
         rt::online::CourseSync relay_course;
+        rt::online::GearboxSync relay_gearbox; // as the app: the MASTER's gearbox for the room (M2_TEST_GEARBOX=manual: the MASTER's)
+        const bool relay_manual = [] { const char *v = std::getenv("M2_TEST_GEARBOX"); return v && !std::strcmp(v, "manual"); }();
         rt::online::Standings relay_standings;
         if (!relay_server.empty()) {
             const auto server = app::online::normalize_server(relay_server);
@@ -519,18 +532,34 @@ int main(int argc, char **argv) {
                 const bool racing = game.board().read_byte(0x5010a0) == 22;
                 inputs.accel = racing || f % 100 < 8 ? 0xe0 : 0x20;
             }
-            if (key_steering) selection_steer.apply(game.board(), inputs.steer, false); // as the app with keys
+            if (key_steering) selection_steer.apply(game.board(), inputs.steer, false, relay != nullptr); // as the app with keys
             if (relay) { // as the app: one Start and the MASTER's course for the room
                 const auto &room = relay->status();
                 const bool master = room.position == 1;
                 rt::online::StartGate::apply(game.board(), inputs, master || room.any_start);
+                static const bool service_free = std::getenv("M2_TEST_SERVICE_FREE") != nullptr; // diagnostic: 0.15's earlier behaviour
+                if (!service_free) rt::online::lock_service(inputs); // as the app: no test menu online
                 for (const auto &message : relay->take_controls())
-                    if (!relay_barrier_state.receive(message) && !relay_standings.receive(message) && !master)
+                    if (!relay_barrier_state.receive(message) && !relay_standings.receive(message) && !master &&
+                        !relay_gearbox.receive(message))
                         relay_course.receive(message);
                 if (master) {
                     if (const auto told = relay_course.master(game.board()); !told.empty()) relay->send_control(told);
+                    if (relay_manual && game.board().read_byte(0x5010a0) == rt::online::CourseSync::selection &&
+                        game.board().read_byte(0x5010f8) == rt::online::GearboxSync::gearbox_step)
+                        inputs.steer = 0xe0; // the MASTER's player chooses manual (the script confirms)
+                    if (const auto told = relay_gearbox.master(game.board(), inputs.steer); !told.empty()) relay->send_control(told);
                 } else {
                     relay_course.slave(game.board(), inputs);
+                    relay_gearbox.slave(game.board(), inputs);
+                }
+                if (std::getenv("M2_TEST_SELECTION_TRACE")) { // diagnostic: the selection screens' mode and step
+                    static int last = -1;
+                    const int mode = game.board().read_byte(0x5010a0), step = game.board().read_byte(0x5010f8);
+                    if (mode * 256 + step != last && mode >= 15 && mode <= 22)
+                        std::printf("m2run: frame %" PRIu64 ": mode %d step %d (steer %02x accel %02x)\n", game.frames(), mode, step,
+                                    inputs.steer, inputs.accel);
+                    last = mode * 256 + step;
                 }
                 if (const auto told = relay_standings.own(game.board(), room.position); !told.empty())
                     relay->send_control(told);
@@ -587,8 +616,9 @@ int main(int argc, char **argv) {
                     rx_previous = -1;
                 }
                 if (race_mode == 22 && previous_race_mode != 22)
-                    std::printf("m2run: race %d at frame %" PRIu64 ", course %d\n", ++races_seen, game.frames(),
-                                int(game.board().read_byte(0x501460)));
+                    std::printf("m2run: race %d at frame %" PRIu64 ", course %d, gearbox %s\n", ++races_seen, game.frames(),
+                                int(game.board().read_byte(0x501460)),
+                                game.board().read_byte(0x501464) ? "manual" : "automatic"); // pc_solo.h: the committed gearbox
                 if (race_mode != 22 && previous_race_mode == 22 && relay) {
                     std::printf("m2run: race %d ended at frame %" PRIu64 ", standings:", races_seen, game.frames());
                     for (int car = 1; car <= relay->status().size; ++car)

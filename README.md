@@ -39,8 +39,9 @@ From Daytona Reborn beta 0.10, kept in this repository:
   [server/daytona-relay](server/daytona-relay/README.md); how to play:
   [docs/PLAYING-ONLINE.md](docs/PLAYING-ONLINE.md).
 - **A PC home menu** (Revision A) over an animated sunset speedway, in a
-  neon look: two cards, **Solo** (race or Time Attack, the course, automatic
-  or manual gearbox) and **Online** (join with an invite code, pasted on its
+  neon look: two cards, **Solo** (the cabinet's language and difficulty,
+  then, as at the arcade, the course, the gearbox and Time Attack chosen on
+  the game's own screens) and **Online** (join with an invite code, pasted on its
   own from the clipboard, or create a room); the player's name, the server's
   state and latency at the top, beside Settings and Quit. Settings and the
   room's settings open as neon panels over the speedway.
@@ -67,31 +68,47 @@ You need your own ROM set in MAME format (`.zip` or `.7z`):
        cd daytona-reborn
 
    (or download the code as a zip and unzip it).
-2. Copy your ROM set to `roms/daytona.zip` (and/or `roms/daytona93.zip`).
-   On Windows, `Build Daytona.bat` asks for it instead.
-3. Build:
+2. Build for your system, below. Each way fetches the pinned dependencies
+   into `extern/`, recompiles the game from your ROM set and builds it (10
+   to 40 minutes the first time). The game finds `roms/daytona.zip` by
+   itself.
 
-   | System | How |
-   | --- | --- |
-   | Windows 10/11 | double-click **`Build Daytona.bat`**: portable tools downloaded and checked, nothing installed, no administrator |
-   | Linux, with Docker (nothing else installed) | `./scripts/docker-build.sh` |
-   | Linux, a build for your own Windows PC | `./scripts/docker-build-windows.sh` (after the line above) |
-   | Windows with Visual Studio | `powershell -ExecutionPolicy Bypass -File setup.ps1` |
-   | Linux or macOS, native | `./setup.sh` |
+### Windows 10/11
 
-   Each fetches the pinned dependencies into `extern/`, recompiles the game
-   from your ROM set and builds it.
-4. Play: `build-daytona/daytona` (`build-daytona\daytona.exe` on Windows, and
-   a **Daytona (recomp)** shortcut on the desktop). The game finds
-   `roms/daytona.zip` by itself.
+| How | |
+| --- | --- |
+| **Recommended:** double-click **`Build Daytona.bat`** | portable tools downloaded and checked by SHA-256, nothing installed, no administrator; asks for your ROM set |
+| With Visual Studio: `powershell -ExecutionPolicy Bypass -File setup.ps1` | installs Microsoft's build tools with winget; copy your ROM set to `roms\daytona.zip` first |
+
+The game: `build-daytona\daytona.exe`, and a **Daytona (recomp)** shortcut
+on the desktop.
+
+### macOS (Apple Silicon or Intel)
+
+| How | |
+| --- | --- |
+| **Recommended:** double-click **`Build Daytona.command`** | Apple's command line tools, portable CMake and Ninja checked by SHA-256, no Homebrew, no administrator; asks for your ROM set |
+| Native, with Homebrew or MacPorts: `./setup.sh` | copy your ROM set to `roms/daytona.zip` first |
+
+The game: `build-daytona/daytona`, and a **Daytona (recomp)** app on the
+desktop (with `Build Daytona.command`).
+
+### Linux
+
+| How | |
+| --- | --- |
+| **Recommended:** with Docker, nothing else installed: `./scripts/docker-build.sh` | copy your ROM set to `roms/daytona.zip` first |
+| Native: `./setup.sh` | installs the packages with apt, dnf, pacman or zypper (sudo) |
+| A build for your own Windows PC: `./scripts/docker-build-windows.sh` | after `docker-build.sh`; copy `build-windows/` to the PC |
+
+The game: `build-daytona/daytona`.
 
 Step by step, with the usual problems and fixes:
 [docs/BUILDING.md](docs/BUILDING.md). More detail on every platform and option:
 [docs/getting-started.md](docs/getting-started.md).
 
 **Updating:** get the new version (`git pull`, or download the new source
-zip and unzip it over the old folder), then build again: double-click
-`Build Daytona.bat` on Windows, or run the same build command (updates can
+zip and unzip it over the old folder), then build again the same way (updates can
 change the generated code, which is rebuilt from your ROM set; the tools in
 `.tools/`, `extern/` and your `roms/` are kept). **Never share your
 builds:** they contain code generated from the ROM.

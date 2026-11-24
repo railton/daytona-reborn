@@ -18,10 +18,10 @@ public:
     enum class Status { Starting, Racing, WrongCourse, TimedOut, WrongMode, WrongTransmission };
 
     explicit PcSolo(Course course, RaceTransmission transmission = RaceTransmission::Automatic,
-                    RaceMode mode = RaceMode::Normal)
-        : course_(course), transmission_(transmission), mode_(mode) {}
+                    RaceMode mode = RaceMode::Normal, bool player_chooses = false)
+        : course_(course), transmission_(transmission), mode_(mode), player_chooses_(player_chooses) {}
 
-    template <class Board> static void configure(Board &board) {
+    template <class Board> static void configure(Board &board, int country = -1, int difficulty = -1) {
         auto &settings = board.io().eeprom;
         constexpr uint32_t factory = 0x239d60;
         bool valid = true;
@@ -32,6 +32,8 @@ public:
         settings[0x0b] = 0;  // Link ID SINGLE
         settings[0x10] = 26; // coin assignment 27, FREE PLAY (zero-based)
         settings[0x14] = 1;  // free-play flag consumed by the guest's credit gate
+        if (country >= 0 && country <= 2) settings[0x1b] = uint8_t(country);          // COUNTRY: 00 USA, 01 JPN, 02 EXPORT
+        if (difficulty >= 0 && difficulty <= 3) settings[0x20] = uint8_t(difficulty); // DIFFICULTY: easy .. hardest
         const auto checksum = crc(settings);
         settings[8] = uint8_t(checksum);
         settings[9] = uint8_t(checksum >> 8);
@@ -71,16 +73,22 @@ public:
 
     template <class Board> Status status(Board &board) const {
         if (board.read_byte(mode_address) == race) {
-            constexpr uint8_t guest_course[] = {0, 2, 1}; // arcade table order: short, long, medium
-            if (board.read_byte(course_address) != guest_course[unsigned(course_)]) return Status::WrongCourse;
+            if (player_chooses_) return Status::Racing; // the course, the gearbox and the mode are the player's
             const auto expected_mode = mode_ == RaceMode::TimeAttack ? 1u : 0u;
             if (board.read_dword(time_attack_address) != expected_mode) return Status::WrongMode;
+            constexpr uint8_t guest_course[] = {0, 2, 1}; // arcade table order: short, long, medium
+            if (board.read_byte(course_address) != guest_course[unsigned(course_)]) return Status::WrongCourse;
             const auto expected_transmission = transmission_ == RaceTransmission::Manual ? 1u : 0u;
             return board.read_byte(transmission_address) == expected_transmission
                 ? Status::Racing : Status::WrongTransmission;
         }
-        return age_ >= 1500 ? Status::TimedOut : Status::Starting;
+        return age_ >= 1500 ? Status::TimedOut : Status::Starting; // (the player's own screens do not count: input() is not asked then)
     }
+
+    // The cabinet's selection screens (the course, the gearbox and what runs
+    // between them): the player's, with player_chooses.
+    template <class Board> static bool selecting(Board &board) { return board.read_byte(mode_address) == selection; }
+
 
     template <class Board> static bool in_attract(Board &board) { return board.read_byte(mode_address) == attract; }
     template <class Board> static bool in_race(Board &board) { return board.read_byte(mode_address) == race; }
@@ -105,6 +113,7 @@ private:
     Course course_;
     RaceTransmission transmission_;
     RaceMode mode_;
+    bool player_chooses_ = false;
     int last_mode_ = -1, last_step_ = -1;
     unsigned step_age_ = 0, age_ = 0;
 };

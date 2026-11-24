@@ -21,6 +21,16 @@ struct StartRaceRequest {
     RaceCourse course = RaceCourse::Beginner;
     RaceTransmission transmission = RaceTransmission::Automatic;
     RaceMode mode = RaceMode::Normal;
+    // The player picks on the cabinet's own selection screens, as at the
+    // arcade (the PC home): the course, the gearbox, and Time Attack (Start
+    // held while confirming the gearbox); course, transmission and mode are
+    // then not used. Else the start answers them with this request's
+    // (--solo, tests).
+    bool player_chooses = false;
+    // The cabinet's COUNTRY (0 USA: English, 1 JPN: Japanese, 2 EXPORT) and
+    // DIFFICULTY (0 easy .. 3 hardest) for this start, written to its
+    // settings with the rest; -1: as they are (Revision A's factory: JPN).
+    int country = -1, difficulty = -1;
 };
 constexpr bool valid_course(RaceCourse course) {
     return unsigned(course) <= unsigned(RaceCourse::Expert);

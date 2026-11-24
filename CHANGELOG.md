@@ -4,6 +4,96 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`). The
 fork's version is in `VERSION`, raised with every code change (rules.md
 rule 14); each version has its section here.
 
+## 0.15.0 (2026-11-24)
+
+### Online play
+
+- **The start no longer looks frozen.** Each game waits for the others at
+  the start so that everyone leaves together; the panel saying so was never
+  drawn (the interface was drawn over a race only with the players list or
+  the name tags showing), so the wait showed as a frozen picture. Now a
+  panel says **Waiting for the other players**, who is still missing, and
+  the seconds left. The longest wait is **15 s** (it was 30): then the race
+  starts, and a late player joins it as their game arrives.
+- **Esc no longer stops an online race.** Opening the menu paused the
+  player's game: it stopped answering the link, the others' games froze
+  waiting for it, and after about 5 s its connection gave up, which ended
+  the race for everyone. Online there is no pause now: behind the menu the
+  car runs on without its driver, as on linked cabinets.
+- **The MASTER chooses the gearbox for the room**, as the course: the other
+  games' gearbox screens follow its cursor and confirm when it confirms, so
+  nobody waits for anyone there. Linked cabinets show the gearbox at step 5
+  of the selection (a cabinet alone at step 7): keys and gamepads could
+  only ever pick its first option there; they pick both now.
+- **The cabinets' test menu is locked online** (F2, and the service
+  switch): a player opening it left the link (in a test, the other game
+  went 62% of the race without new data) and could change what the room
+  set. The coin switch stays, for rooms set to coins.
+- **A chime when a player joins the room**, on the room's screens (not over
+  a race), at the settings' effects volume: two notes synthesised by the
+  game.
+- `m2run --relay-invite DTN1-...` joins a room with its invite code;
+  `M2_TEST_GEARBOX=manual` (the MASTER's), `M2_TEST_SELECTION_TRACE=1`.
+
+Online version 10: 0.14 games and 0.15 games do not share a room. The
+relay's protocol is unchanged (5): servers need no update for games to play.
+
+### Logs
+
+- **Generate logs**, in Settings > Game, on by default, with the logs
+  folder and **Open the logs folder**: the game keeps **daytona.log** on
+  Windows, Linux and macOS (before, only Windows wrote one; Linux and macOS
+  still print to the terminal too), and the five sessions before it as
+  daytona.1.log .. daytona.5.log, so a player can send the log of the
+  session where something went wrong.
+- What it holds besides: the system (cores, memory, GPU driver, renderer);
+  online, with the time in UTC, who joined and left the room, drops and
+  returns, why a connection ended, the wait at the start and who came last
+  (or never), and a line for each online race: its game speed, how smoothly
+  the other car's data moved (smooth, no new data, skips), the link's
+  reserve, sends and messages a second, what came first by UDP, the time in
+  the menu, and every player's latency.
+- **The relay's log** (no protocol change): times in UTC with
+  milliseconds; each race gets a line per player every minute and when it
+  ends: the game messages received (and how many a second: a game short of
+  data sends fewer), how many came first by UDP, those sent, its latency
+  (min/avg/max), its send queue at its longest, its drops and returns.
+  Docker keeps about 100 MB of it (it kept 30). Set against the players'
+  logs by room, name and time.
+
+### Home screen
+
+- **Solo as at the arcade**: the Solo card sets the cabinet's **Country**
+  (USA English, the default; Japan Japanese; Export) and **Difficulty**
+  (Easy to Hardest, Normal by default), kept for the next time, and
+  **Play**. The game starts the cabinet and, from its selection screen on,
+  shows it and hands it to the player: the course, the gearbox, and Time
+  Attack (Start held while confirming the gearbox) are chosen on the
+  game's own screens. Solo used to fall into Japanese: Revision A's factory
+  settings are Japan's. `--solo` (tests, captures) still answers the
+  screens itself.
+- The Online card: the invite code and **Create a new room**.
+
+### Building
+
+- **`Build Daytona.command`: the macOS build in a double-click**, as
+  `Build Daytona.bat` on Windows (`scripts/macos-build.sh`; Apple Silicon
+  or Intel). It checks Apple's command line tools (the compiler, the SDK,
+  git, python3; macOS offers to install them when missing), downloads
+  portable CMake 4.5.1 and Ninja 1.13.2 into `.tools/`, each checked
+  against its pinned SHA-256, asks for the ROM set in a file window, fetches
+  the libraries, recompiles and builds, and puts a **Daytona (recomp)** app
+  on the desktop. No Homebrew, no administrator rights; `--update` pulls a
+  git clone first; everything goes to `macos-build.log`. Tried on a Mac,
+  with the Windows build alongside.
+
+### Known limits
+
+- With 6 players through a relay in Europe (headless), the game ran at
+  96-97% of its speed and the other cars' data moved smoothly in about 90%
+  of the frames (3 players: 100% and 98%): games other than the MASTER's
+  run short of link blocks. Under investigation; the new logs measure it.
+
 ## 0.14.5 (2026-11-24)
 
 ### Fixed

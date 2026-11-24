@@ -140,41 +140,38 @@ msgstr ""
 msgid "8 players · invite code"
 msgstr "8 joueurs · code d'invitation"
 
-msgid "Beginner"
-msgstr "Débutant"
-
-msgid "Advanced"
-msgstr "Avancé"
-
-msgid "Expert"
-msgstr "Expert"
-
 msgid "Preparing the race..."
 msgstr "Préparation de la course..."
 
 msgid "Back"
 msgstr "Retour"
 
-msgid "Game mode"
-msgstr "Mode de jeu"
+msgid "Country"
+msgstr "Pays"
 
-msgid "Normal race"
-msgstr "Course normale"
+msgid "USA (English)"
+msgstr "USA (anglais)"
 
-msgid "Time Attack"
-msgstr "Time Attack"
+msgid "Japan (Japanese)"
+msgstr "Japon (japonais)"
 
-msgid "Gearbox"
-msgstr "Boîte de vitesses"
+msgid "Export"
+msgstr "Export"
 
-msgid "Automatic"
-msgstr "Automatique"
+msgid "Difficulty"
+msgstr "Difficulté"
 
-msgid "Manual"
-msgstr "Manuelle"
+msgid "Easy"
+msgstr "Facile"
 
-msgid "Course"
-msgstr "Circuit"
+msgid "Normal"
+msgstr "Normal"
+
+msgid "Hard"
+msgstr "Difficile"
+
+msgid "Hardest"
+msgstr "Très difficile"
 
 msgid "Resume"
 msgstr "Reprendre"
@@ -413,6 +410,18 @@ msgstr "Réinitialiser"
 msgid "Start game"
 msgstr "Démarrer"
 
+msgid "Logs"
+msgstr "Journaux"
+
+msgid "Generate logs"
+msgstr "Générer les journaux"
+
+msgid "What the game does, and each online race's measurements, kept in daytona.log (and the 5 sessions before it). When something goes wrong, send it. Takes effect at the next start."
+msgstr "Ce que fait le jeu, et les mesures de chaque course en ligne, gardés dans daytona.log (et les 5 sessions précédentes). En cas de problème, envoyez-le. Pris en compte au prochain démarrage."
+
+msgid "Open the logs folder"
+msgstr "Ouvrir le dossier des journaux"
+
 msgid "Display"
 msgstr "Affichage"
 
@@ -421,6 +430,9 @@ msgstr "Image"
 
 msgid "Arcade 4:3 (the original cabinet)"
 msgstr "Arcade 4:3 (la borne d'origine)"
+
+msgid "Automatic"
+msgstr "Automatique"
 
 msgid "21:9 (ultrawide)"
 msgstr "21:9 (ultra-large)"
@@ -997,8 +1009,11 @@ msgstr "Choisissez d'abord le jeu de ROM de Daytona Revision A."
 msgid "Invalid invite code: copy all of it, it starts with DTN1."
 msgstr "Code d'invitation invalide : copiez-le en entier, il commence par DTN1."
 
-msgid "Waiting for the other players to finish choosing..."
-msgstr "En attente que les autres joueurs finissent de choisir..."
+msgid "The race starts when everyone is here, or in %d s."
+msgstr "La course démarre quand tout le monde est là, ou dans %d s."
+
+msgid "Waiting for the other players"
+msgstr "En attente des autres joueurs"
 
 msgid "Cabinet"
 msgstr "Borne"
@@ -1012,32 +1027,8 @@ msgstr "Uplight"
 msgid "Deluxe"
 msgstr "Deluxe"
 
-msgid "Country"
-msgstr "Pays"
-
-msgid "USA (English)"
-msgstr "USA (anglais)"
-
-msgid "Japan (Japanese)"
-msgstr "Japon (japonais)"
-
-msgid "Export"
-msgstr "Export"
-
-msgid "Difficulty"
-msgstr "Difficulté"
-
-msgid "Easy"
-msgstr "Facile"
-
-msgid "Normal"
-msgstr "Normal"
-
-msgid "Hard"
-msgstr "Difficile"
-
-msgid "Hardest"
-msgstr "Très difficile"
+msgid "Game mode"
+msgstr "Mode de jeu"
 
 msgid "Grand Prix"
 msgstr "Grand Prix"

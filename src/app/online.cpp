@@ -1,5 +1,7 @@
 #include "app/online.h"
 
+#include <ctime>
+
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
@@ -277,6 +279,20 @@ void append_frame(std::string &out, uint8_t type, uint32_t epoch, const uint8_t 
     out += char(n >> 8);
     out += char(n);
     if (n) out.append(reinterpret_cast<const char *>(payload), n);
+}
+
+
+std::string utc_now() {
+    const std::time_t now = std::time(nullptr);
+    std::tm tm{};
+#ifdef _WIN32
+    gmtime_s(&tm, &now);
+#else
+    gmtime_r(&now, &tm);
+#endif
+    char buf[32];
+    std::strftime(buf, sizeof buf, "%Y-%m-%d %H:%M:%S UTC", &tm);
+    return buf;
 }
 
 } // namespace app::online

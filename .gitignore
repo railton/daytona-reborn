@@ -26,6 +26,7 @@ roms/*
 !roms/README.md
 .tools/
 windows-build.log
+macos-build.log
 rom/
 generated/
 extracted/

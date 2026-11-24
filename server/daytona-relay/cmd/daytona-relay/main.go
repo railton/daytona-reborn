@@ -73,6 +73,8 @@ type client struct {
 	away bool   // dropped from a race, its place kept until resumeGrace (star mode)
 
 	udpState // numbered game data, by TCP and UDP (udp.go); under server.mu
+
+	race raceStats // what this server saw of it in the current race, for the log (racelog.go)
 }
 
 // latencyMs: the client's round trip in ms, -1 before the first measure.
@@ -116,6 +118,8 @@ type room struct {
 	race    settings.Race   // the room's settings: the environment's, with its creator's choices over them
 	eeprom  []proto.Setting // race.EEPROM()
 	created time.Time
+
+	ringSince, ringLogged time.Time // the ring's start, its last lines in the log (racelog.go)
 }
 
 type server struct {
@@ -231,6 +235,7 @@ func (s *server) begin(c *client) {
 
 // formRing: a new ring of everyone in the room, the owner first. Caller holds s.mu.
 func (s *server) formRing(r *room) {
+	s.logRing(r, "ended (a new race)")
 	r.ring = r.ring[:0]
 	if r.owner != nil {
 		r.ring = append(r.ring, r.owner)
@@ -245,7 +250,9 @@ func (s *server) formRing(r *room) {
 		m.dec.Reset()
 		m.enc.Reset()
 		m.own = nil
+		m.race.reset()
 	}
+	r.ringSince, r.ringLogged = time.Now(), time.Now()
 	s.notify(r)
 }
 
@@ -259,6 +266,7 @@ func (s *server) leave(c *client) {
 	if s.star && r.auto == 0 && r.inRing(c) > 0 && !c.away {
 		// a racer dropped: its place stays for resumeGrace (op=rejoin), the race goes on
 		c.away = true
+		c.race.drops.Add(1)
 		log.Printf("room %s: %q (%s) dropped, its place kept for %v", r.code, c.name, c.addr, resumeGrace)
 		time.AfterFunc(resumeGrace, func() {
 			s.mu.Lock()
@@ -293,6 +301,8 @@ func (s *server) rejoin(c *client, h proto.Hello) error {
 	}
 	c.name, c.key, c.room = old.name, old.key, r
 	c.rtt.Store(old.rtt.Load())
+	c.race.copyFrom(&old.race)
+	c.race.backs.Add(1)
 	for i, m := range r.members {
 		if m == old {
 			r.members[i] = c
@@ -336,6 +346,7 @@ func (s *server) remove(c *client) {
 		}
 	}
 	if r.inRing(c) > 0 { // the race's ring is broken: back to the room until the owner starts again
+		s.logRing(r, fmt.Sprintf("ended (%q left)", c.name))
 		r.ring = nil
 		r.epoch++
 	}
@@ -479,7 +490,7 @@ func (s *server) forward(c *client, f proto.Frame) {
 		if len(f.Payload) < 4 {
 			return
 		}
-		s.receiveNumbered(c, f.Epoch, binary.BigEndian.Uint32(f.Payload), f.Payload[4:])
+		s.receiveNumbered(c, f.Epoch, binary.BigEndian.Uint32(f.Payload), f.Payload[4:], false)
 		return
 	}
 	s.forwardLocked(c, f)
@@ -487,6 +498,7 @@ func (s *server) forward(c *client, f proto.Frame) {
 
 // forwardLocked passes one game message of c's on. Caller holds s.mu.
 func (s *server) forwardLocked(c *client, f proto.Frame) {
+	c.race.in.Add(1)
 	r := c.room
 	pos := 0
 	if r != nil {
@@ -652,6 +664,7 @@ func (s *server) handle(conn net.Conn) {
 			if len(f.Payload) == 8 {
 				sent := int64(binary.BigEndian.Uint64(f.Payload))
 				if us := (time.Now().UnixNano() - sent) / 1000; us > 0 && us < 60_000_000 {
+					c.race.latency(us)
 					if old := c.rtt.Load(); old == 0 {
 						c.rtt.Store(us)
 					} else {
@@ -701,6 +714,7 @@ func envInt(name string, def int) int {
 }
 
 func main() {
+	log.SetFlags(log.LstdFlags | log.Lmicroseconds | log.LUTC) // UTC: set against the players' logs
 	port := flag.Int("port", envInt("DAYTONA_PORT", 7777), "TCP port to listen on (DAYTONA_PORT)")
 	password := flag.String("password", os.Getenv("DAYTONA_PASSWORD"), "password the players must give, optional (DAYTONA_PASSWORD)")
 	maxRooms := flag.Int("max-rooms", envInt("DAYTONA_MAX_ROOMS", 100), "rooms open at the same time, at most (DAYTONA_MAX_ROOMS)")
@@ -736,6 +750,7 @@ func main() {
 	go func() {
 		for range time.Tick(pingEvery) {
 			s.refreshLatency()
+			s.logRaces()
 		}
 	}()
 	s.serve(ln)

@@ -137,40 +137,37 @@ msgstr ""
 msgid "8 players · invite code"
 msgstr ""
 
-msgid "Beginner"
-msgstr ""
-
-msgid "Advanced"
-msgstr ""
-
-msgid "Expert"
-msgstr ""
-
 msgid "Preparing the race..."
 msgstr ""
 
 msgid "Back"
 msgstr ""
 
-msgid "Game mode"
+msgid "Country"
 msgstr ""
 
-msgid "Normal race"
+msgid "USA (English)"
 msgstr ""
 
-msgid "Time Attack"
+msgid "Japan (Japanese)"
 msgstr ""
 
-msgid "Gearbox"
+msgid "Export"
 msgstr ""
 
-msgid "Automatic"
+msgid "Difficulty"
 msgstr ""
 
-msgid "Manual"
+msgid "Easy"
 msgstr ""
 
-msgid "Course"
+msgid "Normal"
+msgstr ""
+
+msgid "Hard"
+msgstr ""
+
+msgid "Hardest"
 msgstr ""
 
 msgid "Resume"
@@ -407,6 +404,18 @@ msgstr ""
 msgid "Start game"
 msgstr ""
 
+msgid "Logs"
+msgstr ""
+
+msgid "Generate logs"
+msgstr ""
+
+msgid "What the game does, and each online race's measurements, kept in daytona.log (and the 5 sessions before it). When something goes wrong, send it. Takes effect at the next start."
+msgstr ""
+
+msgid "Open the logs folder"
+msgstr ""
+
 msgid "Display"
 msgstr ""
 
@@ -414,6 +423,9 @@ msgid "Picture"
 msgstr ""
 
 msgid "Arcade 4:3 (the original cabinet)"
+msgstr ""
+
+msgid "Automatic"
 msgstr ""
 
 msgid "21:9 (ultrawide)"
@@ -942,7 +954,10 @@ msgstr ""
 msgid "Invalid invite code: copy all of it, it starts with DTN1."
 msgstr ""
 
-msgid "Waiting for the other players to finish choosing..."
+msgid "The race starts when everyone is here, or in %d s."
+msgstr ""
+
+msgid "Waiting for the other players"
 msgstr ""
 
 msgid "Cabinet"
@@ -957,31 +972,7 @@ msgstr ""
 msgid "Deluxe"
 msgstr ""
 
-msgid "Country"
-msgstr ""
-
-msgid "USA (English)"
-msgstr ""
-
-msgid "Japan (Japanese)"
-msgstr ""
-
-msgid "Export"
-msgstr ""
-
-msgid "Difficulty"
-msgstr ""
-
-msgid "Easy"
-msgstr ""
-
-msgid "Normal"
-msgstr ""
-
-msgid "Hard"
-msgstr ""
-
-msgid "Hardest"
+msgid "Game mode"
 msgstr ""
 
 msgid "Grand Prix"

@@ -137,7 +137,9 @@ inline int link_id(int place, int size) { return place == 1 ? 1 : size + 2 - pla
 class StartBarrier {
 public:
     static constexpr int hold_mode = 21;
-    static constexpr uint64_t timeout_ms = 30000;
+    // the longest a game waits for the others; then the race starts and
+    // whoever is late joins it as it arrives
+    static constexpr uint64_t timeout_ms = 15000;
 
     // After each game frame: the message to send when this game has just
     // arrived (and holds from now), else empty.
@@ -183,6 +185,9 @@ public:
         const uint32_t all = ring_size >= 32 ? ~0u : ((1u << (ring_size + 1)) - 2); // places 1..ring_size
         const bool everyone = (arrived_[race_ % 2] & all) == all;
         if (everyone || now_ms - since_ms_ >= timeout_ms) {
+            missing_at_release_.clear(); // for the log: who was still missing (a timeout)
+            for (int p = 1; p <= ring_size && p < 32; ++p)
+                if (!(arrived_[race_ % 2] & (1u << p))) missing_at_release_.push_back(p);
             arrived_[race_ % 2] = 0; // this slot serves the race after next
             uint64_t extra = 0;
             if (everyone && latency && me >= 1 && int(latency->size()) >= ring_size) {
@@ -204,6 +209,20 @@ public:
     }
 
     uint64_t waited_ms() const { return waited_ms_; } // the last wait, for the log
+    // While holding: the places not arrived yet (1-based, ring order), and
+    // for how long this game has waited.
+    std::vector<int> missing(int ring_size) const {
+        std::vector<int> out;
+        if (!holding_ || release_ms_) return out;
+        for (int p = 1; p <= ring_size && p < 32; ++p)
+            if (!(arrived_[race_ % 2] & (1u << p))) out.push_back(p);
+        return out;
+    }
+    uint64_t held_ms(uint64_t now_ms) const { return holding_ && now_ms > since_ms_ ? now_ms - since_ms_ : 0; }
+    // The last wait's end: the place that arrived last (0: none), and who was
+    // still missing when it timed out (empty: everyone came).
+    int last_place() const { return last_place_; }
+    const std::vector<int> &missing_at_release() const { return missing_at_release_; }
     void clear() { *this = StartBarrier{}; }
 
 private:
@@ -212,6 +231,7 @@ private:
     bool holding_ = false;
     int last_place_ = 0;
     uint64_t since_ms_ = 0, waited_ms_ = 0, release_ms_ = 0;
+    std::vector<int> missing_at_release_;
 };
 
 // Online: the MASTER's course for the whole room. Linked cabinets each choose
@@ -277,6 +297,79 @@ private:
     bool confirmed_ = false;
     unsigned age_ = 0;
 };
+
+// Online: the MASTER's gearbox for the whole room, as its course
+// (CourseSync): its cursor and its choice go to every other game, whose
+// gearbox screen follows the cursor and confirms when the MASTER confirms,
+// so nobody else chooses or waits on that screen. Linked cabinets show the
+// gearbox at step 5 of the selection (a cabinet alone, pc_solo.h, at step 7);
+// the choice: steering <= 0x97 automatic, >= 0x98 manual
+// (app/selection_steer.h); the committed gearbox at 0x501464 (0, 1).
+class GearboxSync {
+public:
+    static constexpr int gearbox_step = 5;
+    static constexpr uint32_t transmission_address = 0x501464;
+
+    // MASTER, once a frame, with its final steering: "gearcursor=N" when its
+    // choice moves, "gearbox=N" when it confirms, else empty.
+    template <class Board> std::string master(Board &board, uint8_t steer) {
+        const int mode = board.read_byte(AutoEntry::mode_address), step = board.read_byte(CourseSync::step_address);
+        std::string out;
+        if (mode == CourseSync::selection && step == gearbox_step) {
+            const int choice = steer >= 0x98 ? 1 : 0;
+            if (choice != sent_) out = "gearcursor=" + std::to_string(sent_ = choice);
+        } else if (mode == CourseSync::selection && last_step_ == gearbox_step) {
+            out = "gearbox=" + std::to_string(board.read_byte(transmission_address) ? 1 : 0);
+        }
+        if (mode != CourseSync::selection) sent_ = -1;
+        last_step_ = mode == CourseSync::selection ? step : -1;
+        return out;
+    }
+
+    // SLAVE: a message from the MASTER (false: not this one's).
+    bool receive(const std::string &message) {
+        int value = -1;
+        if (std::sscanf(message.c_str(), "gearcursor=%d", &value) == 1 && (value == 0 || value == 1)) cursor_ = value;
+        else if (std::sscanf(message.c_str(), "gearbox=%d", &value) == 1 && (value == 0 || value == 1))
+            cursor_ = value, confirmed_ = true;
+        else return false;
+        return true;
+    }
+
+    // SLAVE, once a frame: its gearbox screen follows the MASTER's, and
+    // confirms once the MASTER has (a pedal edge until the screen ends).
+    template <class Board, class Inputs> void slave(Board &board, Inputs &inputs) {
+        const int mode = board.read_byte(AutoEntry::mode_address);
+        if (mode < 15 || mode >= CourseSync::race) { // attract or racing: the next selection starts afresh
+            cursor_ = -1;
+            confirmed_ = false;
+            age_ = 0;
+            return;
+        }
+        if (mode != CourseSync::selection || board.read_byte(CourseSync::step_address) != gearbox_step) return;
+        inputs.steer = cursor_ == 1 ? 0xe0 : 0x80;
+        inputs.accel = 0x20; // the player's pedal does not choose
+        if (confirmed_ && ++age_ >= 30 && (age_ - 30) % 24 < 5) inputs.accel = 0xe0;
+    }
+
+    int cursor() const { return cursor_; }
+    bool confirmed() const { return confirmed_; }
+
+private:
+    int sent_ = -1, last_step_ = -1; // MASTER
+    int cursor_ = -1;                // SLAVE
+    bool confirmed_ = false;
+    unsigned age_ = 0;
+};
+
+// Online: the cabinet's settings are the room's, written before each race
+// (configure). Its test and service switches stay released, so no player
+// opens the test menu mid-race: its game would leave the link (the others'
+// waiting for it) and could change what the room set. The coin switch stays
+// (a room may be set to coins).
+template <class Inputs> void lock_service(Inputs &inputs) {
+    inputs.in0 |= 0x0c; // test 0x04, service 0x08 (active low: released)
+}
 
 // Online: the linked race's standings for the players list. Each cabinet
 // keeps its own place among the linked players at 0x501908 (0 = first; it

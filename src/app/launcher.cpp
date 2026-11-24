@@ -641,6 +641,24 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
                 ImGui::SameLine();
                 if (ImGui::Button(TX("Quit"), {third, button_h})) result = Quit;
             }
+#ifndef M2_MOBILE
+            // the log: on by default, so a player can send it when something goes wrong
+            ImGui::Spacing();
+            ImGui::SeparatorText(TX("Logs"));
+            if (ImGui::Checkbox(TX("Generate logs"), &cfg_.write_logs)) cfg_.save();
+            hint(TX("What the game does, and each online race's measurements, kept in daytona.log (and the 5 sessions "
+                    "before it). When something goes wrong, send it. Takes effect at the next start."));
+            {
+                const std::string folder = Config::pref_dir();
+                ImGui::TextDisabled("%s", folder.c_str());
+                if (ImGui::Button(TX("Open the logs folder"), {ImGui::CalcTextSize(TX("Open the logs folder")).x + 40.f * scale, button_h})) {
+                    std::string url = "file://";
+                    if (!folder.empty() && folder[0] != '/') url += "/"; // Windows: file:///C:/...
+                    for (const char c : folder) url += c == '\\' ? '/' : c;
+                    SDL_OpenURL(url.c_str());
+                }
+            }
+#endif
             ImGui::EndTabItem();
         }
 

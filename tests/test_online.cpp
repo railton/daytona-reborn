@@ -256,5 +256,36 @@ int main() {
     racer.mode = 3;
     CHECK(standings.own(racer, 3).empty() && standings.rank(1) == -1 && standings.rank(3) == -1);
     std::puts("online ok");
+    // the start barrier: who is still missing, and the race starts anyway after timeout_ms
+    {
+        using rt::online::StartBarrier;
+        StartBarrier barrier;
+        FakeBoard board;
+        board.mode = 20;
+        CHECK(barrier.after_frame(board, 1, 0).empty());
+        board.mode = StartBarrier::hold_mode;
+        CHECK(barrier.after_frame(board, 1, 1000) == "arrived=1:1");
+        CHECK(barrier.holding(3, 1000));
+        CHECK((barrier.missing(3) == std::vector<int>{2, 3}));
+        CHECK(barrier.receive("arrived=1:2"));
+        CHECK((barrier.missing(3) == std::vector<int>{3}));
+        CHECK(barrier.held_ms(6000) == 5000);
+        CHECK(barrier.holding(3, 1000 + StartBarrier::timeout_ms - 1));
+        CHECK(!barrier.holding(3, 1000 + StartBarrier::timeout_ms)); // 15 s: it starts without place 3
+        CHECK((barrier.missing_at_release() == std::vector<int>{3}));
+        CHECK(barrier.waited_ms() == StartBarrier::timeout_ms);
+        CHECK(barrier.missing(3).empty());
+    }
+    {   // everyone in: nobody missing, the last one in named
+        using rt::online::StartBarrier;
+        StartBarrier barrier;
+        FakeBoard board;
+        board.mode = StartBarrier::hold_mode;
+        CHECK(barrier.after_frame(board, 2, 100) == "arrived=1:2");
+        CHECK(barrier.receive("arrived=1:1") && barrier.receive("arrived=1:3"));
+        CHECK(!barrier.holding(3, 400));
+        CHECK(barrier.missing_at_release().empty() && barrier.last_place() == 3 && barrier.waited_ms() == 300);
+    }
+
     return 0;
 }

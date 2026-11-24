@@ -64,6 +64,22 @@ Example `.env`:
     DAYTONA_PASSWORD=change-this-password
     DAYTONA_DIFFICULTY=hard
 
+## Logs
+
+    docker compose logs -f            # as it goes
+    docker compose logs --since 24h   # a day of it
+
+Times are in **UTC**, with milliseconds. Besides rooms created, players
+joining, dropping, coming back and leaving, each race (a ring of players)
+gets a line per player every minute and when it ends: the game messages the
+server received from that player (and how many a second: a game short of
+data sends fewer), how many came first by UDP, the messages sent to it, its
+latency to the server (min/avg/max over the race), its send queue at its
+longest, and its drops and returns. Set them against the players' own logs
+(`daytona.log`, "Generate logs" in the game's Settings, on by default), whose
+online lines carry the time in UTC too. Docker keeps about 100 MB of it
+(`docker-compose.yml`, `logging`).
+
 ## Playing
 
 In the game's home menu, the **Online** card:
@@ -92,9 +108,12 @@ In the game's home menu, the **Online** card:
    **Start (Enter)**: every other player
    joins that race on their own (the cabinet's WAITING FOR YOUR ENTRY is
    answered for them). With `DAYTONA_START=anyone`, any player's Start does.
-4. The MASTER chooses the course: the others' course cursor follows it and
-   confirms when the MASTER confirms. Each player chooses their own gearbox.
-   Esc comes back to the room's screen; **Leave the room** ends it.
+4. The MASTER chooses the course and the gearbox: the others' cursors
+   follow it and confirm when the MASTER confirms, so the room races with
+   the MASTER's gearbox. At the start each game waits for the others (15 s
+   at most). Esc shows the room's details while the race runs on behind
+   them (no pause online); **Leave the room** ends it. The cabinets' test
+   menu (F2) is locked online: their settings are the room's.
 
 When someone leaves, the others come back to the room's screen; when it is
 full again the race starts again on its own.

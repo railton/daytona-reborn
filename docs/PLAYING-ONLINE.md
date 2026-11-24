@@ -83,12 +83,18 @@ When everyone is in, the owner presses **Start the race**.
 ## 4. The race
 
 - The owner presses **Start** (Enter, or the gamepad's Start) and chooses
-  the course; the other games follow. Each player chooses their own
-  gearbox.
+  the course and the gearbox on the game's own screens; the other games
+  follow: their cursor moves with the owner's and confirms when the owner
+  confirms, so everyone races with the owner's choice and nobody waits.
+- At the start, each game waits for the others so that everyone leaves
+  together: a panel says who it waits for. After 15 s the race starts
+  anyway, and a late player joins it as their game arrives.
 - **Tab** (or the gamepad's left stick button) shows the players list with
   the live standings; each player's name also floats above their car.
 - **Esc** opens the room's details: **Resume the race** goes back in,
-  **Leave the room** ends it for you.
+  **Leave the room** ends it for you. Online there is no pause: behind the
+  menu your car runs on without you, as on linked cabinets, and the others
+  keep racing.
 
 ![During a race: Resume the race, and New race with everyone for the owner](images/online/room-details-race.jpg)
 - When the race ends, the games stay linked: the owner presses Start again
@@ -98,6 +104,12 @@ When everyone is in, the owner presses **Start the race**.
   your place, for up to 10 seconds.
 
 ## When something goes wrong
+
+Every game keeps a log, **daytona.log** (Settings > Game > Logs, on by
+default; **Open the logs folder** shows it), with the five sessions before
+it as daytona.1.log .. daytona.5.log. Its online lines carry the time in
+UTC, and each online race ends with a line of measurements. Send it with a
+description of the problem; the server's log has the same races.
 
 | What you see | What to do |
 | --- | --- |

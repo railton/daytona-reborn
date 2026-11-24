@@ -26,18 +26,22 @@ public:
         if (status_ == RaceStatus::Racing || PcSolo::in_race(board))
             return RaceStartResult::RaceAlreadyActive;
         if (status_ != RaceStatus::Idle || !fresh) return RaceStartResult::RequiresFreshGame;
-        PcSolo::configure(board);
+        PcSolo::configure(board, request.country, request.difficulty);
         course_ = request.course;
         transmission_ = request.transmission;
         mode_ = request.mode;
-        adapter_.emplace(course_, transmission_, mode_);
+        player_chooses_ = request.player_chooses;
+        adapter_.emplace(course_, transmission_, mode_, player_chooses_);
         status_ = RaceStatus::Starting;
         return RaceStartResult::Accepted;
     }
 
     template <class Board>
     Inputs input(Board &board, const Inputs &player) {
-        if (status_ == RaceStatus::Starting) return adapter_->input(board);
+        if (status_ == RaceStatus::Starting) {
+            if (player_chooses_ && PcSolo::selecting(board)) return player; // the cabinet's own screens: the player's, as at the arcade
+            return adapter_->input(board);
+        }
         if (status_ == RaceStatus::Cancelled || status_ == RaceStatus::WrongCourse ||
             status_ == RaceStatus::WrongMode || status_ == RaceStatus::WrongTransmission ||
             status_ == RaceStatus::TimedOut)
@@ -79,6 +83,7 @@ private:
     RaceCourse course_ = RaceCourse::Beginner;
     RaceTransmission transmission_ = RaceTransmission::Automatic;
     RaceMode mode_ = RaceMode::Normal;
+    bool player_chooses_ = false;
     std::optional<PcSolo> adapter_;
 };
 

@@ -270,7 +270,6 @@ HomeMenu::Action HomeMenu::draw(bool has_race, bool loading, const char *message
     const ImU32 amber = rgba(1, 0.80f, 0.28f), alarm = rgba(1, 0.42f, 0.38f), navy = rgba(0.03f, 0.06f, 0.13f);
     const ImU32 focus_col = rgba(1, 0.9f, 0.35f);
     const ImVec4 neon_blue(0.25f, 0.70f, 1, 1), neon_red(1, 0.22f, 0.25f, 1);
-    const ImVec4 course_tint[] = {{0.30f, 0.76f, 1, 1}, {1, 0.71f, 0.20f, 1}, {1, 0.33f, 0.30f, 1}};
     auto nav_focus = [] { return ImGui::IsItemFocused() && GImGui->NavCursorVisible; };
     struct Hit {
         bool clicked, focused, hovered, held;
@@ -284,11 +283,6 @@ HomeMenu::Action HomeMenu::draw(bool has_race, bool loading, const char *message
     auto focus_ring = [&](const Hit &h, const std::vector<ImVec2> &shape) {
         if (h.focused) draw->AddPolyline(shape.data(), int(shape.size()), focus_col, ImDrawFlags_Closed, 2.5f * scale);
         else if (h.hovered) draw->AddPolyline(shape.data(), int(shape.size()), rgba(1, 1, 1, 0.5f), ImDrawFlags_Closed, 1.5f * scale);
-    };
-    auto centred = [&](ImFont *font, float size, ImVec2 a, ImVec2 b, ImU32 col, const char *label, float shear = 0.14f) {
-        const float s = fit(font, size, label, b.x - a.x - 16 * scale);
-        const ImVec2 wide = measure(font, s, label);
-        italic(draw, font, s, {(a.x + b.x - wide.x) * 0.5f, (a.y + b.y - s) * 0.5f}, col, label, shear);
     };
 
     const bool in_room = online.room == HomeOnline::Room::In, connecting = online.room == HomeOnline::Room::Connecting;
@@ -453,38 +447,6 @@ HomeMenu::Action HomeMenu::draw(bool has_race, bool loading, const char *message
         const float size = fit(body_, 21 * scale, label, label_w - (x - left) - 8 * scale);
         italic(draw, body_, size, px(x, cy - size * 0.55f), white, label, 0.14f);
     };
-    // A choice among a row's: blue and lit when chosen.
-    auto choice = [&](const char *label, float x, float y, float width, float height, bool chosen,
-                      const char *under = nullptr, const ImVec4 *tint = nullptr) {
-        const ImVec2 a = px(x, y), b = px(x + width, y + height);
-        const Hit h = hit(label, a, b);
-        const auto shape = rounded(a, b, height * 0.2f, 5 * scale);
-        const float lift = h.focused || h.hovered ? 1.f : 0.f;
-        if (chosen) {
-            const ImVec4 c = tint ? *tint : ImVec4(0.25f, 0.62f, 1, 1);
-            fill(draw, shape, ImGui::GetColorU32({std::min(1.f, c.x + 0.1f), std::min(1.f, c.y + 0.1f), std::min(1.f, c.z + 0.1f), 1}),
-                 ImGui::GetColorU32({c.x * 0.6f, c.y * 0.6f, c.z * 0.75f, 1}), a.y, b.y);
-            glow(draw, shape, c, 0.7f, scale);
-        } else {
-            fill(draw, shape, rgba(0.07f + 0.05f * lift, 0.12f + 0.06f * lift, 0.24f + 0.08f * lift, 0.92f),
-                 rgba(0.03f, 0.06f, 0.14f, 0.92f), a.y, b.y);
-            draw->AddPolyline(shape.data(), int(shape.size()), rgba(0.6f, 0.75f, 1, 0.25f + 0.25f * lift), ImDrawFlags_Closed,
-                              1.2f * scale);
-        }
-        focus_ring(h, shape);
-        const ImU32 col = chosen && tint ? ink : white;
-        if (under) {
-            const float s = fit(body_, 24 * scale, label, width - 20 * scale);
-            const ImVec2 wide = measure(body_, s, label);
-            italic(draw, body_, s, {(a.x + b.x - wide.x) * 0.5f, a.y + 3 * scale}, col, label, 0.14f);
-            const float s2 = fit(body_, 14.5f * scale, under, width - 20 * scale);
-            const ImVec2 sub = measure(body_, s2, under);
-            draw->AddText(body_, s2, {(a.x + b.x - sub.x) * 0.5f, a.y + 4 * scale + s}, chosen && tint ? rgba(0.05f, 0.05f, 0.08f, 0.8f) : muted, under);
-        } else {
-            centred(body_, 21 * scale, a, b, col, label);
-        }
-        return h.clicked;
-    };
     // A text field in a dark, lit frame; a hint at its right ("Pasted").
     auto field = [&](const char *id, char *buf, size_t size, float y, float height, bool user_icon, const char *hint,
                      ImU32 hint_col, bool shorten_text, bool &active) {
@@ -610,9 +572,6 @@ HomeMenu::Action HomeMenu::draw(bool has_race, bool loading, const char *message
         return h.clicked;
     };
 
-    const unsigned course = std::min(unsigned(course_), 2u);
-    const char *tracks[] = {"Three Seven Speedway", "Dinosaur Canyon", "Seaside Street Galaxy"};
-    const char *levels[] = {TX("Beginner"), TX("Advanced"), TX("Expert")};
     bool room_shown = false;
 
     if (loading) {
@@ -632,27 +591,30 @@ HomeMenu::Action HomeMenu::draw(bool has_race, bool loading, const char *message
         }
         if (main_button(TX("Back"), false)) action = Cancel;
     } else if (solo_tab) {
-        const float half = (fw - 10 * scale) * 0.5f, third = (fw - 20 * scale) / 3;
-        row_label(TX("Game mode"), yc, 44 * scale, 0);
-        if (choice(TX("Normal race"), fx, yc, half, 44 * scale, mode_ == rt::RaceMode::Normal)) mode_ = rt::RaceMode::Normal;
-        if (choice(TX("Time Attack"), fx + half + 10 * scale, yc, half, 44 * scale, mode_ == rt::RaceMode::TimeAttack))
-            mode_ = rt::RaceMode::TimeAttack;
-        row_label(TX("Gearbox"), yc + 52 * scale, 44 * scale, 1);
-        if (choice(TX("Automatic"), fx, yc + 52 * scale, half, 44 * scale, transmission_ == rt::RaceTransmission::Automatic))
-            transmission_ = rt::RaceTransmission::Automatic;
-        if (choice(TX("Manual"), fx + half + 10 * scale, yc + 52 * scale, half, 44 * scale,
-                   transmission_ == rt::RaceTransmission::Manual))
-            transmission_ = rt::RaceTransmission::Manual;
-        row_label(TX("Course"), yc + 104 * scale, 50 * scale, 2);
-        const char *numbers[] = {"01", "02", "03"};
-        for (unsigned i = 0; i < 3; ++i)
-            if (choice(numbers[i], fx + i * (third + 10 * scale), yc + 104 * scale, third, 50 * scale, course == i, levels[i],
-                       course == i ? &course_tint[i] : nullptr))
-                course_ = Course(i);
-        // the chosen course's name
+        // The cabinet's language and difficulty, set here; then, as at the arcade, the player
+        // chooses the course, the gearbox and Time Attack (Start held) on the game's own screens.
         {
-            const float size = fit(display_, 21 * scale, tracks[course], fw - 110 * scale);
-            italic(draw, display_, size, px(fx + 4 * scale, yc + 164 * scale), white, tracks[course], 0.16f);
+            // the same rows as the Online card's: its invite code, its "or" line, its new room
+            const float cy0 = yc + 20 * scale, cy1 = yc + 106 * scale, line = yc + 88 * scale;
+            row_label(TX("Country"), cy0, 44 * scale);
+            const char *countries[] = {TX("USA (English)"), TX("Japan (Japanese)"), TX("Export")};
+            const float third = (fw - 16 * scale) / 3;
+            for (int i = 0; i < 3; ++i) {
+                const ImVec2 a = px(fx + i * (third + 8 * scale), cy0), b = {a.x + third, a.y + 44 * scale};
+                char id[24];
+                std::snprintf(id, sizeof id, "##country%d", i);
+                if (neon::choice(draw, body_, scale, id, countries[i], a, b, solo_country_ == i, 17)) solo_country_ = i;
+            }
+            draw->AddLine(px(left, line), px(left + panel, line), rgba(0.6f, 0.75f, 1, 0.25f), 1.f * scale);
+            row_label(TX("Difficulty"), cy1, 46 * scale);
+            const char *levels[] = {TX("Easy"), TX("Normal"), TX("Hard"), TX("Hardest")};
+            const float quarter = (fw - 24 * scale) / 4;
+            for (int i = 0; i < 4; ++i) {
+                const ImVec2 a = px(fx + i * (quarter + 8 * scale), cy1), b = {a.x + quarter, a.y + 46 * scale};
+                char id[24];
+                std::snprintf(id, sizeof id, "##difficulty%d", i);
+                if (neon::choice(draw, body_, scale, id, levels[i], a, b, solo_difficulty_ == i, 17)) solo_difficulty_ = i;
+            }
         }
         if (main_button(has_race ? TX("Resume") : TX("Play"), true)) {
             if (has_race) action = Resume;
@@ -791,7 +753,7 @@ HomeMenu::Action HomeMenu::draw(bool has_race, bool loading, const char *message
         draw->AddText(body_, 15.5f * scale, px(fx + 4 * scale, cy + 54 * scale), muted, TX("Then your name, the server and the race settings."),
                       nullptr, fw);
         if (!online.error.empty())
-            draw->AddText(body_, 14 * scale, px(left, yc + 184 * scale), alarm, online.error.c_str(), nullptr, panel);
+            draw->AddText(body_, 14 * scale, px(left, yc + 186 * scale), alarm, online.error.c_str(), nullptr, panel);
         ImGui::BeginDisabled(!valid); // lit once a code is there
         if (main_button(TX("Join the room"), true) && valid) {
             invite_text_ = invite_;

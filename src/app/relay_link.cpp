@@ -206,7 +206,7 @@ void RelayLink::lost(const std::string &why) {
         }
         reconnecting_ = true;
         reconnect_until_ms_ = now + 10000; // the server keeps the place 10 s
-        std::printf("relay: connection lost (%s), coming back into the race\n", why.c_str());
+        std::printf("relay: [%s] connection lost (%s), coming back into the race\n", online::utc_now().c_str(), why.c_str());
     } else if (now > reconnect_until_ms_) {
         reconnecting_ = false;
         fail(why);
@@ -244,6 +244,9 @@ RelayLink::~RelayLink() {
 
 void RelayLink::fail(const std::string &why) {
     if (state_ == State::Failed) return;
+    if (hello_struct_.op != online::Hello::Op::Info) // the log (a server's probe failing is no news)
+        std::printf("relay: [%s] %s %s: %s\n", online::utc_now().c_str(),
+                    state_ == State::Ready ? "connection to the race ended," : "connection failed,", server_.c_str(), why.c_str());
     state_ = State::Failed;
     error_ = why;
     if (sock_ >= 0) close_socket(sock_);
@@ -387,7 +390,7 @@ void RelayLink::frame(uint8_t type, uint32_t epoch, const std::string &payload) 
             state_ = s->ready ? State::Ready : State::Waiting;
             if (reconnecting_) {
                 reconnecting_ = false;
-                std::printf("relay: back in the race\n");
+                std::printf("relay: [%s] back in the race\n", online::utc_now().c_str());
             }
         }
         break;

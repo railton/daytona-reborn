@@ -464,7 +464,7 @@ func TestNumberedInOrderOnce(t *testing.T) {
 	lastStatus(t, b)
 	s.mu.Lock()
 	for _, seq := range []uint32{1, 0, 0, 2, 1} { // out of order and twice, as TCP and UDP race
-		s.receiveNumbered(a, epoch, seq, []byte{byte('x' + seq)})
+		s.receiveNumbered(a, epoch, seq, []byte{byte('x' + seq)}, false)
 	}
 	s.mu.Unlock()
 	for want := uint32(0); want < 3; want++ {
@@ -477,5 +477,29 @@ func TestNumberedInOrderOnce(t *testing.T) {
 	case f := <-b.out:
 		t.Errorf("a duplicate went through: %v", f.Payload)
 	default:
+	}
+}
+
+// The race log's numbers: latency min/avg/max, the queue's longest, kept
+// across a player's new connection (rejoin).
+func TestRaceStats(t *testing.T) {
+	var st raceStats
+	for _, us := range []int64{220_000, 180_000, 260_000} {
+		st.latency(us)
+	}
+	st.queued(3)
+	st.queued(1)
+	st.in.Add(5)
+	if st.rttMin.Load() != 180_000 || st.rttMax.Load() != 260_000 || st.rttSum.Load()/st.rttN.Load() != 220_000 || st.queueMax.Load() != 3 {
+		t.Fatalf("min %d max %d avg %d queue %d", st.rttMin.Load(), st.rttMax.Load(), st.rttSum.Load()/st.rttN.Load(), st.queueMax.Load())
+	}
+	var back raceStats
+	back.copyFrom(&st)
+	if back.in.Load() != 5 || back.rttN.Load() != 3 {
+		t.Fatal("a rejoin lost the race's numbers")
+	}
+	st.reset()
+	if st.in.Load() != 0 || st.rttN.Load() != 0 {
+		t.Fatal("reset left numbers")
 	}
 }

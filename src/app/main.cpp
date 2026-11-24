@@ -68,6 +68,9 @@
 #include "app/gpu/home_scene.h"
 #include "app/gpu/hardware_present_trace.h"
 #include "app/home_menu.h"
+#include "app/neon_ui.h"
+#include "app/chime.h"
+#include "app/online_race_stats.h"
 #include "common/input_script.h"
 #endif
 
@@ -92,6 +95,11 @@
 #include <string>
 #include <stdexcept>
 #include <vector>
+#include <filesystem>
+#include <thread>
+#ifndef _WIN32
+#include <unistd.h> // the log's tee: pipe, dup2
+#endif
 
 namespace {
 
@@ -416,10 +424,13 @@ int fail(const char *what) {
 
 } // namespace
 
-// Windows builds daytona as a GUI program, which has no console of its own:
-// nothing it prints is seen. Started from a command window, attach to that
-// window; otherwise write to daytona.log beside the settings.
-void open_log() {
+// The log: what the game prints, kept in daytona.log beside the settings, the
+// last sessions before it as daytona.1.log .. daytona.5.log, so a player can
+// send the one where something went wrong ("Generate logs" in Settings, on by
+// default). Windows builds daytona as a GUI program, which has no console of
+// its own: started from a command window it prints there instead. On Linux
+// and macOS the terminal, if any, still shows everything (a tee).
+void open_log(bool keep) {
 #ifdef _WIN32
     if (AttachConsole(ATTACH_PARENT_PROCESS)) {
         std::freopen("CONOUT$", "w", stdout);
@@ -427,11 +438,48 @@ void open_log() {
         std::printf("\n");
         return;
     }
+#endif
+#ifndef M2_MOBILE
+    if (!keep) return;
     const std::string log = pref_file("daytona.log");
+    std::error_code ec; // the sessions before: daytona.log -> .1 -> ... -> .5 (the oldest goes)
+    for (int i = 5; i >= 1; --i) {
+        const std::string from = i == 1 ? log : pref_file(("daytona." + std::to_string(i - 1) + ".log").c_str());
+        const std::string to = pref_file(("daytona." + std::to_string(i) + ".log").c_str());
+        if (std::filesystem::exists(std::filesystem::u8path(from), ec))
+            std::filesystem::rename(std::filesystem::u8path(from), std::filesystem::u8path(to), ec);
+    }
+#ifdef _WIN32
     std::freopen(log.c_str(), "w", stdout);
     std::freopen(log.c_str(), "a", stderr);
     std::setvbuf(stdout, nullptr, _IONBF, 0);
     std::setvbuf(stderr, nullptr, _IONBF, 0);
+#else
+    std::FILE *file = std::fopen(log.c_str(), "w");
+    int pipe_fds[2];
+    if (!file || ::pipe(pipe_fds) != 0) {
+        if (file) std::fclose(file);
+        return;
+    }
+    const int terminal = ::dup(STDOUT_FILENO); // where it printed so far
+    ::dup2(pipe_fds[1], STDOUT_FILENO);
+    ::dup2(pipe_fds[1], STDERR_FILENO);
+    ::close(pipe_fds[1]);
+    std::setvbuf(stdout, nullptr, _IONBF, 0);
+    std::setvbuf(stderr, nullptr, _IONBF, 0);
+    std::thread([read_end = pipe_fds[0], terminal, file] {
+        char buf[4096];
+        for (;;) {
+            const ssize_t n = ::read(read_end, buf, sizeof buf);
+            if (n <= 0) break;
+            if (terminal >= 0) (void)!::write(terminal, buf, size_t(n));
+            std::fwrite(buf, 1, size_t(n), file);
+            std::fflush(file);
+        }
+    }).detach();
+#endif
+#else
+    (void)keep;
 #endif
 }
 
@@ -451,9 +499,9 @@ int main(int argc, char **argv) {
     pc_home &= !autostart;
     if (pc_home && app::Config::profile.empty()) app::Config::profile = "pc-solo";
 #endif
-    open_log();
     app::Config cfg;
     cfg.load();
+    open_log(cfg.write_logs);
     app::i18n::set(cfg.language.empty() ? app::i18n::system_default() : cfg.language); // before the fonts
     app::i18n::translate = &app::i18n::tr; // pacing, controls, force feedback (app/i18n_mark.h)
     // Launcher enhancements the runtime reads from the environment once, on
@@ -765,6 +813,10 @@ int main(int argc, char **argv) {
     if (const char *v = std::getenv("M2_FRAMES_IN_FLIGHT")) // experiment: 1 = each pass waits for the refresh
         SDL_SetGPUAllowedFramesInFlight(dev, Uint32(std::clamp(std::atoi(v), 1, 3)));
     std::printf("daytona: GPU driver %s\n", SDL_GetGPUDeviceDriver(dev));
+    // the session, for a log sent with a problem: the system and the settings that matter
+    std::printf("daytona: [%s] session; system %s, %d logical cores, %d MB of RAM; renderer %s, draw mode %d, display %s\n",
+                app::online::utc_now().c_str(), SDL_GetPlatform(), SDL_GetNumLogicalCPUCores(), SDL_GetSystemRAM(), cfg.renderer.c_str(), cfg.draw_mode,
+                cfg.fullscreen ? "fullscreen" : "window");
 #ifndef M2_MOBILE
     const float paper_white = hdr10_paper_white.value_or(app::kHdr10PaperWhiteNits);
     // Display curve: the launcher setting, or M2_DISPLAY_GAMMA (0 = the PC
@@ -901,6 +953,12 @@ int main(int argc, char **argv) {
         if (!home_3d) SDL_Log("3D home unavailable on this GPU backend: %s", SDL_GetError());
         ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_NavEnableGamepad;
         home_menu.init();
+        { // the gearbox kept from the last time (solo, and online's own gearbox screen)
+            auto request = home_menu.request();
+            request.transmission = cfg.gearbox_manual ? rt::RaceTransmission::Manual : rt::RaceTransmission::Automatic;
+            home_menu.select(request);
+            home_menu.set_solo(cfg.solo_country, cfg.solo_difficulty); // the Solo card's language and difficulty
+        }
         if (start_solo) home_menu.select(*start_solo);
     } else {
         ImGui::GetIO().Fonts->AddFontDefaultVector(); // the launcher's, with the other scripts merged in
@@ -910,6 +968,7 @@ int main(int argc, char **argv) {
     app::OnlineMenu online_menu;
     bool online_screen = open_online && pc_home; // the home menu shows the Online screen
     bool solo = false;
+    bool solo_picks = false, solo_shown = false; // a solo started from the PC home: the player picks on the cabinet's screens
     std::string home_message;
     uint64_t reveal_at = 0;
     SDL_GPUTexture *capture_image = nullptr;
@@ -1049,6 +1108,12 @@ int main(int argc, char **argv) {
     rt::online::CourseSync online_course; // and the MASTER's course
     rt::online::Standings online_standings; // the race's standings, for the players list
     rt::online::StartBarrier online_barrier; // everyone starts the race together (no frame sync)
+    rt::online::GearboxSync online_gearbox;  // the MASTER's gearbox for the whole room, as its course
+#ifndef M2_MOBILE
+    app::Chime online_chime;      // a player joined the room (app/chime.h)
+    app::OnlineRaceStats online_stats; // each online race's measurements, for the log
+    int online_seen_players = -1; // the room's players last seen; -1: no room yet
+#endif
     bool online_waiting = false;             // this game holds at the barrier: the others are still selecting
     bool online_race_logged = false;         // the online race's diagnostics line, once a race
     uint64_t online_race_since = 0;       // when this online race began (its first race frame), 0: not racing
@@ -1141,6 +1206,7 @@ int main(int argc, char **argv) {
                 online_course = {};
                 online_standings.clear();
                 online_barrier.clear();
+                online_gearbox = {};
                 online_waiting = false;
                 std::printf("daytona: online: room %s, player %d of %d\n", online_link->room().c_str(), st.position, st.size);
             } else if (cfg.link && !solo_mode) { // link play: the communication board on TCP
@@ -1177,6 +1243,9 @@ int main(int argc, char **argv) {
 #ifndef M2_MOBILE
     // Leave the online room: its race ends here, the others see the link lost.
     auto leave_online = [&] {
+#ifndef M2_MOBILE
+        if (online_link && game && online_stats.active()) online_stats.end(*online_link, game->board(), "left");
+#endif
         if (online_game) {
             native_audio.close();
             audio.close();
@@ -1299,10 +1368,33 @@ int main(int argc, char **argv) {
             in_launcher = true;
             have_frame = false;
         };
+#ifndef M2_MOBILE
+        { // a chime when a player joins, on the room's screens (not over a race)
+            const auto state = online_link ? online_link->state() : app::RelayLink::State::Failed;
+            if (state == app::RelayLink::State::Waiting || state == app::RelayLink::State::Ready) {
+                const int players = online_link->status().joined;
+                if (online_seen_players >= 0 && players > online_seen_players && (!online_game || in_launcher))
+                    online_chime.play(cfg.effects_volume);
+                if (players != online_seen_players) { // the log: who is in the room
+                    std::string who;
+                    for (const auto &name : online_link->status().names) who += (who.empty() ? "" : ", ") + name;
+                    for (const auto &name : online_link->status().waiting) who += (who.empty() ? "" : ", ") + name + " (next race)";
+                    std::printf("daytona: [%s] online: room %s, %d in it: %s\n", app::online::utc_now().c_str(),
+                                online_link->room().c_str(), players, who.c_str());
+                }
+                online_seen_players = players;
+            } else {
+                online_seen_players = -1;
+            }
+        }
+#endif
         if (online_link) { // online: the room's state; its race starts on its own when it fills
             online_link->poll();
             const bool ready = online_link->state() == app::RelayLink::State::Ready;
             if (ready && (!online_game || online_epoch != online_link->epoch())) {
+#ifndef M2_MOBILE
+                if (game && online_stats.active()) online_stats.end(*online_link, game->board(), "interrupted (a new race)");
+#endif
                 solo = pc_race = false;
                 online_wanted = true;
                 const bool started = start_game();
@@ -1316,6 +1408,10 @@ int main(int argc, char **argv) {
                     leave_online();
                 }
             } else if (online_game && !ready && !in_launcher) {
+#ifndef M2_MOBILE
+                if (game && online_stats.active())
+                    online_stats.end(*online_link, game->board(), "interrupted (the room changed: a player left or dropped)");
+#endif
                 in_launcher = true; // the room changed: its screen until it is full again
                 online_screen = true;
                 settings = false;
@@ -1464,7 +1560,25 @@ int main(int argc, char **argv) {
             std::printf("daytona: frame pacing: %s\n", p.describe(refresh).c_str());
         }
         launcher.set_pacing_status(pacer.pacing().describe(refresh));
-        if (game && !in_launcher)
+#ifndef M2_MOBILE
+        // Online there is no pause: the race and its link run on behind the menu (Esc), with no
+        // input, as linked cabinets do. A paused game stopped answering the link: the others' games
+        // froze waiting for it, and its connection gave up after ~5 s, ending the race for everyone.
+        const bool online_live = online_game && game && online_link && online_link->state() == app::RelayLink::State::Ready;
+#else
+        const bool online_live = false;
+#endif
+        const bool run_game = game && (!in_launcher || online_live);
+#ifndef M2_MOBILE
+        // A solo race from the PC home, as at the arcade: on the cabinet's own selection screens the
+        // game shows and the player picks (the course, the gearbox, Time Attack with Start held).
+        const bool solo_choosing = solo && solo_picks && game &&
+                                   game->board().read_byte(rt::online::AutoEntry::mode_address) == rt::online::CourseSync::selection;
+        if (solo_choosing && !solo_shown) solo_shown = true, reveal_at = SDL_GetTicksNS(); // its picture fades in
+#else
+        const bool solo_choosing = false;
+#endif
+        if (run_game)
             if (const uint64_t wait = pacer.wait_ns(SDL_GetTicksNS())) SDL_DelayPrecise(wait); // VRR: hold the frame
         const uint64_t now = SDL_GetTicksNS();
 #ifndef M2_MOBILE
@@ -1486,7 +1600,7 @@ int main(int argc, char **argv) {
             SDL_GetWindowSizeInPixels(window, &pixel_width, &pixel_height) &&
             pixel_width > 0 && pixel_height > 0;
 #endif
-        if (game && !in_launcher) {
+        if (run_game) {
 #ifndef M2_MOBILE
             // "4:3": the cabinet's picture in every mode, centred with bars. In the
             // native mode, "" (automatic) takes the window's shape, as before, and
@@ -1517,8 +1631,9 @@ int main(int argc, char **argv) {
             game->set_draw_budget(cfg.draw_budget);
             for (int frames = pacer.frames(now); frames > 0; --frames) {
                 rt::Inputs inputs = cfg.controls.sample(SDL_GetKeyboardState(nullptr), devices);
+                if (in_launcher) inputs = {}; // online behind the menu: the car runs on without its driver
 #ifndef M2_MOBILE
-                if (solo) inputs = {}; // the runtime owns native startup inputs
+                if (solo && !solo_choosing) inputs = {}; // the runtime owns native startup inputs, but the player's choices
                 else if (pc_home && !online_game) { // online: the cabinet's own Start (free play) and test menu
                     // Replays use absolute simulation ticks after the native start.
                     if (input_script && game->race_status() == rt::RaceStatus::Racing)
@@ -1527,25 +1642,32 @@ int main(int argc, char **argv) {
                 }
                 else
 #endif
-                {
+                if (online_game) {
+                    rt::online::lock_service(inputs); // the room's settings: no test menu online
+                } else {
                     if (cfg.hold_test != test_hold.armed()) cfg.hold_test ? test_hold.arm() : test_hold.cancel();
                     if (test_hold.apply(game->frames(), inputs.in0)) cfg.hold_test = false; // held: the box clears
                 }
-                if (!solo) // the cabinet's own course and gearbox screens (a SLAVE's course follows the MASTER below)
+                if (!solo || solo_choosing) // the cabinet's own course and gearbox screens (a SLAVE's follow the MASTER's below)
                     selection_steer.apply(game->board(), inputs.steer,
-                                          cfg.controls.steering_holds(SDL_GetKeyboardState(nullptr), devices));
+                                          cfg.controls.steering_holds(SDL_GetKeyboardState(nullptr), devices),
+                                          online_game || link != nullptr); // linked: the gearbox at step 5
                 if (online_game) { // one Start and one course for the whole room, and its standings
                     const auto &room = online_link->status();
                     const bool master = room.position == 1;
                     rt::online::StartGate::apply(game->board(), inputs, master || room.any_start);
                     for (const auto &message : online_link->take_controls())
-                        if (!online_barrier.receive(message) && !online_standings.receive(message) && !master)
+                        if (!online_barrier.receive(message) && !online_standings.receive(message) && !master &&
+                            !online_gearbox.receive(message))
                             online_course.receive(message);
-                    if (master) {
+                    if (master) { // its course and its gearbox, for everyone
                         if (const auto told = online_course.master(game->board()); !told.empty())
+                            online_link->send_control(told);
+                        if (const auto told = online_gearbox.master(game->board(), inputs.steer); !told.empty())
                             online_link->send_control(told);
                     } else {
                         online_course.slave(game->board(), inputs);
+                        online_gearbox.slave(game->board(), inputs);
                     }
                     if (const auto told = online_standings.own(game->board(), room.position); !told.empty())
                         online_link->send_control(told);
@@ -1557,9 +1679,22 @@ int main(int argc, char **argv) {
                         game->board().link_idle_tick();
                         continue;
                     }
-                    if (was_waiting)
-                        std::printf("daytona: online: waited %llu ms for the others at the start\n",
-                                    (unsigned long long)online_barrier.waited_ms());
+                    if (was_waiting) { // for the log: how long, the last one in, or who never came (a timeout)
+                        auto name = [&](int place) {
+                            return size_t(place - 1) < room.names.size() && !room.names[size_t(place - 1)].empty()
+                                       ? room.names[size_t(place - 1)] : "player " + std::to_string(place);
+                        };
+                        std::string why;
+                        if (!online_barrier.missing_at_release().empty()) {
+                            why = "timed out, still missing:";
+                            for (const int place : online_barrier.missing_at_release()) why += " " + name(place);
+                        } else if (online_barrier.last_place() > 0) {
+                            why = "the last in: " + name(online_barrier.last_place());
+                        }
+                        std::printf("daytona: [%s] online: waited %llu ms for the others at the start (%s)\n",
+                                    app::online::utc_now().c_str(), (unsigned long long)online_barrier.waited_ms(), why.c_str());
+                        std::fflush(stdout);
+                    }
                 }
                 game->run_frame(inputs);
                 if (online_game) { // diagnostics: what the cabinet runs as, once a race (the log)
@@ -1572,6 +1707,12 @@ int main(int argc, char **argv) {
                                     cb ? cb->id() : 0, cb ? cb->count() : 0, online_link->status().position, online_link->status().size);
                         std::fflush(stdout);
                     }
+#ifndef M2_MOBILE
+                    if (in_race && !online_stats.active()) online_stats.begin(*online_link, now);
+                    if (in_race) online_stats.frame(game->board(), now);
+                    else if (online_stats.active()) online_stats.end(*online_link, game->board(), "ended");
+                    if (in_launcher) online_stats.menu(17'384'000); // a frame of 1/57.524 s, behind the menu
+#endif
                     online_race_logged = in_race;
                 }
                 if (online_game)
@@ -1989,14 +2130,14 @@ int main(int argc, char **argv) {
             home_message = launcher.error();
             cancel_start();
         }
-        const bool draw_home = pc_home && !settings && (in_launcher || solo);
+        const bool draw_home = pc_home && !settings && (in_launcher || (solo && !solo_choosing));
         const float reveal = reveal_at ? std::clamp(float(now - reveal_at) / 240'000'000.f, 0.f, 1.f) : 1.f;
 #endif
         if (in_launcher
 #ifdef M2_MOBILE
             || game != nullptr
 #else
-            || draw_home || reveal < 1.f || online_names > 0.f || !online_tags.empty()
+            || draw_home || reveal < 1.f || online_names > 0.f || !online_tags.empty() || online_waiting
 #endif
         ) {
             ImGui_ImplSDLGPU3_NewFrame();
@@ -2120,9 +2261,28 @@ int main(int argc, char **argv) {
                     }
                 }
                 const auto home_action = home_menu.draw(pc_race, solo, home_message.c_str(), 1.f, home_online);
+                if (const bool manual = home_menu.request().transmission == rt::RaceTransmission::Manual;
+                    manual != cfg.gearbox_manual) { // the gearbox chosen: kept, and online's too
+                    cfg.gearbox_manual = manual;
+                    cfg.save();
+                }
+                if (home_menu.solo_country() != cfg.solo_country || home_menu.solo_difficulty() != cfg.solo_difficulty) {
+                    cfg.solo_country = home_menu.solo_country(); // the Solo card's choices: kept
+                    cfg.solo_difficulty = home_menu.solo_difficulty();
+                    cfg.save();
+                }
                 switch (home_action) {
                 case app::HomeMenu::Online: online_screen = true; online_menu.reload(); home_message.clear(); break;
-                case app::HomeMenu::Play: begin_solo(home_menu.request()); break;
+                case app::HomeMenu::Play: { // the player picks the course and the gearbox on the game's screens
+                    auto request = home_menu.request();
+                    request.player_chooses = true;
+                    request.country = home_menu.solo_country();       // the cabinet's language
+                    request.difficulty = home_menu.solo_difficulty(); // and difficulty, from the Solo card
+                    solo_picks = true;
+                    solo_shown = false;
+                    begin_solo(request);
+                    break;
+                }
                 case app::HomeMenu::Resume: in_launcher = false; break;
                 case app::HomeMenu::Settings: settings = true; break;
                 case app::HomeMenu::Quit: running = false; break;
@@ -2204,15 +2364,46 @@ int main(int argc, char **argv) {
                                  app::game_picture(view->Size.x, view->Size.y, screen_w, H, cfg.arcade_43()),
                                  screen_w, H, reveal);
             }
-            if (online_waiting && online_game && !in_launcher) { // held at the start barrier
+            if (online_waiting && online_game && !in_launcher && online_link) { // held at the start barrier
+                // a neon panel: who the race waits for, and for how long (it starts anyway after timeout_ms)
+                using namespace app::neon;
+                const auto &room = online_link->status();
                 const auto *view = ImGui::GetMainViewport();
-                ImGui::SetNextWindowPos({view->Pos.x + view->Size.x * 0.5f, view->Pos.y + view->Size.y * 0.5f},
-                                        ImGuiCond_Always, {0.5f, 0.5f});
-                ImGui::SetNextWindowBgAlpha(0.8f);
-                ImGui::Begin("##online_waiting", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
-                             ImGuiWindowFlags_NoInputs | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing);
-                ImGui::TextUnformatted(TX("Waiting for the other players to finish choosing..."));
-                ImGui::End();
+                const float scale = std::max(0.5f, std::min(view->Size.y / 900.f, view->Size.x / 980.f));
+                ImFont *font = home_menu.body_font() ? home_menu.body_font() : ImGui::GetFont();
+                std::string who;
+                for (const int place : online_barrier.missing(room.size)) {
+                    if (!who.empty()) who += ", ";
+                    char unnamed[32];
+                    std::snprintf(unnamed, sizeof unnamed, TX("Player %d"), place);
+                    who += size_t(place - 1) < room.names.size() && !room.names[size_t(place - 1)].empty()
+                               ? room.names[size_t(place - 1)] : std::string(unnamed);
+                }
+                const uint64_t held = online_barrier.held_ms(SDL_GetTicks());
+                const int left = int((rt::online::StartBarrier::timeout_ms - std::min<uint64_t>(held, rt::online::StartBarrier::timeout_ms) + 999) / 1000);
+                char line[96];
+                std::snprintf(line, sizeof line, TX("The race starts when everyone is here, or in %d s."), left);
+                const char *title = TX("Waiting for the other players");
+                const float pw = std::min(view->Size.x - 32.f, 620 * scale), ph = (who.empty() ? 96 : 128) * scale;
+                const ImVec2 a = {view->Pos.x + (view->Size.x - pw) * 0.5f, view->Pos.y + view->Size.y * 0.5f - ph * 0.5f};
+                const ImVec2 b = {a.x + pw, a.y + ph};
+                auto *draw = ImGui::GetForegroundDrawList();
+                const auto shape = rounded(a, b, 0, 14 * scale);
+                fill(draw, shape, rgba(0.05f, 0.11f, 0.25f, 0.94f), rgba(0.02f, 0.05f, 0.12f, 0.94f), a.y, b.y);
+                glow(draw, shape, kBlue, 0.9f, scale);
+                for (int i = 0; i < 3; ++i) { // three dots, one lit after the other
+                    const bool lit = int(ImGui::GetTime() * 3) % 3 == i;
+                    draw->AddCircleFilled({a.x + (30 + i * 16) * scale, a.y + 34 * scale}, 5 * scale,
+                                          lit ? rgba(0.38f, 0.80f, 1) : rgba(0.38f, 0.80f, 1, 0.3f), 12);
+                }
+                italic(draw, font, fit(font, 24 * scale, title, pw - 110 * scale), {a.x + 80 * scale, a.y + 20 * scale},
+                       rgba(0.97f, 0.98f, 1), title, 0.16f);
+                float y = a.y + 58 * scale;
+                if (!who.empty()) {
+                    draw->AddText(font, 18 * scale, {a.x + 30 * scale, y}, rgba(1, 0.80f, 0.28f), who.c_str(), nullptr, pw - 60 * scale);
+                    y += 30 * scale;
+                }
+                draw->AddText(font, 16 * scale, {a.x + 30 * scale, y}, rgba(0.70f, 0.78f, 0.90f), line, nullptr, pw - 60 * scale);
             }
             if (online_names > 0.f && online_link && !in_launcher) {
                 std::array<int, 9> ranks;

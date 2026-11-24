@@ -50,6 +50,11 @@ public:
     const std::string &name() const { return name_text_; }
     // The Online card first (back from the Online screen; a capture).
     void show_online() { tab_ = Tab::Online; }
+    // Solo: the cabinet's country (0 USA, 1 JPN, 2 EXPORT) and difficulty
+    // (0 easy .. 3 hardest), chosen on the Solo card (Config::solo_country...).
+    int solo_country() const { return solo_country_; }
+    int solo_difficulty() const { return solo_difficulty_; }
+    void set_solo(int country, int difficulty) { solo_country_ = country, solo_difficulty_ = difficulty; }
     ImFont *display_font() const { return display_; }
     ImFont *body_font() const { return body_; }
     // Diagnostics (a capture): an invite as if pasted.
@@ -63,6 +68,7 @@ private:
     rt::RaceCourse course_ = rt::RaceCourse::Beginner;
     rt::RaceTransmission transmission_ = rt::RaceTransmission::Automatic;
     rt::RaceMode mode_ = rt::RaceMode::Normal;
+    int solo_country_ = 0, solo_difficulty_ = 1;
     ImFont *display_ = nullptr, *body_ = nullptr;
     char invite_[256] = {}, name_[64] = {}, ask_[64] = {};
     std::string invite_text_, name_text_, seen_clip_;

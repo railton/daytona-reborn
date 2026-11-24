@@ -1,4 +1,4 @@
-# Building the game (Windows and Linux)
+# Building the game (Windows, macOS and Linux)
 
 This project contains no game data and there is no ready-made download.
 Everyone builds the game on their own computer, from their own ROM set: the
@@ -100,6 +100,37 @@ which runs `git pull` first), then double-click `Build Daytona.bat` again.
 `windows-build.log` in the project folder. A download whose checksum does
 not match is deleted and nothing is unpacked: run it again. To start over,
 delete `build-daytona` (and `.tools` to download the tools again).
+
+## macOS: Build Daytona.command (recommended)
+
+macOS on Apple Silicon or Intel. No Homebrew, no administrator rights.
+
+1. **Double-click `Build Daytona.command`** in the project folder. The first
+   time macOS may refuse a script that came from the internet: **right-click
+   it, Open, then Open again**. A Terminal window shows the build.
+2. If Apple's **command line tools** are missing (the compiler, the macOS
+   SDK, git and python3), macOS opens its own window to install them, free:
+   accept, wait for it to finish, then double-click `Build Daytona.command`
+   again.
+3. The first time, it downloads CMake and Ninja into `.tools/` in the
+   project folder, about 90 MB, each file checked against its pinned
+   SHA-256. Nothing is installed on macOS: delete the project folder and
+   they are gone.
+4. If `roms/daytona.zip` is not there yet, a window asks for your ROM set and
+   copies it there.
+5. It fetches the pinned libraries, recompiles the game from your ROM set
+   and builds it: 10 to 40 minutes the first time, much less afterwards.
+6. It ends with `== Done`, the game at `build-daytona/daytona`, and a
+   **Daytona (recomp)** app on your desktop that starts it (build again if
+   you move the project folder).
+
+**Updating:** download the new version (or, in a git clone, run
+`bash scripts/macos-build.sh --update`, which runs `git pull` first), then
+double-click `Build Daytona.command` again.
+
+**If it stops**, it says why; everything it printed is in `macos-build.log`
+in the project folder. To start over, delete `build-daytona` (and `.tools`
+to download the tools again).
 
 ## Windows with Visual Studio (setup.ps1)
 

@@ -97,35 +97,15 @@ int main() try {
     for (SDL_Gamepad *input : {static_cast<SDL_Gamepad *>(nullptr), pad}) {
         Screen screen(window, input);
         for (int i = 0; i < 3; ++i) screen.frame();
-        auto expect_move = [&](SDL_Scancode key, SDL_GamepadButton button) {
-            require(screen.press(key, button) == app::HomeMenu::Stay, "navigation launched an action");
-        };
         auto confirm = [&]() { return screen.press(SDL_SCANCODE_RETURN, SDL_GAMEPAD_BUTTON_SOUTH); };
-        // the Solo card's column: game mode, gearbox, course, then Play at the bottom
+        // the Solo card: Play (the course and the gearbox are chosen on the game's own screens)
         require(std::string_view(screen.focus()) == "Play", "home default action is not Play");
-        expect_move(SDL_SCANCODE_UP, SDL_GAMEPAD_BUTTON_DPAD_UP);
-        for (int i = 0; i < 2 && std::string_view(screen.focus()) != "03"; ++i)
-            expect_move(SDL_SCANCODE_RIGHT, SDL_GAMEPAD_BUTTON_DPAD_RIGHT);
-        require(std::string_view(screen.focus()) == "03", "cannot focus Expert");
-        require(confirm() == app::HomeMenu::Stay && screen.menu.request().course == rt::RaceCourse::Expert,
-                "Expert choice not applied");
-        expect_move(SDL_SCANCODE_UP, SDL_GAMEPAD_BUTTON_DPAD_UP);
-        if (std::string_view(screen.focus()) == "Automatic") expect_move(SDL_SCANCODE_RIGHT, SDL_GAMEPAD_BUTTON_DPAD_RIGHT);
-        require(std::string_view(screen.focus()) == "Manual", "cannot focus Manual");
-        require(confirm() == app::HomeMenu::Stay && screen.menu.request().transmission == rt::RaceTransmission::Manual,
-                "Manual choice not applied");
-        expect_move(SDL_SCANCODE_DOWN, SDL_GAMEPAD_BUTTON_DPAD_DOWN);
-        expect_move(SDL_SCANCODE_DOWN, SDL_GAMEPAD_BUTTON_DPAD_DOWN);
-        require(std::string_view(screen.focus()) == "Play", "cannot come back down to Play");
-        require(confirm() == app::HomeMenu::Play, "Expert Manual did not request Play");
+        require(confirm() == app::HomeMenu::Play, "Play did not request Play");
         screen.loading = true;
         for (int i = 0; i < 3; ++i) screen.frame();
         require(confirm() == app::HomeMenu::Cancel, "default loading action did not cancel");
         screen.loading = false;
         for (int i = 0; i < 3; ++i) screen.frame();
-        require(screen.menu.request().course == rt::RaceCourse::Expert &&
-                screen.menu.request().transmission == rt::RaceTransmission::Manual,
-                "cancel lost the selected race");
         require(confirm() == app::HomeMenu::Play, "play did not recover after cancelling load");
         screen.shown = false;
         for (int i = 0; i < 8; ++i) screen.frame();
@@ -133,7 +113,7 @@ int main() try {
         screen.shown = true;
         for (int i = 0; i < 3; ++i) screen.frame();
         require(confirm() == app::HomeMenu::Resume, "default paused action did not resume");
-        std::printf("%s: Expert Manual, cancel, play and resume passed\n", input ? "gamepad" : "keyboard");
+        std::printf("%s: play, cancel, play and resume passed\n", input ? "gamepad" : "keyboard");
 
     }
     SDL_CloseGamepad(pad);

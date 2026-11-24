@@ -43,7 +43,7 @@ type udpState struct {
 
 // receiveNumbered takes message seq of c's (from TCP or UDP): once, in order.
 // Caller holds s.mu.
-func (s *server) receiveNumbered(c *client, epoch, seq uint32, msg []byte) {
+func (s *server) receiveNumbered(c *client, epoch, seq uint32, msg []byte, viaUDP bool) {
 	r := c.room
 	if r == nil || epoch != r.epoch {
 		return
@@ -59,6 +59,9 @@ func (s *server) receiveNumbered(c *client, epoch, seq uint32, msg []byte) {
 			c.rxEarly[seq] = append([]byte(nil), msg...)
 		}
 		return
+	}
+	if viaUDP {
+		c.race.inUDP.Add(1)
 	}
 	s.forwardLocked(c, framed(epoch, msg))
 	c.rxNext++
@@ -80,6 +83,8 @@ func framed(epoch uint32, msg []byte) proto.Frame {
 // sendData sends one game message to next: plain (TCP) or numbered (TCP and
 // UDP). Caller holds s.mu.
 func (s *server) sendData(next *client, f proto.Frame) {
+	next.race.out.Add(1) // the log: messages to it, its queue at its longest (racelog.go)
+	next.race.queued(len(next.out))
 	if !next.udp {
 		next.send(f)
 		return
@@ -164,7 +169,7 @@ func (s *server) serveUDP() {
 					if p+l > len(dg) {
 						break
 					}
-					s.receiveNumbered(c, epoch, seq, dg[p:p+l])
+					s.receiveNumbered(c, epoch, seq, dg[p:p+l], true)
 					p += l
 				}
 			}

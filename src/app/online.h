@@ -19,7 +19,7 @@ constexpr size_t kMaxName = 20;
 // data, how it starts and joins races). The server keeps a room to one
 // version, so every player of a room behaves the same. Raise it with any
 // such change.
-constexpr int kOnlineVersion = 9;
+constexpr int kOnlineVersion = 10;
 
 // What a friend needs to join: the server, the room, the server's password.
 struct Invite {
@@ -35,6 +35,9 @@ std::optional<Invite> decode_invite(const std::string &code);
 
 // A new room's code: 8 random lowercase letters and digits.
 std::string random_room();
+// The time now in UTC, "2026-11-24 18:53:15 UTC": the log's online lines,
+// set against the relay's log (also in UTC).
+std::string utc_now();
 // host or host:port (IPv6 in brackets) -> host:port, kDefaultPort when none.
 std::optional<std::string> normalize_server(const std::string &server);
 std::string clean_name(const std::string &name);

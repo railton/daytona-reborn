@@ -77,6 +77,15 @@ struct Config {
     std::string online_server;
     std::string online_password;
     std::string online_room; // the last room's settings its creator chose, "key:value,..."
+    // The gearbox the player races with (the home screen's choice): solo, and
+    // online, where the game answers its gearbox screen with it on its own.
+    bool gearbox_manual = false;
+    // Solo races from the PC home: the cabinet's country (0 USA: English, 1
+    // JPN: Japanese, 2 EXPORT) and difficulty (0 easy .. 3 hardest).
+    int solo_country = 0, solo_difficulty = 1;
+    // Logs: what the game prints, kept in daytona.log beside the settings (the
+    // last 5 sessions too, daytona.1.log...), for when something goes wrong.
+    bool write_logs = true;
     float ffb_strength = 0.7f; // force feedback (the drive board) on the steering device: 0 off .. 1
     bool ffb_invert = false;   // turn the wheel the other way
     bool ffb_log = false;      // log the force feedback device, failures and the commands (daytona.log on Windows)

@@ -209,4 +209,39 @@ int main() {
     mismatch.input(wrong, {}); mismatch.observe(wrong);
     CHECK(mismatch.status() == S::WrongCourse);
     std::puts("race session: 2100 adapter-equivalent ticks, request guards, timeout and cancellation passed");
+    // The PC home: the player picks on the cabinet's own screens, as at the
+    // arcade; the start drives only up to them, then accepts the race whatever
+    // the course, the gearbox and the mode.
+    {
+        Board board;
+        rt::RaceSession session;
+        rt::StartRaceRequest request{C::Beginner, T::Automatic, M::Normal};
+        request.player_chooses = true;
+        CHECK(session.request(request, board, true) == R::Accepted);
+        const rt::Inputs player{0xe0, 0xe0, 0x20, 0xef, 0xff, 0xff}; // steering right, pedal down, Start held
+        board.mode = 3; // attract: the start presses Start itself, the player's input is not used
+        CHECK(!same(session.input(board, player), player));
+        board.mode = 18; // the selection: course (step 1), gearbox (step 7) and between: the player's
+        for (const uint8_t step : {1, 4, 7}) {
+            board.step = step;
+            CHECK(same(session.input(board, player), player));
+        }
+        board.mode = 22; // racing with the other course, the manual gearbox and Time Attack: accepted
+        board.course = 1;
+        board.transmission = 1;
+        board.race_mode = 1;
+        session.observe(board);
+        CHECK(session.status() == S::Racing);
+    }
+    {   // the PC home's country and difficulty, written with the start's other settings
+        Board board;
+        rt::RaceSession session;
+        rt::StartRaceRequest request;
+        request.country = 0;    // USA: English
+        request.difficulty = 2; // hard
+        CHECK(session.request(request, board, true) == R::Accepted);
+        CHECK(board.settings.eeprom[0x1b] == 0 && board.settings.eeprom[0x20] == 2 && board.settings.eeprom[0x0b] == 0);
+        CHECK(board.backup[0x1b] == 0 && board.backup[0x20] == 2); // and its copies in the backup RAM
+    }
+
 }
