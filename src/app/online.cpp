@@ -191,14 +191,19 @@ std::string percent_decode(const std::string &s) {
 }
 
 std::string hello_line(const Hello &hello) {
-    std::string line = "DAYTONA-RELAY 4 op=";
-    line += hello.op == Hello::Op::Create ? "create" : hello.op == Hello::Op::Join ? "join" : "info";
+    std::string line = "DAYTONA-RELAY 5 op=";
+    line += hello.op == Hello::Op::Create   ? "create"
+            : hello.op == Hello::Op::Join   ? "join"
+            : hello.op == Hello::Op::Rejoin ? "rejoin"
+                                            : "info";
     if (hello.op != Hello::Op::Info) line += " room=" + percent_encode(hello.room);
     const std::string name = clean_name(hello.name);
     if (!name.empty()) line += " name=" + percent_encode(name);
     if (!hello.password.empty()) line += " pass=" + percent_encode(hello.password);
     line += " v=" + std::to_string(kOnlineVersion);
     if (hello.op == Hello::Op::Create && !hello.settings.empty()) line += " set=" + percent_encode(hello.settings);
+    if (hello.op == Hello::Op::Rejoin) line += " key=" + percent_encode(hello.key);
+    if (hello.udp && hello.op != Hello::Op::Info) line += " udp=1";
     return line + "\n";
 }
 
@@ -250,6 +255,10 @@ std::optional<Status> parse_status(const std::string &payload) {
                 if (comma == std::string::npos) break;
                 start = comma + 1;
             }
+        } else if (line.rfind("key=", 0) == 0) {
+            s.key = line.substr(4);
+        } else if (line == "resume=1") {
+            s.resume = true;
         } else if (line.rfind("me=", 0) == 0) {
             s.me = std::atoi(line.c_str() + 3);
         } else if (line.rfind("waiting=", 0) == 0) {

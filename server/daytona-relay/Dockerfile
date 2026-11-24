@@ -7,5 +7,5 @@ RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /daytona-relay ./cmd/da
 FROM scratch
 COPY --from=build /daytona-relay /daytona-relay
 USER 65534:65534
-EXPOSE 7777/tcp
+EXPOSE 7777/tcp 7777/udp
 ENTRYPOINT ["/daytona-relay"]

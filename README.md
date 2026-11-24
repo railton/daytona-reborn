@@ -24,7 +24,8 @@ by alphanu1. What it adds is listed in [CHANGELOG.md](CHANGELOG.md).
   races the next one): the cabinets' settings, the start and the course
   choice are synchronised; the
   players' names and live standings show over the race, and each other
-  player's name rides above their car. No router port to open. Rooms of 8
+  player's name rides above their car. No router port to open; a dropped
+  connection comes back to the race on its own. Rooms of 8
   linked cabinets have been run through the relay. See
   [server/daytona-relay](server/daytona-relay/README.md).
 - **A PC home menu** (Revision A) over an animated sunset speedway: solo
@@ -120,7 +121,7 @@ e.g. a second player on the same computer), `--online`, `--settings`,
 ## Online play
 
 1. Someone runs the relay server (`server/daytona-relay`,
-   `docker compose up -d --build`; only TCP port 7777). Its environment
+   `docker compose up -d --build`; port 7777, TCP and UDP). Its environment
    variables are the race settings' defaults.
 2. In the home menu, **Online**: type your name and the server, **Connect**,
    choose the room's race settings (difficulty, game mode, who may start...),
@@ -137,11 +138,15 @@ e.g. a second player on the same computer), `--online`, `--settings`,
    first player presses Start again for the next race.
 
 The link data is compressed: about 0.1 to 0.3 Mbit/s each way a player
-(2 to 8 players) instead of 3.3. Rooms work across continents: the games
-start the race together (a start barrier) and keep the game's speed when
-the network jitters (4 players from Brazil through a server in Europe ran
-at 97-100% of the game's speed, starting 29 ms apart); the other cars are
-shown as old as the network makes them. Details, settings and the protocol:
+(2 to 8 players) instead of 3.3. Rooms work across continents: the server
+sends each player every other car's latest data in one hop, the race data
+also goes by UDP to get through packet loss (TCP alone when UDP is
+blocked), the games start the race together and keep the game's speed when
+the network jitters, and a player whose connection drops comes back to the
+race on their own within 10 s. 4 players from Brazil through a server in
+Europe: the farthest car about 0.4 s old instead of 1 s; with 1% packet
+loss on a test line the other cars move smoothly in 99% of the frames.
+Details, settings and the protocol:
 [server/daytona-relay/README.md](server/daytona-relay/README.md).
 Not yet tried between distant networks; see the known limits in
 [CHANGELOG.md](CHANGELOG.md).

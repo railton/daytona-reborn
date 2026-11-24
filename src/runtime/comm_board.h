@@ -36,6 +36,9 @@ public:
     virtual int read(uint8_t *buf, int max) = 0;
     // All of buf, or false: the connection is lost.
     virtual bool write(const uint8_t *buf, int n) = 0;
+    // What write() may have held back to send together, sent now (the board
+    // calls it once its sends of the moment are done).
+    virtual void flush_now() {}
 };
 
 class CommBoard {
@@ -99,12 +102,23 @@ private:
         std::vector<uint8_t> data;
     };
     std::deque<Block> pending_; // paced: received blocks waiting for the game's read
+    // set_options: tokens sent with the answers, adaptive reserve
+    bool defer_tokens_ = false, adaptive_ = false;
+    uint8_t tokens_owed_ = 0, token_byte_ = 0;
+    uint32_t window_ = 0, starved_ = 0, min_depth_ = 255, reserve_changes_ = 0;
   public:
+    void set_options(bool defer_tokens, bool adaptive) {
+        defer_tokens_ = defer_tokens;
+        adaptive_ = adaptive;
+    }
+    int reserve() const { return reserve_; }
+    int reserve_changes() const { return int(reserve_changes_); }
     bool flag_only_ = false; // diagnostics: 0.11.0's pacing, the data written at once (M2_TEST_RELAY_FLAG_ONLY)
   private:
     bool primed_ = false; // the reserve has been built once
     uint32_t fg_reads_ = 0; // since the vblank tick
     void land_block(int frame_offset, int frame_size, bool reply);
+    void forward_token(bool is_slave, int data_size);
     void consume(const Block &b);
     void write_block(const Block &b);
     std::chrono::steady_clock::time_point last_fg_poll_{}; // read_fg's transport poll, at most once a ms

@@ -147,6 +147,7 @@ public:
         if (mode == hold_mode && last_mode_ != hold_mode) {
             ++race_;
             arrived_[race_ % 2] |= 1u << (place & 31);
+            last_place_ = place; // the last to arrive, if this completes the set
             holding_ = true;
             since_ms_ = now_ms;
             out = "arrived=" + std::to_string(race_) + ":" + std::to_string(place);
@@ -160,17 +161,43 @@ public:
         int race = 0, place = 0;
         if (std::sscanf(message.c_str(), "arrived=%d:%d", &race, &place) != 2) return false;
         if (race == race_ + 1) arrived_[race % 2] |= 1u << (place & 31); // ahead of this game: kept for its arrival
-        else if (race == race_) arrived_[race % 2] |= 1u << (place & 31);
+        else if (race == race_) {
+            arrived_[race % 2] |= 1u << (place & 31);
+            last_place_ = place;
+        }
         return true;
     }
 
     // Whether this game waits now; ring_size: the games of the race.
-    bool holding(int ring_size, uint64_t now_ms) {
+    // latency (optional): each place's round trip to the relay in ms (the
+    // room's status, ring order), me: this game's place. With them, each game
+    // waits on so that all start together: the last to arrive tells the room,
+    // and its word reaches place p about (L_last + L_p) / 2 later, so each
+    // holds until (L_last + L_max) / 2 after the last arrival.
+    bool holding(int ring_size, uint64_t now_ms, const std::vector<int> *latency = nullptr, int me = 0) {
         if (!holding_) return false;
+        if (release_ms_) {
+            if (now_ms >= release_ms_) holding_ = false, release_ms_ = 0, waited_ms_ = now_ms - since_ms_;
+            return holding_;
+        }
         const uint32_t all = ring_size >= 32 ? ~0u : ((1u << (ring_size + 1)) - 2); // places 1..ring_size
-        if ((arrived_[race_ % 2] & all) == all || now_ms - since_ms_ >= timeout_ms) {
-            holding_ = false;
+        const bool everyone = (arrived_[race_ % 2] & all) == all;
+        if (everyone || now_ms - since_ms_ >= timeout_ms) {
             arrived_[race_ % 2] = 0; // this slot serves the race after next
+            uint64_t extra = 0;
+            if (everyone && latency && me >= 1 && int(latency->size()) >= ring_size) {
+                auto lat = [&](int place) { return std::max(0, (*latency)[size_t(place - 1)]); };
+                int max_other = 0; // the farthest of those the last one's word must reach
+                for (int p = 1; p <= ring_size; ++p)
+                    if (p != last_place_) max_other = std::max(max_other, lat(p));
+                if (me == last_place_) extra = uint64_t((lat(me) + max_other) / 2);
+                else extra = uint64_t(std::max(0, max_other - lat(me)) / 2);
+            }
+            if (extra) {
+                release_ms_ = now_ms + extra;
+                return true;
+            }
+            holding_ = false;
             waited_ms_ = now_ms - since_ms_;
         }
         return holding_;
@@ -183,7 +210,8 @@ private:
     int race_ = 0, last_mode_ = -1;
     uint32_t arrived_[2] = {}; // by race parity: places (bit N = place N) arrived
     bool holding_ = false;
-    uint64_t since_ms_ = 0, waited_ms_ = 0;
+    int last_place_ = 0;
+    uint64_t since_ms_ = 0, waited_ms_ = 0, release_ms_ = 0;
 };
 
 // Online: the MASTER's course for the whole room. Linked cabinets each choose

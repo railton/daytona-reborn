@@ -10,6 +10,8 @@ services:
     restart: unless-stopped
     ports:
       - "${DAYTONA_PORT:-7777}:${DAYTONA_PORT:-7777}/tcp"
+      # UDP on the same port: the games' data also by UDP (through packet loss); TCP is enough without it
+      - "${DAYTONA_PORT:-7777}:${DAYTONA_PORT:-7777}/udp"
     environment:
       DAYTONA_PORT: "${DAYTONA_PORT:-7777}"
       # Optional password: only who knows it can use the server (it travels in the invite code).
@@ -17,6 +19,9 @@ services:
       DAYTONA_MAX_ROOMS: "${DAYTONA_MAX_ROOMS:-100}"
       DAYTONA_MAX_CONNECTIONS: "${DAYTONA_MAX_CONNECTIONS:-1000}"
       DAYTONA_MAX_PER_IP: "${DAYTONA_MAX_PER_IP:-16}"          # players behind one router share an address
+      # Star mode: each player gets every other car's latest data in one hop, and a
+      # dropped player may come back within 10 s. 0: the ring of 0.12 (diagnostics).
+      DAYTONA_STAR: "${DAYTONA_STAR:-1}"
       # Race settings' defaults: the game shows them when creating a room, its creator may change them:
       DAYTONA_CABINET: "${DAYTONA_CABINET:-twin}"                 # twin | uplight | deluxe
       DAYTONA_COUNTRY: "${DAYTONA_COUNTRY:-usa}"                  # usa (English) | jpn (Japanese) | export

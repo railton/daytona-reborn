@@ -436,6 +436,10 @@ int main(int argc, char **argv) {
             if (relay_preset) game.board().preset_link_ring(rt::online::link_id(st.position, st.size), st.size);
             game.board().set_link_paced(relay_pace > 0, relay_pace > 1 ? relay_pace - 1 : 0,
                                         std::getenv("M2_TEST_RELAY_FLAG_ONLY") != nullptr); // 0.11.0's pacing, for comparisons
+            {
+                const char *c = std::getenv("M2_PROTO_COALESCE"), *a = std::getenv("M2_PROTO_ADAPTIVE");
+                game.board().set_link_options(!(c && *c == '0'), !(a && *a == '0')); // as the app; 0: off
+            }
         }
         game.set_frame_skip(frame_skip);
         if (aspect > 0) {
@@ -473,6 +477,15 @@ int main(int argc, char **argv) {
         // with no new data, 2+ a skip (the other car would stall or jump).
         uint64_t rx_steps[4] = {};
         int rx_previous = -1;
+        // M2_TEST_AGE_LOG=FILE: in the race, each frame: wall ms (steady), this
+        // cabinet's tick counter and the 8 received slots' (comm RAM 0x200a and
+        // 0x21c0 + k * 0x1c0 + 0x0a), to work out each other car's data age
+        // offline (same-host cabinets share the clock).
+        std::FILE *age_log = [] {
+            const char *p = std::getenv("M2_TEST_AGE_LOG");
+            return p && *p ? std::fopen(p, "w") : nullptr;
+        }();
+        uint64_t relay_sends_from = 0, relay_messages_from = 0, relay_race_ms = 0, relay_race_from_ms = 0;
         rt::online::StartBarrier relay_barrier_state; // as the app: everyone starts the race together
         bool relay_holding = false;
         auto steady_ms = [] {
@@ -524,7 +537,11 @@ int main(int argc, char **argv) {
                 relay_entry.apply(game.board(), inputs);
                 if (relay_barrier) {
                     const bool was_holding = relay_holding;
-                    relay_holding = relay_barrier_state.holding(room.size, steady_ms());
+                    static const bool tune = [] {
+                        const char *v = std::getenv("M2_PROTO_BARRIER_TUNE");
+                        return !(v && *v == '0'); // as the app; 0: off
+                    }();
+                    relay_holding = relay_barrier_state.holding(room.size, steady_ms(), tune ? &room.latency : nullptr, room.position);
                     if (relay_holding) { // as the app: no game frame until the others arrive, the link still answers
                         const auto frame_ns = std::chrono::nanoseconds(int64_t(1e9 / 57.524));
                         std::this_thread::sleep_for(frame_ns);
@@ -550,6 +567,19 @@ int main(int argc, char **argv) {
             { // each race: its course on entry, the standings this game knew at its end
                 const int race_mode = game.board().read_byte(0x5010a0);
                 if (relay && race_mode == 22) {
+                    const auto now_ms = uint64_t(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                                     std::chrono::steady_clock::now().time_since_epoch()).count());
+                    if (previous_race_mode != 22) {
+                        relay_sends_from = relay->sends(), relay_messages_from = relay->messages();
+                        relay_race_from_ms = now_ms;
+                    }
+                    relay_race_ms = now_ms - relay_race_from_ms;
+                    if (age_log) {
+                        const uint8_t *cr = game.board().comm_ram();
+                        std::fprintf(age_log, "%llu,%d", (unsigned long long)now_ms, int(cr[0x200a]));
+                        for (int k = 0; k < 8; ++k) std::fprintf(age_log, ",%d", int(cr[0x21c0 + k * 0x1c0 + 0x0a]));
+                        std::fputc('\n', age_log);
+                    }
                     const int rx = game.board().comm_ram()[0x21c0 + 0x0a];
                     if (rx_previous >= 0) ++rx_steps[std::min(3, (rx - rx_previous) & 0xff)];
                     rx_previous = rx;
@@ -726,6 +756,13 @@ int main(int argc, char **argv) {
                 std::printf("  relay data in the race: %.1f%% steps of 1, %.1f%% no new data, %.1f%% skips (of %" PRIu64 " frames)\n",
                             100.0 * rx_steps[1] / rx_total, 100.0 * rx_steps[0] / rx_total,
                             100.0 * (rx_steps[2] + rx_steps[3]) / rx_total, rx_total);
+            if (const rt::CommBoard *cb = game.board().comm_board())
+                std::printf("  link reserve: %d at the end, %d changes\n", cb->reserve(), cb->reserve_changes());
+            std::printf("  relay UDP: %llu messages delivered first by UDP\n", (unsigned long long)relay->udp_first());
+            if (relay_race_ms > 1000)
+                std::printf("  relay in the race: %.1f sends/s, %.1f game messages/s\n",
+                            (relay->sends() - relay_sends_from) * 1000.0 / relay_race_ms,
+                            (relay->messages() - relay_messages_from) * 1000.0 / relay_race_ms);
             std::printf("  relay standings:");
             for (int car = 1; car <= relay->status().size; ++car)
                 std::printf(" %d:%d", car, relay_standings.rank(car) + 1);

@@ -5,8 +5,13 @@ A server to race Daytona USA (Revision A, `daytona`) over the Internet, up to
 port to open on anyone's router, and it works behind CGNAT.
 
 The arcade's link play joins the cabinets in a ring (each sends to the next).
-The server forms that ring inside a room, in join order, and passes each
-player's bytes to the next player. It does not read the game's protocol.
+The server forms that ring inside a room, in join order. In the game's rooms
+it also reads the compressed link blocks (star mode, the default): each
+player gets, in one hop, a block with every other car's latest data, instead
+of the data passed from player to player round the ring. With 4 players from
+Brazil through a relay in Europe the farthest car went from about 1 s old to
+0.4 s. A player whose connection drops in a race has 10 s to come back to
+their place, and the game reconnects on its own.
 
 ## Run it on a server (Docker)
 
@@ -16,8 +21,12 @@ the server, then:
     docker compose up -d --build
     docker compose logs -f
 
-Open TCP port **7777** in the server's firewall (and the provider's panel, if
-it has one): it is the only port the server uses. The image is about
+Open port **7777**, TCP and UDP, in the server's firewall (and the provider's
+panel, if it has one). TCP is what every game needs; UDP carries a copy of
+the race data, which gets through packet loss without waiting for TCP's
+retransmission (1% loss: the other cars' data moved smoothly in 99% of the
+frames instead of 82-85%). Without UDP, or with a player whose network blocks
+it, the games use TCP alone. The image is about
 6 MB and runs as an unprivileged user with a read-only file system.
 
 ### Environment variables
@@ -27,7 +36,7 @@ Edit `docker-compose.yml`, or put them in a `.env` file beside it, then
 
 | Variable | Default | Values |
 | --- | --- | --- |
-| `DAYTONA_PORT` | `7777` | TCP port |
+| `DAYTONA_PORT` | `7777` | the port, TCP and UDP |
 | `DAYTONA_PASSWORD` | empty | the server's password; it travels in the invite code. Not needed for privacy: every room is private by its random code, and many groups can share one server |
 | `DAYTONA_MAX_ROOMS` | `100` | rooms open at the same time |
 | `DAYTONA_MAX_CONNECTIONS` | `1000` | connections at the same time |
@@ -40,6 +49,7 @@ Edit `docker-compose.yml`, or put them in a `.env` file beside it, then
 | `DAYTONA_ADVERTISE_SOUND` | `on` | `on`, `off` |
 | `DAYTONA_FREE_PLAY` | `on` | `on` (no coins, Start only), `off` |
 | `DAYTONA_START` | `master` | `master` (only the room's creator starts a race), `anyone` |
+| `DAYTONA_STAR` | `1` | `1` star mode (above); `0` the ring of 0.12, for comparisons (no rejoin) |
 
 The race variables are the **defaults**: the game shows them when its
 player connects to create a room, and the room's creator may change each
@@ -123,13 +133,17 @@ after another has closed is expected.
   through the server: pick one close to every player.
 - The arcade's link expects the ring's round trip within a frame (cables
   between cabinets). Online games run at full speed without frame sync;
-  before the race each waits for the others (a start barrier) so all start
-  together, and in the race the other cars are as old as the network makes
-  them. The link comes up at once from the room (no numbering round the
-  ring) and the games' link flag is paced against jitter, so rooms of 4
-  across continents run at full speed (measured from Brazil through a relay
-  in Europe: 97-100% of the game's ticks, started 29 ms apart). See
-  `../../docs/ONLINE_FRAME_SYNC.md`.
+  before the race each waits for the others (a start barrier, released from
+  the latencies the server measures) so all start together, and in the race
+  the other cars are as old as the network makes them: about half the round
+  trip of their player plus half of yours, in star mode. The link comes up
+  at once from the room (no numbering round the ring) and the games' link
+  is paced against jitter, with a reserve of blocks that grows and shrinks
+  with the line, so rooms of 4 across continents run at full speed. See
+  `../../docs/ONLINE_FRAME_SYNC.md` and `../../docs/ONLINE_PROTOCOL_STUDY.md`
+  (the measurements).
+- The connection is not encrypted (no TLS): the race data is not sensitive,
+  but a server password travels in clear.
 - Traffic: the game compresses its link data (`src/app/link_codec.h`): a
   game frame of 7170 bytes became 121 / 197 / 323 bytes on average over
   captured 2 / 4 / 8 player sessions, about 0.1 to 0.3 Mbit/s each way a
@@ -146,9 +160,10 @@ unmodified game's bytes.
 ## Protocol
 
 One TCP connection a player. A greeting line
-(`DAYTONA-RELAY 4 op=create|join room=... name=... pass=... v=... [set=key:value,...]`;
+(`DAYTONA-RELAY 5 op=create|join room=... name=... pass=... v=... [set=key:value,...] [udp=1]`;
 `op=info`, answered by one `I` frame with the defaults; `op=auto players=N`
-for the helper's fixed-size rooms), then
+for the helper's fixed-size rooms; `op=rejoin room=... key=...` back to a
+place after a drop, with the key the `S` frame gave, `key=` and `resume=1`), then
 frames `type (1) | epoch (4) | length (2) | data`: `D` one comm-board wire
 frame (compressed by the game, `src/app/link_codec.h`; raw from the helper),
 `S` the room's state (with each player's latency, `lat=` and `wlat=` in ms),
@@ -156,6 +171,14 @@ frame (compressed by the game, `src/app/link_codec.h`; raw from the helper),
 game's answer to it (the same stamp: the round trip is the latency), `C` the games' own coordination (the MASTER's
 course, to every other player), `G` the owner starting a race, `E` a refusal (`code\ntext`; the game shows its
 own text for the code, in the player's language). The epoch changes whenever
-someone joins or leaves, and an old ring's data is dropped. Details in
-`proto/proto.go`; the game's side is `src/app/online.*` and
+someone joins or leaves, and an old ring's data is dropped.
+
+A game that says `udp=1` numbers its `D` messages (a 4-byte sequence number
+first) and sends each one in a UDP datagram to the same port as well; the
+server does the same towards it. Datagrams: `h` + key (the game's address,
+every 2 s, which also keeps its router's mapping open) and `d` epoch (4),
+count (1), then count x [seq (4), length (2), message], each repeating the
+two messages before it. Each side takes every number once, in order, from
+whichever path brings it first. Details in `proto/proto.go` and
+`cmd/daytona-relay/udp.go`; the game's side is `src/app/online.*` and
 `src/app/relay_link.*`.

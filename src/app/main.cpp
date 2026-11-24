@@ -1122,6 +1122,9 @@ int main(int argc, char **argv) {
                 game->board().preset_link_ring(rt::online::link_id(st.position, st.size), st.size);
                 // blocks arriving out of step must not cost the game its logic ticks
                 game->board().set_link_paced(true, rt::online::kLinkReserve);
+                // a SLAVE's token sent with its answer (one send a frame), the
+                // reserve grown and shrunk with the line (docs/ONLINE_PROTOCOL_STUDY.md)
+                game->board().set_link_options(true, true);
                 online_game = true;
                 online_epoch = online_link->epoch();
                 online_entry = {};
@@ -1538,7 +1541,8 @@ int main(int argc, char **argv) {
                         online_link->send_control(told);
                     online_entry.apply(game->board(), inputs); // another player started: join
                     const bool was_waiting = online_waiting;
-                    online_waiting = online_barrier.holding(room.size, SDL_GetTicks());
+                    // released from the relay's latencies, so that everyone leaves together
+                    online_waiting = online_barrier.holding(room.size, SDL_GetTicks(), &room.latency, room.position);
                     if (online_waiting) { // held before the race: no game frame until the others arrive, the link still answers
                         game->board().link_idle_tick();
                         continue;

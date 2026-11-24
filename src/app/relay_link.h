@@ -16,6 +16,7 @@
 #include "runtime/comm_board.h"
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -38,6 +39,9 @@ public:
     bool tx_open() const override { return state_ == State::Ready; }
     int read(uint8_t *buf, int max) override;
     bool write(const uint8_t *buf, int n) override;
+    void flush_now() override {
+        if (state_ == State::Ready && !reconnecting_) flush();
+    }
 
     State state() const { return state_; }
     const std::string &error() const { return error_; }
@@ -45,6 +49,10 @@ public:
     const std::string &error_code() const { return error_code_; }
     const online::Status &status() const { return status_; } // the last the server sent
     const std::vector<std::pair<std::string, std::string>> &info() const { return info_; }
+    // diagnostics: send() calls made, game messages (D frames) sent
+    uint64_t sends() const { return sends_; }
+    uint64_t udp_first() const { return udp_first_; } // messages UDP brought before TCP
+    uint64_t messages() const { return messages_; }
     uint32_t epoch() const { return epoch_; }                 // changes with every new ring
     const std::string &server() const { return server_; }
     const std::string &room() const { return room_; }
@@ -70,7 +78,31 @@ private:
     online::LinkCodec tx_codec_, rx_codec_; // this ring's wire frames, each way (app/link_codec.h)
     size_t inbox_pos_ = 0;
     uint64_t last_rx_ms_ = 0, last_tx_ms_ = 0;
+    uint64_t sends_ = 0, messages_ = 0;
+    bool coalesce_ = true; // game messages sent together, when the link says (flush_now; M2_PROTO_COALESCE=0: each at once)
     void fail(const std::string &why);
+    // The connection dropped mid-race: come back with the key if the server
+    // keeps places (Status::resume), the game's link kept open meanwhile.
+    void lost(const std::string &why);
+    void start_connect();
+    online::Hello hello_struct_;
+    // Numbered game data, by TCP and UDP (the relay's udp.go): each message
+    // in its TCP frame and in a datagram repeating the last ones; received
+    // once, in order, from whichever comes first.
+    bool udp_ = false;
+    long long udp_sock_ = -1;
+    uint32_t tx_seq_ = 0, rx_next_ = 0;
+    std::vector<std::string> tx_recent_; // numbered: seq(4) + message
+    std::map<uint32_t, std::string> rx_early_;
+    uint64_t udp_hello_ms_ = 0;
+    uint64_t udp_received_ = 0, udp_first_ = 0; // diagnostics: datagram messages, delivered first by UDP
+    void udp_open();
+    void udp_close();
+    void udp_poll();
+    void numbered(uint32_t epoch, uint32_t seq, const std::string &message, bool by_udp);
+    void deliver(const std::string &message);
+    bool reconnecting_ = false, may_reconnect_ = true;
+    uint64_t reconnect_until_ms_ = 0, next_try_ms_ = 0;
     void refused(const std::string &payload); // an E frame: its code, then fail
     void flush();
     void receive();

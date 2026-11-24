@@ -52,7 +52,7 @@ import (
 
 const (
 	Magic      = "DAYTONA-RELAY"
-	Version    = 4
+	Version    = 5
 	MaxPlayers = 8
 	MinPlayers = 2
 	MaxPayload = 16 * 1024
@@ -131,6 +131,8 @@ type Hello struct {
 	Password string
 	Game     string // the game's online version ("v"); a room only takes one; empty: the daytona-link helper
 	Settings string // create only: "key:value,..." over the server's race settings (package settings)
+	Key      string // rejoin only: the key the player's status gave (Status.Key)
+	UDP      bool   // udp=1: this player's game data is numbered (4-byte sequence before each D payload) and also comes and goes by UDP
 }
 
 func (h Hello) Line() string {
@@ -153,6 +155,12 @@ func (h Hello) Line() string {
 	}
 	if h.Settings != "" {
 		fmt.Fprintf(&b, " set=%s", url.PathEscape(h.Settings))
+	}
+	if h.Key != "" {
+		fmt.Fprintf(&b, " key=%s", url.PathEscape(h.Key))
+	}
+	if h.UDP {
+		b.WriteString(" udp=1")
 	}
 	return b.String() + "\n"
 }
@@ -190,13 +198,17 @@ func ParseHello(line string) (Hello, error) {
 			h.Game = val
 		case "set":
 			h.Settings = val
+		case "key":
+			h.Key = val
+		case "udp":
+			h.UDP = val == "1"
 		}
 	}
 	switch h.Op {
 	case "info":
 		h.Room, h.Players, h.Settings = "", 0, ""
 		return h, nil
-	case "create", "join", "auto":
+	case "create", "join", "auto", "rejoin":
 	default:
 		return Hello{}, Errf("protocol", "unknown operation")
 	}
@@ -298,6 +310,10 @@ type Status struct {
 	Me       int      // this client's line in Names, 1-based; 0: in Waiting
 	// Latency to the server, round trip in ms, as Names and Waiting; -1: not measured yet.
 	Latency, WaitingLatency []int
+	// Key: this player's, to come back into its race after a drop (op=rejoin);
+	// Resume: the server keeps a dropped racer's place for a while (star mode).
+	Key    string
+	Resume bool
 }
 
 func (s Status) Encode() []byte {
@@ -352,6 +368,12 @@ func (s Status) Encode() []byte {
 	}
 	writeInts("lat", s.Latency)
 	writeInts("wlat", s.WaitingLatency)
+	if s.Key != "" {
+		fmt.Fprintf(&b, "key=%s\n", s.Key)
+	}
+	if s.Resume {
+		b.WriteString("resume=1\n")
+	}
 	return []byte(b.String())
 }
 
@@ -389,6 +411,10 @@ func DecodeStatus(p []byte) (Status, error) {
 			s.Racing = v == "1"
 		case "me":
 			s.Me, _ = strconv.Atoi(v)
+		case "key":
+			s.Key = v
+		case "resume":
+			s.Resume = v == "1"
 		case "lat", "wlat":
 			var list []int
 			for _, x := range strings.Split(v, ",") {

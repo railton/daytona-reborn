@@ -17,8 +17,10 @@ package main
 
 import (
 	"bufio"
+	"crypto/rand"
 	"crypto/subtle"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
@@ -31,6 +33,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"daytona-relay/linkcodec"
 	"daytona-relay/proto"
 	"daytona-relay/settings"
 )
@@ -40,7 +43,16 @@ const (
 	idleTimeout      = 30 * time.Second // no frame (not even a ping) for this long: gone
 	pingEvery        = 2 * time.Second  // also measures each player's latency (TypePong)
 	sendQueue        = 512              // frames waiting for a slow client before it is dropped
+	// resumeGrace: a racer whose connection drops keeps its place this long
+	// (star mode, where the relay restarts the codecs itself)
+	resumeGrace = 10 * time.Second
 )
+
+func newKey() string {
+	b := make([]byte, 12)
+	rand.Read(b)
+	return hex.EncodeToString(b)
+}
 
 type client struct {
 	conn net.Conn
@@ -51,6 +63,16 @@ type client struct {
 	once sync.Once
 	done chan struct{}
 	rtt  atomic.Int64 // latency to this server, round trip, smoothed, in µs; 0: not measured yet
+
+	// star mode (server.star), under server.mu: this player's stream decoded,
+	// the stream composed for it encoded, its latest own slot
+	dec, enc linkcodec.Codec
+	own      []byte
+
+	key  string // to come back into the race after a drop (op=rejoin)
+	away bool   // dropped from a race, its place kept until resumeGrace (star mode)
+
+	udpState // numbered game data, by TCP and UDP (udp.go); under server.mu
 }
 
 // latencyMs: the client's round trip in ms, -1 before the first measure.
@@ -110,6 +132,12 @@ type server struct {
 
 	race settings.Race    // the environment's race settings: every room's defaults
 	now  func() time.Time // time.Now; a parameter for tests
+	// star: the game's rooms get every other car's latest data in one hop
+	// (forward); the helper's rooms stay a plain ring
+	star bool
+
+	udpConn   *net.UDPConn       // the UDP side of the port (udp.go); nil: TCP only
+	udpByAddr map[string]*client // under mu
 }
 
 func newServer(race settings.Race, password string, maxRooms, maxConns, maxPerIP int) *server {
@@ -159,6 +187,7 @@ func (s *server) join(c *client, h proto.Hello) error {
 	}
 	r.members = append(r.members, c)
 	c.room = r
+	c.key = newKey()
 	if r.owner == nil && r.auto == 0 {
 		r.owner = c
 	}
@@ -211,13 +240,84 @@ func (s *server) formRing(r *room) {
 			r.ring = append(r.ring, m)
 		}
 	}
-	r.epoch++ // a new ring: data of the old one is dropped
+	r.epoch++                  // a new ring: data of the old one is dropped
+	for _, m := range r.ring { // the games' codecs start again with the ring (app/relay_link.cpp)
+		m.dec.Reset()
+		m.enc.Reset()
+		m.own = nil
+	}
 	s.notify(r)
 }
 
 func (s *server) leave(c *client) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	r := c.room
+	if r == nil {
+		return
+	}
+	if s.star && r.auto == 0 && r.inRing(c) > 0 && !c.away {
+		// a racer dropped: its place stays for resumeGrace (op=rejoin), the race goes on
+		c.away = true
+		log.Printf("room %s: %q (%s) dropped, its place kept for %v", r.code, c.name, c.addr, resumeGrace)
+		time.AfterFunc(resumeGrace, func() {
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			if c.away && c.room == r {
+				c.away = false
+				s.remove(c)
+			}
+		})
+		return
+	}
+	s.remove(c)
+}
+
+// rejoin: a dropped racer back with its key takes its place again, the race
+// going on (the same epoch; its codecs start again on both sides).
+func (s *server) rejoin(c *client, h proto.Hello) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	r := s.rooms[h.Room]
+	if r == nil {
+		return proto.Errf("not_found", "room %q does not exist any more", h.Room)
+	}
+	var old *client
+	for _, m := range r.members {
+		if h.Key != "" && subtle.ConstantTimeCompare([]byte(m.key), []byte(h.Key)) == 1 && s.star && r.inRing(m) > 0 {
+			old = m
+		}
+	}
+	if old == nil {
+		return proto.Errf("not_found", "no place kept in room %q for this player", h.Room)
+	}
+	c.name, c.key, c.room = old.name, old.key, r
+	c.rtt.Store(old.rtt.Load())
+	for i, m := range r.members {
+		if m == old {
+			r.members[i] = c
+		}
+	}
+	for i, m := range r.ring {
+		if m == old {
+			r.ring[i] = c
+		}
+	}
+	if r.owner == old {
+		r.owner = c
+	}
+	wasAway := old.away
+	old.away, old.room = false, nil
+	if !wasAway { // back before this server saw the old connection drop: close that one
+		old.close()
+	}
+	log.Printf("room %s: %q (%s) back in its race", r.code, c.name, c.addr)
+	s.notify(r)
+	return nil
+}
+
+// remove takes c out of its room for good. Caller holds s.mu.
+func (s *server) remove(c *client) {
 	r := c.room
 	if r == nil {
 		return
@@ -280,7 +380,8 @@ func (s *server) notify(r *room) {
 		pos := r.inRing(m)
 		st := proto.Status{Joined: len(r.members), Size: len(r.ring), Position: pos, Ready: pos > 0,
 			EEPROM: r.eeprom, Names: names, AnyStart: r.race.AnyStart(), Owner: m == r.owner,
-			Racing: r.ring != nil, Waiting: waiting, Me: line[m], Latency: latency, WaitingLatency: waitingLatency}
+			Racing: r.ring != nil, Waiting: waiting, Me: line[m], Latency: latency, WaitingLatency: waitingLatency,
+			Key: m.key, Resume: s.star && r.auto == 0}
 		m.send(proto.Frame{Type: proto.TypeStatus, Epoch: r.epoch, Payload: st.Encode()})
 	}
 }
@@ -373,20 +474,60 @@ func (s *server) broadcast(c *client, f proto.Frame) {
 // forward passes game bytes from c to the next member of its ring.
 func (s *server) forward(c *client, f proto.Frame) {
 	s.mu.Lock()
+	defer s.mu.Unlock()
+	if c.udp { // numbered: in order, once, from TCP or UDP (udp.go)
+		if len(f.Payload) < 4 {
+			return
+		}
+		s.receiveNumbered(c, f.Epoch, binary.BigEndian.Uint32(f.Payload), f.Payload[4:])
+		return
+	}
+	s.forwardLocked(c, f)
+}
+
+// forwardLocked passes one game message of c's on. Caller holds s.mu.
+func (s *server) forwardLocked(c *client, f proto.Frame) {
 	r := c.room
 	pos := 0
 	if r != nil {
 		pos = r.inRing(c)
 	}
 	if pos == 0 || f.Epoch != r.epoch {
-		s.mu.Unlock()
 		return // an old ring's data, or c is not in the race
 	}
 	next := r.ring[pos%len(r.ring)]
-	s.mu.Unlock()
-	if next != nil {
-		next.send(f)
+	if s.star && r.auto == 0 && next != nil {
+		f = s.compose(r, pos-1, c, next, f)
 	}
+	if next != nil && f.Payload != nil {
+		s.sendData(next, f)
+	}
+}
+
+// compose (star mode): the block c sent its next player, with every other
+// car's slot replaced by that car's latest own data. In the ring, slot j of a
+// block holds the data of the cabinet j places behind its sender, passed on
+// j times; here each comes from that cabinet's last block, one hop old.
+// Slot 0 is c's own; the slots past the others are left as c sent them.
+// Caller holds s.mu.
+func (s *server) compose(r *room, at int, c, next *client, f proto.Frame) proto.Frame {
+	frame, err := c.dec.Decode(f.Payload)
+	if err != nil {
+		f.Payload = nil // a stream out of step: drop it (the game sees the link stall)
+		return f
+	}
+	if linkcodec.IsBlock(frame) && len(frame) >= 1+len(r.ring)*linkcodec.Slot {
+		c.own = append(c.own[:0], frame[1:1+linkcodec.Slot]...)
+		n := len(r.ring)
+		for j := 1; j <= n-2; j++ {
+			src := r.ring[((at-j)%n+n)%n]
+			if len(src.own) == linkcodec.Slot {
+				copy(frame[1+j*linkcodec.Slot:], src.own)
+			}
+		}
+	}
+	f.Payload = next.enc.Encode(nil, frame)
+	return f
 }
 
 // admit counts a new connection in, or refuses it.
@@ -437,6 +578,7 @@ func (s *server) handle(conn net.Conn) {
 		return
 	}
 	c.name = h.Name
+	c.udp = h.UDP
 	if h.Op == "info" { // the defaults the game shows before creating a room
 		conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
 		proto.WriteFrame(conn, proto.Frame{Type: proto.TypeInfo, Payload: []byte(s.race.Info())})
@@ -476,7 +618,11 @@ func (s *server) handle(conn net.Conn) {
 		}
 	}()
 
-	if err := s.join(c, h); err != nil {
+	join := s.join
+	if h.Op == "rejoin" {
+		join = s.rejoin
+	}
+	if err := join(c, h); err != nil {
 		c.send(proto.Frame{Type: proto.TypeError, Payload: proto.ErrorPayload(err)})
 		log.Printf("%s: refused: %v", c.addr, err)
 		select {
@@ -567,6 +713,12 @@ func main() {
 		log.Fatal(err)
 	}
 	s := newServer(race, *password, *maxRooms, *maxConns, *maxPerIP)
+	s.star = os.Getenv("DAYTONA_STAR") != "0"
+	if s.star {
+		log.Printf("star mode: each player gets every other car's latest data in one hop")
+	} else {
+		log.Printf("ring mode (DAYTONA_STAR=0): the cars' data passed from player to player; no rejoin")
+	}
 
 	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
 	if err != nil {
@@ -574,6 +726,13 @@ func main() {
 	}
 	log.Printf("daytona-relay listening on port %d (rooms of %d to %d players, password: %v)", *port, proto.MinPlayers, proto.MaxPlayers, *password != "")
 	log.Printf("race settings (defaults): %s", race)
+	if uc, err := net.ListenUDP("udp", &net.UDPAddr{Port: *port}); err == nil {
+		s.udpConn = uc
+		log.Printf("UDP on port %d too (games that ask for it)", *port)
+		go s.serveUDP()
+	} else {
+		log.Printf("no UDP (%v): TCP only", err)
+	}
 	go func() {
 		for range time.Tick(pingEvery) {
 			s.refreshLatency()

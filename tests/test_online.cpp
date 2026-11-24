@@ -78,21 +78,29 @@ int main() {
     h.room = "abc";
     h.name = "Jo\xC3\xA3o S";
     h.password = "a b";
-    CHECK(hello_line(h) == "DAYTONA-RELAY 4 op=create room=abc name=Jo%C3%A3o%20S pass=a%20b v=" +
+    CHECK(hello_line(h) == "DAYTONA-RELAY 5 op=create room=abc name=Jo%C3%A3o%20S pass=a%20b v=" +
                                std::to_string(kOnlineVersion) + "\n");
     h.op = Hello::Op::Join;
     h.name.clear();
     h.password.clear();
-    CHECK(hello_line(h) == "DAYTONA-RELAY 4 op=join room=abc v=" + std::to_string(kOnlineVersion) + "\n");
+    CHECK(hello_line(h) == "DAYTONA-RELAY 5 op=join room=abc v=" + std::to_string(kOnlineVersion) + "\n");
     // settings go with a create only; info has no room
     h.settings = "difficulty:hard,start:anyone";
-    CHECK(hello_line(h) == "DAYTONA-RELAY 4 op=join room=abc v=" + std::to_string(kOnlineVersion) + "\n");
+    CHECK(hello_line(h) == "DAYTONA-RELAY 5 op=join room=abc v=" + std::to_string(kOnlineVersion) + "\n");
     h.op = Hello::Op::Create;
-    CHECK(hello_line(h) == "DAYTONA-RELAY 4 op=create room=abc v=" + std::to_string(kOnlineVersion) +
+    CHECK(hello_line(h) == "DAYTONA-RELAY 5 op=create room=abc v=" + std::to_string(kOnlineVersion) +
                                " set=difficulty%3Ahard%2Cstart%3Aanyone\n");
     h.op = Hello::Op::Info;
     h.password = "pw";
-    CHECK(hello_line(h) == "DAYTONA-RELAY 4 op=info pass=pw v=" + std::to_string(kOnlineVersion) + "\n");
+    CHECK(hello_line(h) == "DAYTONA-RELAY 5 op=info pass=pw v=" + std::to_string(kOnlineVersion) + "\n");
+    h.udp = true; // UDP is for a room's data, not for info
+    CHECK(hello_line(h) == "DAYTONA-RELAY 5 op=info pass=pw v=" + std::to_string(kOnlineVersion) + "\n");
+    // back after a drop: the key the server gave, and UDP again
+    h.op = Hello::Op::Rejoin;
+    h.password.clear();
+    h.settings.clear();
+    h.key = "0a1b";
+    CHECK(hello_line(h) == "DAYTONA-RELAY 5 op=rejoin room=abc v=" + std::to_string(kOnlineVersion) + " key=0a1b udp=1\n");
     // the server's answer (Race.Info)
     const auto info = parse_info("cabinet=twin\ndifficulty=hard\nbad\n=x\n");
     CHECK(info.size() == 2 && info[0].first == "cabinet" && info[1].second == "hard");
@@ -116,6 +124,10 @@ int main() {
     CHECK(lat && lat->latency.size() == 2 && lat->latency[0] == 18 && lat->latency[1] == -1);
     CHECK(lat->waiting_latency.size() == 1 && lat->waiting_latency[0] == 132);
     CHECK(st && st->ready && st->any_start && st->eeprom.empty());
+    // a star-mode relay: this player's key, and places kept through a drop
+    auto keyed = parse_status("joined=2 size=2 pos=2 ready=1\neeprom=\nname=A\nname=B\nkey=0a1b\nresume=1\n");
+    CHECK(keyed && keyed->key == "0a1b" && keyed->resume);
+    CHECK(!parse_status("joined=2 size=2 pos=2 ready=1\neeprom=\nname=A\nname=B\n")->resume);
     CHECK(!parse_status("garbage"));
 
     // frames

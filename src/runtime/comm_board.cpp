@@ -80,6 +80,7 @@ uint8_t CommBoard::fg_r() {
     if (paced_ && ++fg_reads_ >= 2 && !zfg_shown_ && pending_.size() > size_t(primed_ ? 0 : reserve_)) {
         consume(pending_.front()); // the block and its flip together, as the board delivers them
         pending_.pop_front();
+        min_depth_ = std::min<uint32_t>(min_depth_, uint32_t(pending_.size()));
         zfg_ ^= 0x01;
         zfg_shown_ = true;
         primed_ = true;
@@ -121,6 +122,27 @@ void CommBoard::land_block(int frame_offset, int frame_size, bool reply) {
 void CommBoard::consume(const Block &b) {
     write_block(b);
     if (b.reply && linkalive_ == 0x01) send_data(linkid_, 0x2000, b.size, b.size + 1);
+    if (tokens_owed_ && linkalive_ == 0x01) { // the token, with the answer (one send for both)
+        const int n = std::min<int>(b.size + 1, int(sizeof buffer0_));
+        std::memset(buffer0_, 0, size_t(n));
+        buffer0_[0] = 0xfc;
+        buffer0_[1] = token_byte_;
+        send_frame(n);
+        tokens_owed_ = 0;
+    }
+    if (transport_) transport_->flush_now(); // the answer and the token: one send, now
+}
+
+// A SLAVE passes the MASTER's 0xFC token on (MAME: at once). Paced with
+// deferred tokens, it goes with the SLAVE's next answer instead: nothing
+// waits for it without frame sync, and the two then share one send.
+void CommBoard::forward_token(bool is_slave, int data_size) {
+    if (paced_ && defer_tokens_ && is_slave) {
+        token_byte_ = buffer0_[1];
+        tokens_owed_ = 1;
+        return;
+    }
+    send_frame(data_size);
 }
 
 void CommBoard::write_block(const Block &b) {
@@ -128,6 +150,27 @@ void CommBoard::write_block(const Block &b) {
 }
 
 void CommBoard::vblank() {
+    // adaptive reserve: every 300 frames, more blocks held back if frames went
+    // without one, fewer (one block dropped) if there was always one to spare
+    if (paced_ && adaptive_ && primed_) {
+        if (!zfg_shown_) ++starved_;
+        if (++window_ >= 300) {
+            if (starved_ >= 2 && reserve_ < 6) {
+                ++reserve_;
+                primed_ = false; // wait for the larger reserve
+                ++reserve_changes_;
+            } else if (starved_ == 0 && min_depth_ >= 1 && reserve_ > 0) {
+                --reserve_;
+                if (!pending_.empty()) {
+                    consume(pending_.front());
+                    pending_.pop_front();
+                }
+                ++reserve_changes_;
+            }
+            window_ = starved_ = 0;
+            min_depth_ = 255;
+        }
+    }
     fg_reads_ = 0;
     zfg_shown_ = false;
     comm_tick();
@@ -269,7 +312,7 @@ void CommBoard::comm_tick() {
                     // 0xFC - VSYNC
                     linktimer_ = 0x00;
                     // forward message to other nodes
-                    if (!is_master) send_frame(data_size);
+                    if (!is_master) forward_token(is_slave, data_size);
                 }
 
                 // try to read another message
@@ -295,6 +338,7 @@ void CommBoard::comm_tick() {
             buffer0_[0] = 0xfc;
             buffer0_[1] = 0x01;
             send_frame(data_size);
+            transport_->flush_now(); // the block and its token: one send
         }
 
         zfg_delay_ = 0x02;
@@ -338,7 +382,7 @@ void CommBoard::read_fg() {
                 else if (is_relay) send_frame(data_size);
             } else if (idx == 0xfc) {
                 linktimer_ = 0x00;
-                if (!is_master) send_frame(data_size);
+                if (!is_master) forward_token(is_slave, data_size);
             }
             recv = read_frame(data_size);
         }

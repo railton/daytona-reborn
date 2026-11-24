@@ -19,7 +19,7 @@ constexpr size_t kMaxName = 20;
 // data, how it starts and joins races). The server keeps a room to one
 // version, so every player of a room behaves the same. Raise it with any
 // such change.
-constexpr int kOnlineVersion = 8;
+constexpr int kOnlineVersion = 9;
 
 // What a friend needs to join: the server, the room, the server's password.
 struct Invite {
@@ -42,10 +42,13 @@ bool valid_room(const std::string &room);
 
 struct Hello {
     // Info: no room; the server answers its race settings' defaults (kInfo)
-    enum class Op { Create, Join, Info } op = Op::Join;
+    // Rejoin: back into a race after a dropped connection, with key (Status::key)
+    enum class Op { Create, Join, Info, Rejoin } op = Op::Join;
     std::string room;
     std::string name, password;
     std::string settings; // Create only: "key:value,..." over the server's defaults
+    std::string key;      // Rejoin only
+    bool udp = false;     // game data numbered, also by UDP (relay_link.cpp)
 };
 std::string hello_line(const Hello &hello); // with the trailing newline
 // An Info frame: the server's race settings, "key=value" lines, in its order.
@@ -68,6 +71,8 @@ struct Status {
     // Each player's latency to the server, round trip in ms, as names and
     // waiting; -1: not measured yet. Between two players: about the sum.
     std::vector<int> latency, waiting_latency;
+    std::string key;     // this player's, to come back into its race after a drop
+    bool resume = false; // the server keeps a dropped racer's place for a while
 };
 std::optional<Status> parse_status(const std::string &payload);
 

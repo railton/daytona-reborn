@@ -4,6 +4,52 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`). The
 fork's version is in `VERSION`, raised with every code change (rules.md
 rule 14); each version has its section here.
 
+## 0.13.0 (2026-11-24)
+
+### Online play
+
+Six changes to the link, measured one by one and together against 0.12.0
+(4 players; `docs/ONLINE_PROTOCOL_STUDY.md`), all on by default:
+
+- **Star mode on the server.** The relay reads the games' compressed
+  blocks and sends each player, in one hop, every other car's latest data,
+  instead of the data passed from player to player round the ring. All
+  cars are equally old, whatever their place. Through the relay in Europe
+  from Brazil: the farthest car 1.0 s old before, 0.4 s now; the other
+  cars' data moving smoothly 85-87% of the frames before, 91-93% now.
+- **The race data also goes by UDP.** Every message is numbered and sent by
+  TCP and by UDP at once, each datagram repeating the two before it; each
+  side takes it from whichever path brings it first. A lost packet is
+  covered a frame later instead of after TCP's retransmission. 1% packet
+  loss: smooth 82-85% before, 99% now, and the game at full speed instead
+  of 91-96%. Where UDP is blocked the game uses TCP alone, on its own.
+- **A dropped player comes back to the race.** The server keeps their
+  place 10 s and the game reconnects on its own with its key; the race goes
+  on for everyone (before: the race ended for the room).
+- **The link's reserve adapts to the line**: it grows when frames went
+  without a block, shrinks when there was always one to spare.
+- **One send a frame**: the block and the link's token together, sent at
+  once: 58 packets a second a player instead of 116 (Wi-Fi, mobile).
+- **The start barrier lets everyone go together**, from the latencies the
+  server measures: the start spread through the relay in Europe 140 ms
+  before, 16-72 ms now.
+
+Relay protocol 5 and online version 9: a 0.12 game and a 0.13 server (or
+the other way round) refuse each other with the version message. The
+server publishes port 7777 by UDP too (`docker-compose.yml`); open it in the
+firewall beside TCP. `DAYTONA_STAR=0` on the server and `M2_PROTO_UDP=0`,
+`M2_PROTO_COALESCE=0`, `M2_PROTO_RECONNECT=0` in the game (with
+`M2_PROTO_ADAPTIVE=0`, `M2_PROTO_BARRIER_TUNE=0` in `m2run`) turn each one
+off for comparisons. `m2run --relay` prints the sends a second, the link's
+reserve and the messages UDP brought first; `M2_TEST_AGE_LOG` logs the
+other cars' data age.
+
+### Known limits
+
+- The connection is not encrypted (no TLS).
+- UDP's gain was measured with simulated loss; the route to the relay in
+  Europe lost no packets in the probes.
+
 ## 0.12.0 (2026-11-24)
 
 ### Online play

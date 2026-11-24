@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"daytona-relay/linkcodec"
 	"daytona-relay/proto"
 	"daytona-relay/settings"
 )
@@ -362,4 +363,119 @@ func TestPongOverTCP(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Error("the pong set no latency")
+}
+
+// Star mode: the block a player gets holds every other car's latest own
+// slot, not the copy passed along the ring.
+func TestStarCompose(t *testing.T) {
+	s := newTestServer(t)
+	s.star = true
+	a, b, c := fakeClient("A"), fakeClient("B"), fakeClient("C")
+	s.join(a, proto.Hello{Op: "create", Room: "star", Game: "8"})
+	s.join(b, proto.Hello{Op: "join", Room: "star", Game: "8"})
+	s.join(c, proto.Hello{Op: "join", Room: "star", Game: "8"})
+	s.begin(a)
+	_, epoch := lastStatus(t, a)
+	lastStatus(t, b)
+	lastStatus(t, c)
+	// what each player's game sends: an id, its own slot filled with its letter, the rest as given
+	block := func(own byte, rest byte) []byte {
+		f := make([]byte, 1+8*linkcodec.Slot)
+		for i := 0; i < linkcodec.Slot; i++ {
+			f[1+i] = own
+		}
+		for i := linkcodec.Slot; i < 8*linkcodec.Slot; i++ {
+			f[1+i] = rest
+		}
+		return f
+	}
+	var encB, encC linkcodec.Codec
+	s.forward(b, proto.Frame{Type: proto.TypeData, Epoch: epoch, Payload: encB.Encode(nil, block('B', 0))})
+	<-c.out // B's block goes to C
+	// C's block carries old data of B in its slot 1 ('o'); A must get B's latest ('B')
+	s.forward(c, proto.Frame{Type: proto.TypeData, Epoch: epoch, Payload: encC.Encode(nil, block('C', 'o'))})
+	got := <-a.out
+	var dec linkcodec.Codec
+	frame, err := dec.Decode(got.Payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	slot := func(k int) byte { return frame[1+k*linkcodec.Slot] }
+	if slot(0) != 'C' || slot(1) != 'B' || slot(2) != 'o' {
+		t.Errorf("A got slots %c %c %c, want C B o", slot(0), slot(1), slot(2))
+	}
+}
+
+// Star mode: a racer whose connection drops keeps its place; back with its
+// key it takes it again, in the same ring (epoch).
+func TestRejoin(t *testing.T) {
+	s := newTestServer(t)
+	s.star = true
+	a, b := fakeClient("A"), fakeClient("B")
+	s.join(a, proto.Hello{Op: "create", Room: "rj", Game: "9"})
+	s.join(b, proto.Hello{Op: "join", Room: "rj", Game: "9"})
+	s.begin(a)
+	_, epoch := lastStatus(t, a)
+	st, _ := lastStatus(t, b)
+	if st.Key == "" || !st.Resume {
+		t.Fatalf("status without key or resume: %+v", st)
+	}
+	s.leave(b) // the connection dropped
+	s.mu.Lock()
+	inRing := s.rooms["rj"].inRing(b)
+	s.mu.Unlock()
+	if inRing != 2 || !b.away {
+		t.Fatalf("dropped racer not kept: place %d away %v", inRing, b.away)
+	}
+	var e *proto.Error
+	if err := s.rejoin(fakeClient("X"), proto.Hello{Op: "rejoin", Room: "rj", Key: "wrong"}); !errors.As(err, &e) || e.Code != "not_found" {
+		t.Errorf("rejoin with a wrong key: %v", err)
+	}
+	b2 := fakeClient("?")
+	if err := s.rejoin(b2, proto.Hello{Op: "rejoin", Room: "rj", Key: st.Key}); err != nil {
+		t.Fatal(err)
+	}
+	st2, epoch2 := lastStatus(t, b2)
+	if epoch2 != epoch || st2.Position != 2 || !st2.Ready || b2.name != "B" {
+		t.Errorf("back: epoch %d (was %d) %+v name %q", epoch2, epoch, st2, b2.name)
+	}
+	// without star mode the ring breaks at once, as before
+	p := newTestServer(t)
+	c, d := fakeClient("C"), fakeClient("D")
+	p.join(c, proto.Hello{Op: "create", Room: "plain", Game: "9"})
+	p.join(d, proto.Hello{Op: "join", Room: "plain", Game: "9"})
+	p.begin(c)
+	p.leave(d)
+	if p.rooms["plain"].ring != nil {
+		t.Error("ring kept without star mode")
+	}
+}
+
+// Numbered data (udp=1): each number once, in order, whichever path brings
+// it first; the next player gets them numbered from 0.
+func TestNumberedInOrderOnce(t *testing.T) {
+	s := newTestServer(t)
+	a, b := fakeClient("A"), fakeClient("B")
+	a.udp, b.udp = true, true
+	s.join(a, proto.Hello{Op: "create", Room: "num", Game: "9", UDP: true})
+	s.join(b, proto.Hello{Op: "join", Room: "num", Game: "9", UDP: true})
+	s.begin(a)
+	_, epoch := lastStatus(t, a)
+	lastStatus(t, b)
+	s.mu.Lock()
+	for _, seq := range []uint32{1, 0, 0, 2, 1} { // out of order and twice, as TCP and UDP race
+		s.receiveNumbered(a, epoch, seq, []byte{byte('x' + seq)})
+	}
+	s.mu.Unlock()
+	for want := uint32(0); want < 3; want++ {
+		f := <-b.out
+		if got := binary.BigEndian.Uint32(f.Payload); got != want || f.Payload[4] != byte('x'+want) {
+			t.Fatalf("message %d: seq %d payload %q", want, got, f.Payload[4:])
+		}
+	}
+	select {
+	case f := <-b.out:
+		t.Errorf("a duplicate went through: %v", f.Payload)
+	default:
+	}
 }

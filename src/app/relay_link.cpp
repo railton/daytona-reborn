@@ -3,6 +3,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdlib>
 #include <cstring>
 #include <mutex>
 #include <thread>
@@ -160,10 +161,29 @@ struct RelayLink::Connect {
 };
 
 RelayLink::RelayLink(const std::string &server, const online::Hello &hello)
-    : server_(server), room_(hello.room), hello_(online::hello_line(hello)) {
+    : server_(server), room_(hello.room), hello_(online::hello_line(hello)), hello_struct_(hello) {
+    // all on by default; each switch, set to 0, turns one off (diagnostics,
+    // docs/ONLINE_PROTOCOL_STUDY.md)
+    if (const char *v = std::getenv("M2_PROTO_COALESCE")) coalesce_ = *v != '0';
+    if (const char *v = std::getenv("M2_PROTO_RECONNECT")) may_reconnect_ = *v != '0';
+    const char *u = std::getenv("M2_PROTO_UDP");
+    if (!(u && *u == '0') && hello.op != online::Hello::Op::Info) {
+        udp_ = true;
+        hello_struct_.udp = true;
+        hello_ = online::hello_line(hello_struct_);
+    }
     net_init();
+    start_connect();
+}
+
+void RelayLink::start_connect() {
+    if (connect_) {
+        std::lock_guard<std::mutex> lock(connect_->mu);
+        connect_->abandoned = true;
+        if (connect_->done && connect_->sock >= 0) close_socket(connect_->sock), connect_->sock = -1;
+    }
     connect_ = std::make_shared<Connect>();
-    std::thread([c = connect_, server] {
+    std::thread([c = connect_, server = server_] {
         std::string error;
         const long long s = connect_to(server, error);
         std::lock_guard<std::mutex> lock(c->mu);
@@ -177,6 +197,41 @@ RelayLink::RelayLink(const std::string &server, const online::Hello &hello)
     }).detach();
 }
 
+void RelayLink::lost(const std::string &why) {
+    const uint64_t now = now_ms();
+    if (!reconnecting_) {
+        if (!(may_reconnect_ && state_ == State::Ready && status_.resume && !status_.key.empty())) {
+            fail(why);
+            return;
+        }
+        reconnecting_ = true;
+        reconnect_until_ms_ = now + 10000; // the server keeps the place 10 s
+        std::printf("relay: connection lost (%s), coming back into the race\n", why.c_str());
+    } else if (now > reconnect_until_ms_) {
+        reconnecting_ = false;
+        fail(why);
+        return;
+    }
+    if (sock_ >= 0) close_socket(sock_);
+    sock_ = -1;
+    out_.clear();
+    in_.clear();
+    inbox_.clear();
+    inbox_pos_ = 0;
+    tx_codec_.reset(); // the relay starts its side of both streams again (star mode)
+    rx_codec_.reset();
+    tx_seq_ = rx_next_ = 0; // and its numbers (a new client there)
+    tx_recent_.clear();
+    rx_early_.clear();
+    udp_close();
+    online::Hello back = hello_struct_;
+    back.op = online::Hello::Op::Rejoin;
+    back.key = status_.key;
+    hello_ = online::hello_line(back);
+    next_try_ms_ = now + 300;
+    connect_.reset();
+}
+
 RelayLink::~RelayLink() {
     if (connect_) {
         std::lock_guard<std::mutex> lock(connect_->mu);
@@ -184,6 +239,7 @@ RelayLink::~RelayLink() {
         if (connect_->done && connect_->sock >= 0 && connect_->sock != sock_) close_socket(connect_->sock);
     }
     if (sock_ >= 0) close_socket(sock_);
+    udp_close();
 }
 
 void RelayLink::fail(const std::string &why) {
@@ -206,9 +262,24 @@ void RelayLink::poll() {
     if (state_ == State::Failed || state_ == State::Info) return;
     const uint64_t now = now_ms();
     if (sock_ < 0) {
+        if (reconnecting_) {
+            if (now > reconnect_until_ms_) {
+                lost(TXR("Connection to the server lost."));
+                return;
+            }
+            if (!connect_) {
+                if (now < next_try_ms_) return;
+                start_connect();
+            }
+        }
         std::lock_guard<std::mutex> lock(connect_->mu);
         if (!connect_->done) return;
         if (connect_->sock < 0) {
+            if (reconnecting_) { // try again shortly, until the deadline
+                connect_.reset();
+                next_try_ms_ = now + 500;
+                return;
+            }
             fail(connect_->error);
             return;
         }
@@ -216,23 +287,29 @@ void RelayLink::poll() {
         connect_->sock = -1;
         out_ = hello_ + out_;
         last_rx_ms_ = last_tx_ms_ = now;
+        if (udp_) udp_open();
     }
+    if (udp_) udp_poll();
     if (now - last_tx_ms_ >= kPingMs) online::append_frame(out_, online::kPing, 0, nullptr, 0);
     flush();
     if (state_ != State::Failed) receive();
-    if (state_ != State::Failed && now_ms() - last_rx_ms_ > kTimeoutMs) fail(TXR("The server stopped answering."));
+    // the server pings every 2 s: in a race that can come back, 5 s of silence is a drop
+    const uint64_t silence = reconnecting_ || (state_ == State::Ready && status_.resume) ? 5000 : kTimeoutMs;
+    if (state_ != State::Failed && sock_ >= 0 && now_ms() - last_rx_ms_ > silence) lost(TXR("The server stopped answering."));
 }
 
 void RelayLink::flush() {
+    if (sock_ < 0) return; // reconnecting: sent once back
     while (!out_.empty()) {
         const auto sent = ::send(native_socket(sock_), out_.data(), int(std::min<size_t>(out_.size(), 1 << 16)), kNoSignal);
         if (sent > 0) {
+            ++sends_;
             out_.erase(0, size_t(sent));
             last_tx_ms_ = now_ms();
             continue;
         }
         if (sent < 0 && would_block(last_error())) break;
-        fail(TXR("Connection to the server lost."));
+        lost(TXR("Connection to the server lost."));
         return;
     }
     if (out_.size() > kMaxQueued) fail(TXR("The connection to the server is too slow."));
@@ -263,7 +340,7 @@ void RelayLink::receive() {
             }
             pos += online::kHeader + len;
         }
-        fail(TXR("Connection to the server lost."));
+        lost(TXR("Connection to the server lost."));
         return;
     }
     size_t pos = 0;
@@ -302,12 +379,26 @@ void RelayLink::frame(uint8_t type, uint32_t epoch, const std::string &payload) 
                 controls_.clear();
                 tx_codec_.reset();
                 rx_codec_.reset();
+                tx_seq_ = rx_next_ = 0; // numbers start again with the ring
+                tx_recent_.clear();
+                rx_early_.clear();
             }
             epoch_ = epoch;
             state_ = s->ready ? State::Ready : State::Waiting;
+            if (reconnecting_) {
+                reconnecting_ = false;
+                std::printf("relay: back in the race\n");
+            }
         }
         break;
     case online::kData: // one compressed wire frame of the previous player's
+        if (udp_) { // numbered: seq(4), then the message
+            if (payload.size() >= 4)
+                numbered(epoch, uint32_t(uint8_t(payload[0])) << 24 | uint32_t(uint8_t(payload[1])) << 16 |
+                                    uint32_t(uint8_t(payload[2])) << 8 | uint8_t(payload[3]),
+                         payload.substr(4), false);
+            break;
+        }
         if (state_ == State::Ready && epoch == epoch_) {
             if (inbox_.size() - inbox_pos_ > kMaxQueued) fail(TXR("The game is not reading the data it receives."));
             else if (!rx_codec_.decode(reinterpret_cast<const uint8_t *>(payload.data()), payload.size(), inbox_))
@@ -359,13 +450,117 @@ int RelayLink::read(uint8_t *buf, int max) {
 
 // One wire frame of the comm board's a call (CommBoard::send_frame): one
 // compressed message (app/link_codec.h).
+// Numbered game data: the UDP socket, beside the TCP connection to the same
+// address and port.
+void RelayLink::udp_open() {
+    udp_close();
+    sockaddr_storage peer{};
+    socklen_t len = sizeof peer;
+    if (::getpeername(native_socket(sock_), reinterpret_cast<sockaddr *>(&peer), &len) != 0) return;
+    native_socket u = ::socket(peer.ss_family, SOCK_DGRAM, 0);
+    if (!valid(u)) return;
+    set_nonblocking(static_cast<long long>(u), true);
+    if (::connect(u, reinterpret_cast<sockaddr *>(&peer), len) != 0) {
+        close_socket(static_cast<long long>(u));
+        return;
+    }
+    udp_sock_ = static_cast<long long>(u);
+    udp_hello_ms_ = 0;
+}
+
+void RelayLink::udp_close() {
+    if (udp_sock_ >= 0) close_socket(udp_sock_);
+    udp_sock_ = -1;
+}
+
+void RelayLink::udp_poll() {
+    if (udp_sock_ < 0) return;
+    const uint64_t now = now_ms();
+    if (!status_.key.empty() && now - udp_hello_ms_ >= 2000) { // who this address is (and the NAT kept open)
+        const std::string h = "h" + status_.key;
+        ::send(native_socket(udp_sock_), h.data(), int(h.size()), kNoSignal);
+        udp_hello_ms_ = now;
+    }
+    char buf[2048];
+    for (;;) {
+        const auto n = ::recv(native_socket(udp_sock_), buf, int(sizeof buf), 0);
+        if (n <= 0) break;
+        if (buf[0] != 'd' || n < 6) continue;
+        const auto *p = reinterpret_cast<const uint8_t *>(buf);
+        const uint32_t epoch = uint32_t(p[1]) << 24 | uint32_t(p[2]) << 16 | uint32_t(p[3]) << 8 | p[4];
+        size_t at = 6;
+        for (int i = 0; i < p[5] && at + 6 <= size_t(n); ++i) {
+            const uint32_t seq = uint32_t(p[at]) << 24 | uint32_t(p[at + 1]) << 16 | uint32_t(p[at + 2]) << 8 | p[at + 3];
+            const size_t l = size_t(p[at + 4]) << 8 | p[at + 5];
+            at += 6;
+            if (at + l > size_t(n)) break;
+            numbered(epoch, seq, std::string(buf + at, l), true);
+            at += l;
+        }
+    }
+}
+
+// A numbered message, from TCP or UDP: once, in order.
+void RelayLink::numbered(uint32_t epoch, uint32_t seq, const std::string &message, bool by_udp) {
+    if (state_ != State::Ready || epoch != epoch_ || reconnecting_) return;
+    if (by_udp) ++udp_received_;
+    if (seq < rx_next_) return; // had it
+    if (seq > rx_next_) {
+        if (rx_early_.size() < 64) rx_early_.emplace(seq, message);
+        return;
+    }
+    if (by_udp) ++udp_first_;
+    deliver(message);
+    ++rx_next_;
+    for (auto it = rx_early_.find(rx_next_); it != rx_early_.end() && state_ == State::Ready; it = rx_early_.find(rx_next_)) {
+        deliver(it->second);
+        rx_early_.erase(it);
+        ++rx_next_;
+    }
+}
+
+void RelayLink::deliver(const std::string &m) {
+    if (inbox_.size() - inbox_pos_ > kMaxQueued) fail(TXR("The game is not reading the data it receives."));
+    else if (!rx_codec_.decode(reinterpret_cast<const uint8_t *>(m.data()), m.size(), inbox_))
+        fail(TXR("Invalid data from another player: is everyone on the same version of the game?"));
+}
+
 bool RelayLink::write(const uint8_t *buf, int n) {
     if (state_ != State::Ready) return false;
+    if (reconnecting_) return true; // dropped while away: the codecs start again once back
     if (n <= 0 || size_t(n) > online::LinkCodec::kMaxFrame) return n == 0;
     std::string message;
     tx_codec_.encode(buf, size_t(n), message);
-    online::append_frame(out_, online::kData, epoch_, reinterpret_cast<const uint8_t *>(message.data()), message.size());
-    flush();
+    if (udp_) {
+        std::string numbered(4, '\0');
+        for (int i = 0; i < 4; ++i) numbered[size_t(i)] = char(uint8_t(tx_seq_ >> (24 - 8 * i)));
+        ++tx_seq_;
+        numbered += message;
+        online::append_frame(out_, online::kData, epoch_, reinterpret_cast<const uint8_t *>(numbered.data()), numbered.size());
+        if (udp_sock_ >= 0 && numbered.size() + 6 <= 1200) { // the datagram: this one and the recent ones that fit
+            std::string dg = "d";
+            for (int i = 0; i < 4; ++i) dg += char(uint8_t(epoch_ >> (24 - 8 * i)));
+            dg += '\0';
+            auto add = [&](const std::string &m) {
+                if (dg.size() + 2 + m.size() > 1200) return false;
+                dg.append(m, 0, 4);
+                dg += char(uint8_t((m.size() - 4) >> 8));
+                dg += char(uint8_t(m.size() - 4));
+                dg.append(m, 4, std::string::npos);
+                ++dg[5];
+                return true;
+            };
+            add(numbered);
+            for (auto it = tx_recent_.rbegin(); it != tx_recent_.rend() && add(*it); ++it) {}
+            ::send(native_socket(udp_sock_), dg.data(), int(dg.size()), kNoSignal);
+        }
+        tx_recent_.push_back(numbered);
+        if (tx_recent_.size() > 2) tx_recent_.erase(tx_recent_.begin());
+    } else {
+        online::append_frame(out_, online::kData, epoch_, reinterpret_cast<const uint8_t *>(message.data()), message.size());
+    }
+    ++messages_;
+    if (!coalesce_) flush(); // coalesced: at the next poll (the board polls at least once a ms while the game waits)
     return state_ == State::Ready;
 }
 
