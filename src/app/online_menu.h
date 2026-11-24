@@ -11,6 +11,8 @@
 #include <string>
 #include <vector>
 
+struct ImFont;
+
 namespace app {
 
 class RelayLink;
@@ -25,6 +27,14 @@ public:
     // After Connect: where, and how to introduce ourselves.
     const std::string &server() const { return server_; }
     const online::Hello &hello() const { return hello_; }
+    // The room's password (its invite code holds it): set when the home
+    // screen joins or creates one.
+    const std::string &room_password() const { return room_password_; }
+    void set_room_password(const std::string &password) { room_password_ = password; }
+    // The saved name, server and password again (changed on the home screen).
+    void reload() { init_ = false; auto_connect_ = false; }
+    // The home screen's fonts (HomeMenu::display_font, body_font).
+    void set_fonts(ImFont *display, ImFont *body) { display_ = display, body_ = body; }
 
 private:
     bool init_ = false;
@@ -38,6 +48,10 @@ private:
     std::string probed_;               // the server (and password) that answered; empty: not connected
     std::vector<int> choice_;          // per room option (room_options() in the .cpp), the value picked
     bool ask_password_ = false;        // the server asked for one (or one is saved): show its field
+    bool auto_connect_ = false;        // the saved server was asked when the screen opened
+    ImFont *display_ = nullptr, *body_ = nullptr;
+    // Outside a room: the room's settings, in the home screen's look.
+    Action draw_settings(Config &cfg, const RelayLink *link, const std::string &message);
     void load(const Config &cfg);
     void connected(const Config &cfg, const std::vector<std::pair<std::string, std::string>> &defaults);
     std::string room_settings() const;

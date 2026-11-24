@@ -97,6 +97,46 @@ msgstr ""
 msgid "M O D E L   2    /    P C   E D I T I O N"
 msgstr ""
 
+msgid "In a room"
+msgstr ""
+
+msgid "Connecting..."
+msgstr ""
+
+msgid "No server"
+msgstr ""
+
+msgid "Online"
+msgstr ""
+
+msgid "Offline"
+msgstr ""
+
+msgid "Other version"
+msgstr ""
+
+msgid "Testing..."
+msgstr ""
+
+msgid "Solo"
+msgstr ""
+
+msgid ""
+"Race the clock\n"
+"and the field"
+msgstr ""
+
+msgid "3 courses · Time Attack"
+msgstr ""
+
+msgid ""
+"Race up to 8 players\n"
+"in real time"
+msgstr ""
+
+msgid "8 players · invite code"
+msgstr ""
+
 msgid "Beginner"
 msgstr ""
 
@@ -109,13 +149,7 @@ msgstr ""
 msgid "Preparing the race..."
 msgstr ""
 
-msgid "Solo race"
-msgstr ""
-
 msgid "Back"
-msgstr ""
-
-msgid "Mode for the next race"
 msgstr ""
 
 msgid "Game mode"
@@ -127,9 +161,6 @@ msgstr ""
 msgid "Time Attack"
 msgstr ""
 
-msgid "Gearbox for the next race"
-msgstr ""
-
 msgid "Gearbox"
 msgstr ""
 
@@ -139,13 +170,13 @@ msgstr ""
 msgid "Manual"
 msgstr ""
 
+msgid "Course"
+msgstr ""
+
 msgid "Resume"
 msgstr ""
 
 msgid "Play"
-msgstr ""
-
-msgid "Settings"
 msgstr ""
 
 msgid "Quit"
@@ -154,16 +185,142 @@ msgstr ""
 msgid "New race"
 msgstr ""
 
-msgid "Online"
+msgid "Connecting to the room..."
 msgstr ""
 
-msgid "SOLO   /   FREE PLAY"
+msgid "Cancel"
+msgstr ""
+
+msgid "Room  %d / %d"
+msgstr ""
+
+msgid "Player %d"
+msgstr ""
+
+msgid "the room's owner"
+msgstr ""
+
+msgid "Waiting for at least one more player."
+msgstr ""
+
+msgid "Start the race when everyone is in."
+msgstr ""
+
+msgid "Waiting for %s to start the race."
+msgstr ""
+
+msgid "A race is on: you will join the next one."
+msgstr ""
+
+msgid "Online race in progress."
+msgstr ""
+
+msgid "Starting the race..."
+msgstr ""
+
+msgid "Copied!"
+msgstr ""
+
+msgid "Copy the invite code"
+msgstr ""
+
+msgid "Room details..."
+msgstr ""
+
+msgid "Leave the room"
+msgstr ""
+
+msgid "Start the race"
+msgstr ""
+
+msgid "Waiting for players"
+msgstr ""
+
+msgid "Resume the race"
+msgstr ""
+
+msgid "Open the room"
+msgstr ""
+
+msgid "Invite code"
+msgstr ""
+
+msgid "Pasted"
+msgstr ""
+
+msgid "Valid"
+msgstr ""
+
+msgid "Incomplete"
+msgstr ""
+
+msgid "or"
+msgstr ""
+
+msgid "New room"
+msgstr ""
+
+msgid "Create a new room"
+msgstr ""
+
+msgid "Then your name, the server and the race settings."
+msgstr ""
+
+msgid "Join the room"
+msgstr ""
+
+msgid "Settings"
+msgstr ""
+
+msgid "Set your name"
+msgstr ""
+
+msgid "%d ms"
+msgstr ""
+
+msgid "v%s (%s)"
+msgstr ""
+
+msgid "SET A NAME"
+msgstr ""
+
+msgid "ONLINE READY"
+msgstr ""
+
+msgid "NO SERVER"
+msgstr ""
+
+msgid "SERVER OFFLINE"
+msgstr ""
+
+msgid "VERSION MISMATCH"
+msgstr ""
+
+msgid "TESTING THE SERVER"
 msgstr ""
 
 msgid "SDR   /   %d × %d"
 msgstr ""
 
-msgid "V%s (%s)   /   ONLINE %d"
+msgid "Your name"
+msgstr ""
+
+msgid "The other players see it above your car."
+msgstr ""
+
+msgid "OK"
+msgstr ""
+
+msgid "Leave the room?"
+msgstr ""
+
+msgid "A solo race takes you out of the online room."
+msgstr ""
+
+msgid "Stay in the room"
+msgstr ""
+
+msgid "Leave and race"
 msgstr ""
 
 msgid "Choose the ROM set again with Browse."
@@ -782,6 +939,9 @@ msgstr ""
 msgid "First choose the Daytona Revision A ROM set."
 msgstr ""
 
+msgid "Invalid invite code: copy all of it, it starts with DTN1."
+msgstr ""
+
 msgid "Waiting for the other players to finish choosing..."
 msgstr ""
 
@@ -857,37 +1017,19 @@ msgstr ""
 msgid "Anyone"
 msgstr ""
 
-msgid "Race over the Internet with up to 8 players, through a daytona-relay server."
-msgstr ""
-
-msgid "Your name"
-msgstr ""
-
-msgid "Join a room"
-msgstr ""
-
-msgid "Invite code"
-msgstr ""
-
-msgid "Paste"
-msgstr ""
-
-msgid "Join"
-msgstr ""
-
-msgid "Invalid invite code: copy all of it, it starts with DTN1."
-msgstr ""
-
-msgid "The code already holds the server, the room and the password."
-msgstr ""
-
-msgid "Create a room"
-msgstr ""
-
 msgid "This server asks for a password."
 msgstr ""
 
-msgid "Connecting..."
+msgid "Invalid server address: an IP or name, with :port if it is not 7777."
+msgstr ""
+
+msgid "Room settings"
+msgstr ""
+
+msgid "Every player of the room races with these settings. They are kept for your next room."
+msgstr ""
+
+msgid "Server (IP or DNS)"
 msgstr ""
 
 msgid "Connect again"
@@ -896,13 +1038,13 @@ msgstr ""
 msgid "Connect"
 msgstr ""
 
-msgid "Invalid server address: an IP or name, with :port if it is not 7777."
-msgstr ""
-
-msgid "Server (IP or DNS)"
-msgstr ""
-
 msgid "Server password"
+msgstr ""
+
+msgid "Connecting to %s..."
+msgstr ""
+
+msgid "Type your name above to connect to the server."
 msgstr ""
 
 msgid "Connected to %s: choose the room's settings."
@@ -911,22 +1053,13 @@ msgstr ""
 msgid "Connect to the server to choose the room's settings."
 msgstr ""
 
-msgid "Up to 8 players. You start the race once your friends are in; who joins later races the next one."
+msgid "Race settings"
 msgstr ""
 
 msgid "Create the room"
 msgstr ""
 
-msgid "Connecting to %s..."
-msgstr ""
-
-msgid "Cancel"
-msgstr ""
-
 msgid "Room %s: %d / %d players"
-msgstr ""
-
-msgid "Copied!"
 msgstr ""
 
 msgid "Copy the code"
@@ -936,12 +1069,6 @@ msgid "Send it to your friends: they paste it under Join."
 msgstr ""
 
 msgid "Players"
-msgstr ""
-
-msgid "%d ms"
-msgstr ""
-
-msgid "Player %d"
 msgstr ""
 
 msgid " (starts the race)"
@@ -956,43 +1083,13 @@ msgstr ""
 msgid "Latency to the server, round trip; between two players it is about the sum."
 msgstr ""
 
-msgid "Waiting for at least one more player."
-msgstr ""
-
-msgid "Start the race when everyone is in."
-msgstr ""
-
-msgid "Waiting for %s to start the race."
-msgstr ""
-
-msgid "the room's owner"
-msgstr ""
-
-msgid "A race is on: you will join the next one."
-msgstr ""
-
-msgid "Online race in progress."
-msgstr ""
-
-msgid "Starting the race..."
-msgstr ""
-
 msgid "Press Start (Enter) to play. Esc comes back to this menu."
 msgstr ""
 
 msgid "New race with everyone"
 msgstr ""
 
-msgid "Start the race"
-msgstr ""
-
 msgid "Restarts every player's game with everyone in the room."
-msgstr ""
-
-msgid "Resume the race"
-msgstr ""
-
-msgid "Leave the room"
 msgstr ""
 
 msgid "STANDINGS"
@@ -1076,10 +1173,10 @@ msgstr ""
 msgid "Cannot connect to the server (is it running? is its port open?): "
 msgstr ""
 
-msgid "The server stopped answering."
+msgid "Connection to the server lost."
 msgstr ""
 
-msgid "Connection to the server lost."
+msgid "The server stopped answering."
 msgstr ""
 
 msgid "The connection to the server is too slow."

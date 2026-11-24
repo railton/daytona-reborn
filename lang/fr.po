@@ -96,6 +96,50 @@ msgstr "aucun"
 msgid "M O D E L   2    /    P C   E D I T I O N"
 msgstr "M O D E L   2    /    É D I T I O N   P C"
 
+msgid "In a room"
+msgstr "Dans une salle"
+
+msgid "Connecting..."
+msgstr "Connexion..."
+
+msgid "No server"
+msgstr "Aucun serveur"
+
+msgid "Online"
+msgstr "En ligne"
+
+msgid "Offline"
+msgstr "Hors ligne"
+
+msgid "Other version"
+msgstr "Autre version"
+
+msgid "Testing..."
+msgstr "Test..."
+
+msgid "Solo"
+msgstr "Solo"
+
+msgid ""
+"Race the clock\n"
+"and the field"
+msgstr ""
+"Contre la montre\n"
+"et le peloton"
+
+msgid "3 courses · Time Attack"
+msgstr "3 circuits · Time Attack"
+
+msgid ""
+"Race up to 8 players\n"
+"in real time"
+msgstr ""
+"Affrontez jusqu'à 8\n"
+"joueurs en temps réel"
+
+msgid "8 players · invite code"
+msgstr "8 joueurs · code d'invitation"
+
 msgid "Beginner"
 msgstr "Débutant"
 
@@ -108,14 +152,8 @@ msgstr "Expert"
 msgid "Preparing the race..."
 msgstr "Préparation de la course..."
 
-msgid "Solo race"
-msgstr "Course solo"
-
 msgid "Back"
 msgstr "Retour"
-
-msgid "Mode for the next race"
-msgstr "Mode de la prochaine course"
 
 msgid "Game mode"
 msgstr "Mode de jeu"
@@ -126,9 +164,6 @@ msgstr "Course normale"
 msgid "Time Attack"
 msgstr "Time Attack"
 
-msgid "Gearbox for the next race"
-msgstr "Boîte de la prochaine course"
-
 msgid "Gearbox"
 msgstr "Boîte de vitesses"
 
@@ -138,14 +173,14 @@ msgstr "Automatique"
 msgid "Manual"
 msgstr "Manuelle"
 
+msgid "Course"
+msgstr "Circuit"
+
 msgid "Resume"
 msgstr "Reprendre"
 
 msgid "Play"
 msgstr "Jouer"
-
-msgid "Settings"
-msgstr "Réglages"
 
 msgid "Quit"
 msgstr "Quitter"
@@ -153,17 +188,143 @@ msgstr "Quitter"
 msgid "New race"
 msgstr "Nouvelle course"
 
-msgid "Online"
-msgstr "En ligne"
+msgid "Connecting to the room..."
+msgstr "Connexion à la salle..."
 
-msgid "SOLO   /   FREE PLAY"
-msgstr "SOLO   /   JEU LIBRE"
+msgid "Cancel"
+msgstr "Annuler"
+
+msgid "Room  %d / %d"
+msgstr "Salle  %d / %d"
+
+msgid "Player %d"
+msgstr "Joueur %d"
+
+msgid "the room's owner"
+msgstr "le créateur de la salle"
+
+msgid "Waiting for at least one more player."
+msgstr "En attente d'au moins un autre joueur."
+
+msgid "Start the race when everyone is in."
+msgstr "Lancez la course quand tout le monde est là."
+
+msgid "Waiting for %s to start the race."
+msgstr "En attente que %s lance la course."
+
+msgid "A race is on: you will join the next one."
+msgstr "Une course est en cours : vous rejoindrez la suivante."
+
+msgid "Online race in progress."
+msgstr "Course en ligne en cours."
+
+msgid "Starting the race..."
+msgstr "Démarrage de la course..."
+
+msgid "Copied!"
+msgstr "Copié !"
+
+msgid "Copy the invite code"
+msgstr "Copier le code d'invitation"
+
+msgid "Room details..."
+msgstr "Détails de la salle..."
+
+msgid "Leave the room"
+msgstr "Quitter la salle"
+
+msgid "Start the race"
+msgstr "Lancer la course"
+
+msgid "Waiting for players"
+msgstr "En attente de joueurs"
+
+msgid "Resume the race"
+msgstr "Reprendre la course"
+
+msgid "Open the room"
+msgstr "Ouvrir la salle"
+
+msgid "Invite code"
+msgstr "Code d'invitation"
+
+msgid "Pasted"
+msgstr "Collé"
+
+msgid "Valid"
+msgstr "Valide"
+
+msgid "Incomplete"
+msgstr "Incomplet"
+
+msgid "or"
+msgstr "ou"
+
+msgid "New room"
+msgstr "Nouvelle salle"
+
+msgid "Create a new room"
+msgstr "Créer une salle"
+
+msgid "Then your name, the server and the race settings."
+msgstr "Ensuite : votre nom, le serveur et les réglages de la course."
+
+msgid "Join the room"
+msgstr "Rejoindre la salle"
+
+msgid "Settings"
+msgstr "Réglages"
+
+msgid "Set your name"
+msgstr "Votre nom"
+
+msgid "%d ms"
+msgstr "%d ms"
+
+msgid "v%s (%s)"
+msgstr "v%s (%s)"
+
+msgid "SET A NAME"
+msgstr "CHOISISSEZ UN NOM"
+
+msgid "ONLINE READY"
+msgstr "EN LIGNE PRÊT"
+
+msgid "NO SERVER"
+msgstr "AUCUN SERVEUR"
+
+msgid "SERVER OFFLINE"
+msgstr "SERVEUR HORS LIGNE"
+
+msgid "VERSION MISMATCH"
+msgstr "VERSION DIFFÉRENTE"
+
+msgid "TESTING THE SERVER"
+msgstr "TEST DU SERVEUR"
 
 msgid "SDR   /   %d × %d"
 msgstr "SDR   /   %d × %d"
 
-msgid "V%s (%s)   /   ONLINE %d"
-msgstr "V%s (%s)   /   EN LIGNE %d"
+msgid "Your name"
+msgstr "Votre nom"
+
+msgid "The other players see it above your car."
+msgstr "Les autres joueurs le voient au-dessus de votre voiture."
+
+msgid "OK"
+msgstr "OK"
+
+msgid "Leave the room?"
+msgstr "Quitter la salle ?"
+
+msgid "A solo race takes you out of the online room."
+msgstr "Une course en solo vous fait quitter la salle en ligne."
+
+msgid "Stay in the room"
+msgstr "Rester dans la salle"
+
+msgid "Leave and race"
+msgstr "Quitter et courir"
 
 msgid "Choose the ROM set again with Browse."
 msgstr "Choisissez de nouveau le jeu de ROM avec Parcourir."
@@ -833,6 +994,9 @@ msgstr "Le jeu n’a pas confirmé le départ."
 msgid "First choose the Daytona Revision A ROM set."
 msgstr "Choisissez d'abord le jeu de ROM de Daytona Revision A."
 
+msgid "Invalid invite code: copy all of it, it starts with DTN1."
+msgstr "Code d'invitation invalide : copiez-le en entier, il commence par DTN1."
+
 msgid "Waiting for the other players to finish choosing..."
 msgstr "En attente que les autres joueurs finissent de choisir..."
 
@@ -908,38 +1072,20 @@ msgstr "Le MASTER"
 msgid "Anyone"
 msgstr "N'importe qui"
 
-msgid "Race over the Internet with up to 8 players, through a daytona-relay server."
-msgstr "Jouez en réseau par Internet avec jusqu'à 8 joueurs, à travers un serveur daytona-relay."
-
-msgid "Your name"
-msgstr "Votre nom"
-
-msgid "Join a room"
-msgstr "Rejoindre une salle"
-
-msgid "Invite code"
-msgstr "Code d'invitation"
-
-msgid "Paste"
-msgstr "Coller"
-
-msgid "Join"
-msgstr "Rejoindre"
-
-msgid "Invalid invite code: copy all of it, it starts with DTN1."
-msgstr "Code d'invitation invalide : copiez-le en entier, il commence par DTN1."
-
-msgid "The code already holds the server, the room and the password."
-msgstr "Le code contient déjà le serveur, la salle et le mot de passe."
-
-msgid "Create a room"
-msgstr "Créer une salle"
-
 msgid "This server asks for a password."
 msgstr "Ce serveur demande un mot de passe."
 
-msgid "Connecting..."
-msgstr "Connexion..."
+msgid "Invalid server address: an IP or name, with :port if it is not 7777."
+msgstr "Adresse du serveur invalide : IP ou nom, avec :port si ce n'est pas 7777."
+
+msgid "Room settings"
+msgstr "Réglages de la salle"
+
+msgid "Every player of the room races with these settings. They are kept for your next room."
+msgstr "Tous les joueurs de la salle courent avec ces réglages. Ils sont gardés pour votre prochaine salle."
+
+msgid "Server (IP or DNS)"
+msgstr "Serveur (IP ou DNS)"
 
 msgid "Connect again"
 msgstr "Se reconnecter"
@@ -947,14 +1093,14 @@ msgstr "Se reconnecter"
 msgid "Connect"
 msgstr "Se connecter"
 
-msgid "Invalid server address: an IP or name, with :port if it is not 7777."
-msgstr "Adresse du serveur invalide : IP ou nom, avec :port si ce n'est pas 7777."
-
-msgid "Server (IP or DNS)"
-msgstr "Serveur (IP ou DNS)"
-
 msgid "Server password"
 msgstr "Mot de passe du serveur"
+
+msgid "Connecting to %s..."
+msgstr "Connexion à %s..."
+
+msgid "Type your name above to connect to the server."
+msgstr "Saisissez votre nom ci-dessus pour vous connecter au serveur."
 
 msgid "Connected to %s: choose the room's settings."
 msgstr "Connecté à %s : choisissez les réglages de la salle."
@@ -962,23 +1108,14 @@ msgstr "Connecté à %s : choisissez les réglages de la salle."
 msgid "Connect to the server to choose the room's settings."
 msgstr "Connectez-vous au serveur pour choisir les réglages de la salle."
 
-msgid "Up to 8 players. You start the race once your friends are in; who joins later races the next one."
-msgstr "Jusqu'à 8 joueurs. Vous lancez la course une fois vos amis arrivés ; qui arrive ensuite court la suivante."
+msgid "Race settings"
+msgstr "Réglages de la course"
 
 msgid "Create the room"
 msgstr "Créer la salle"
 
-msgid "Connecting to %s..."
-msgstr "Connexion à %s..."
-
-msgid "Cancel"
-msgstr "Annuler"
-
 msgid "Room %s: %d / %d players"
 msgstr "Salle %s : %d / %d joueurs"
-
-msgid "Copied!"
-msgstr "Copié !"
 
 msgid "Copy the code"
 msgstr "Copier le code"
@@ -988,12 +1125,6 @@ msgstr "Envoyez-le à vos amis : ils le collent dans Rejoindre."
 
 msgid "Players"
 msgstr "Joueurs"
-
-msgid "%d ms"
-msgstr "%d ms"
-
-msgid "Player %d"
-msgstr "Joueur %d"
 
 msgid " (starts the race)"
 msgstr " (lance la course)"
@@ -1007,44 +1138,14 @@ msgstr "Prochaine course :"
 msgid "Latency to the server, round trip; between two players it is about the sum."
 msgstr "Latence jusqu'au serveur, aller-retour ; entre deux joueurs, c'est environ la somme."
 
-msgid "Waiting for at least one more player."
-msgstr "En attente d'au moins un autre joueur."
-
-msgid "Start the race when everyone is in."
-msgstr "Lancez la course quand tout le monde est là."
-
-msgid "Waiting for %s to start the race."
-msgstr "En attente que %s lance la course."
-
-msgid "the room's owner"
-msgstr "le créateur de la salle"
-
-msgid "A race is on: you will join the next one."
-msgstr "Une course est en cours : vous rejoindrez la suivante."
-
-msgid "Online race in progress."
-msgstr "Course en ligne en cours."
-
-msgid "Starting the race..."
-msgstr "Démarrage de la course..."
-
 msgid "Press Start (Enter) to play. Esc comes back to this menu."
 msgstr "Appuyez sur Start (Entrée) pour jouer. Échap revient à ce menu."
 
 msgid "New race with everyone"
 msgstr "Nouvelle course avec tout le monde"
 
-msgid "Start the race"
-msgstr "Lancer la course"
-
 msgid "Restarts every player's game with everyone in the room."
 msgstr "Relance le jeu de chaque joueur avec tous ceux de la salle."
-
-msgid "Resume the race"
-msgstr "Reprendre la course"
-
-msgid "Leave the room"
-msgstr "Quitter la salle"
 
 msgid "STANDINGS"
 msgstr "CLASSEMENT"
@@ -1127,11 +1228,11 @@ msgstr "Serveur introuvable : "
 msgid "Cannot connect to the server (is it running? is its port open?): "
 msgstr "Connexion impossible au serveur (est-il en marche ? son port est-il ouvert ?) : "
 
-msgid "The server stopped answering."
-msgstr "Le serveur ne répond plus."
-
 msgid "Connection to the server lost."
 msgstr "Connexion au serveur perdue."
+
+msgid "The server stopped answering."
+msgstr "Le serveur ne répond plus."
 
 msgid "The connection to the server is too slow."
 msgstr "La connexion au serveur est trop lente."

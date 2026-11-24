@@ -101,7 +101,14 @@ int main() try {
             require(screen.press(key, button) == app::HomeMenu::Stay, "navigation launched an action");
         };
         auto confirm = [&]() { return screen.press(SDL_SCANCODE_RETURN, SDL_GAMEPAD_BUTTON_SOUTH); };
+        // the Solo card's column: game mode, gearbox, course, then Play at the bottom
         require(std::string_view(screen.focus()) == "Play", "home default action is not Play");
+        expect_move(SDL_SCANCODE_UP, SDL_GAMEPAD_BUTTON_DPAD_UP);
+        for (int i = 0; i < 2 && std::string_view(screen.focus()) != "03"; ++i)
+            expect_move(SDL_SCANCODE_RIGHT, SDL_GAMEPAD_BUTTON_DPAD_RIGHT);
+        require(std::string_view(screen.focus()) == "03", "cannot focus Expert");
+        require(confirm() == app::HomeMenu::Stay && screen.menu.request().course == rt::RaceCourse::Expert,
+                "Expert choice not applied");
         expect_move(SDL_SCANCODE_UP, SDL_GAMEPAD_BUTTON_DPAD_UP);
         if (std::string_view(screen.focus()) == "Automatic") expect_move(SDL_SCANCODE_RIGHT, SDL_GAMEPAD_BUTTON_DPAD_RIGHT);
         require(std::string_view(screen.focus()) == "Manual", "cannot focus Manual");
@@ -109,12 +116,7 @@ int main() try {
                 "Manual choice not applied");
         expect_move(SDL_SCANCODE_DOWN, SDL_GAMEPAD_BUTTON_DPAD_DOWN);
         expect_move(SDL_SCANCODE_DOWN, SDL_GAMEPAD_BUTTON_DPAD_DOWN);
-        for (int i = 0; i < 2 && std::string_view(screen.focus()) != "03"; ++i)
-            expect_move(SDL_SCANCODE_RIGHT, SDL_GAMEPAD_BUTTON_DPAD_RIGHT);
-        require(std::string_view(screen.focus()) == "03", "cannot focus Expert");
-        require(confirm() == app::HomeMenu::Stay && screen.menu.request().course == rt::RaceCourse::Expert,
-                "Expert choice not applied");
-        expect_move(SDL_SCANCODE_UP, SDL_GAMEPAD_BUTTON_DPAD_UP);
+        require(std::string_view(screen.focus()) == "Play", "cannot come back down to Play");
         require(confirm() == app::HomeMenu::Play, "Expert Manual did not request Play");
         screen.loading = true;
         for (int i = 0; i < 3; ++i) screen.frame();

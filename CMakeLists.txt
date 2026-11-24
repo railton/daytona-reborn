@@ -568,7 +568,8 @@ if(TARGET SDL3::SDL3-static)
 endif()
 
 if(TARGET imgui AND WIN32 AND NOT M2_MOBILE)
-    add_executable(test_home_menu_navigation tests/test_home_menu_navigation.cpp src/app/home_menu.cpp src/app/i18n.cpp)
+    add_executable(test_home_menu_navigation tests/test_home_menu_navigation.cpp src/app/home_menu.cpp src/app/i18n.cpp
+                   src/app/online.cpp src/app/online_overlay.cpp)
     add_dependencies(test_home_menu_navigation daytona_version)
     target_include_directories(test_home_menu_navigation PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/generated)
     target_include_directories(test_home_menu_navigation PRIVATE src)

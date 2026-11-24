@@ -4,6 +4,42 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`). The
 fork's version is in `VERSION`, raised with every code change (rules.md
 rule 14); each version has its section here.
 
+## 0.14.0 (2026-11-24)
+
+### Home screen
+
+- **A new home screen, in a neon look.** Two cards of the same size, tabs:
+  **Solo** (game mode, gearbox and course as choices that light up, then
+  **Play**) and **Online**. Each card has its own emblem (a speedometer, a
+  turning globe with players linked across it), drawn by the game.
+- **Online from the home screen.** The Online card has the invite code
+  (pasted on its own when the clipboard holds a valid `DTN1-` code; long
+  codes shown shortened) and **Create a new room**; **Join the room** lights
+  up once a code is there. In a room the card shows its eight places in the
+  cars' colours, the owner crowned, and what the room waits for, with **Copy
+  the invite code**, **Room details...** and **Leave the room**; the main
+  button becomes **Start the race** for the owner, **Resume the race** during
+  one. Play on the Solo card while in a room asks first (**Leave the room?**).
+- **The room's settings screen**, redrawn in the same look: the player's
+  name (needed before **Connect**), the server, then the eight race settings
+  as rows of choices instead of lists; it connects on its own to a saved
+  server when a name is set, and keeps each choice at once. The name, the
+  invite and the introduction no longer repeat what the home screen shows.
+- **At the top right**: the Online state (Online, Offline, Other version,
+  Testing, In a room), the player's name (▾ changes it; asked once, the
+  computer's user name suggested) and the latency, beside **Settings** and
+  **Quit**. The home screen asks the saved server every minute (`op=info`),
+  and the bottom bar says **ONLINE READY** or what is missing (a name, a
+  server, the server not answering, another version).
+- `M2_CAPTURE_HOME_ONLINE=online|room` shows the Online card (a code pasted,
+  or in a room of three) for a `--capture-home` image.
+
+### Known limits
+
+- The keyboard and gamepad navigation test (`test_home_menu_navigation`,
+  updated for the new order: the choices, then Play) builds on Windows only
+  and was not run for this version.
+
 ## 0.13.0 (2026-11-24)
 
 ### Online play

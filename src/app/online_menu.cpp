@@ -1,6 +1,7 @@
 #include "app/online_menu.h"
 #include "app/i18n.h"
 #include "app/i18n_mark.h"
+#include "app/neon_ui.h"
 #include "app/relay_link.h"
 
 #include "imgui.h"
@@ -16,13 +17,6 @@ namespace app {
 namespace {
 void copy_to(char *dst, size_t size, const std::string &src) {
     std::snprintf(dst, size, "%s", src.c_str());
-}
-
-// A label above its field, the field across the whole width.
-bool text_field(const char *label, const char *id, char *buf, size_t size, ImGuiInputTextFlags flags = 0) {
-    ImGui::TextWrapped("%s", label); // a long translation wraps instead of being cut
-    ImGui::SetNextItemWidth(-FLT_MIN);
-    return ImGui::InputText(id, buf, size, flags);
 }
 
 // The room's race settings: the server's keys and values (its package
@@ -94,6 +88,199 @@ void OnlineMenu::load(const Config &cfg) {
     init_ = true;
 }
 
+OnlineMenu::Action OnlineMenu::draw_settings(Config &cfg, const RelayLink *link, const std::string &message) {
+    using namespace neon;
+    using State = RelayLink::State;
+    Action action = Stay;
+    // the answer to Connect (the server's defaults), if one is on its way
+    if (probe_) {
+        probe_->poll();
+        if (probe_->state() == State::Info) {
+            probed_ = server_ + "\n" + password_;
+            connected(cfg, probe_->info());
+            probe_.reset();
+        } else if (probe_->state() == State::Failed) {
+            error_ = probe_->error();
+            if (probe_->error_code() == "password") {
+                if (!ask_password_) error_ = TX("This server asks for a password.");
+                ask_password_ = true;
+            }
+            probe_.reset();
+        }
+    }
+    auto connect = [&] {
+        if (const auto server = online::normalize_server(server_buf_)) {
+            server_ = *server;
+            online::Hello info;
+            info.op = online::Hello::Op::Info;
+            info.name = name_;
+            info.password = password_;
+            probed_.clear();
+            error_.clear();
+            probe_ = std::make_unique<RelayLink>(server_, info);
+        } else {
+            error_ = TX("Invalid server address: an IP or name, with :port if it is not 7777.");
+        }
+    };
+    // no server without a name: the room's players see it
+    const bool named_before = !online::clean_name(name_).empty();
+    if (!auto_connect_) { // opened with a name and a saved server: ask it at once
+        auto_connect_ = true;
+        if (named_before && probed_.empty() && !probe_ && *server_buf_) connect();
+    }
+    const bool connected_now = !probed_.empty();
+    const auto options = room_options();
+    if (choice_.size() != options.size()) choice_.assign(options.size(), 0);
+
+    const auto *view = ImGui::GetMainViewport();
+    const float w = view->Size.x, h = view->Size.y;
+    const float scale = std::max(0.13f, std::min(h / 900.f, w / 980.f));
+    ImFont *body = body_ ? body_ : ImGui::GetFont(), *display = display_ ? display_ : body;
+    const ImU32 white = rgba(0.97f, 0.98f, 1), muted = rgba(0.70f, 0.78f, 0.90f), cyan = rgba(0.38f, 0.80f, 1);
+    const ImU32 green = rgba(0.25f, 0.88f, 0.48f), amber = rgba(1, 0.80f, 0.28f), alarm = rgba(1, 0.42f, 0.38f);
+    const float row = 44 * scale, step = 52 * scale, option_h = 38 * scale, option_step = 44 * scale;
+    const float pw = std::min(w - 32.f, 720 * scale);
+    const float ph = (748 + (ask_password_ ? 52 : 0)) * scale;
+    const float x0 = view->Pos.x + (w - pw) * 0.5f, y0 = view->Pos.y + std::max(16.f, (h - ph) * 0.5f);
+
+    ImGui::SetNextWindowPos(view->Pos);
+    ImGui::SetNextWindowSize(view->Size);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
+    ImGui::Begin("##room_settings_screen", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+                 ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoScrollbar);
+    auto *draw = ImGui::GetWindowDrawList();
+    draw->AddRectFilled(view->Pos, {view->Pos.x + w, view->Pos.y + h}, rgba(0.01f, 0.03f, 0.08f, 0.55f)); // the scene, dimmed
+    const auto panel = rounded({x0, y0}, {x0 + pw, y0 + ph}, 0, 16 * scale);
+    fill(draw, panel, rgba(0.05f, 0.11f, 0.25f, 0.97f), rgba(0.02f, 0.05f, 0.12f, 0.97f), y0, y0 + ph);
+    glow(draw, panel, kBlue, 0.9f, scale);
+    const float pad = 28 * scale, lx = x0 + pad, inner = pw - 2 * pad, label_w = 190 * scale;
+    const float fx = lx + label_w, fw = inner - label_w;
+    auto label = [&](const char *text, float y, float height) {
+        const float s = fit(body, 20 * scale, text, label_w - 12 * scale);
+        italic(draw, body, s, {lx, y + (height - s) * 0.5f}, white, text, 0.14f);
+    };
+
+    // title: a gear in a badge
+    float y = y0 + 22 * scale;
+    const ImVec2 badge = {lx + 22 * scale, y + 22 * scale};
+    draw->AddCircleFilled(badge, 22 * scale, rgba(0.02f, 0.06f, 0.15f, 0.95f), 32);
+    draw->AddCircle(badge, 22 * scale, cyan, 32, 2 * scale);
+    gear(draw, badge, 26 * scale, white, rgba(0.02f, 0.06f, 0.15f));
+    italic(draw, display, fit(display, 32 * scale, TX("Room settings"), inner - 60 * scale), {lx + 58 * scale, y + 4 * scale}, white,
+           TX("Room settings"), 0.18f);
+    y += 54 * scale;
+    draw->AddText(body, 15 * scale, {lx, y}, muted,
+                  TX("Every player of the room races with these settings. They are kept for your next room."), nullptr, inner);
+    y += 36 * scale;
+
+    // the player's name: the room's players see it (above the car, in the lists)
+    label(TX("Your name"), y, row);
+    if (field(draw, body, scale, "##name", name_, sizeof name_, {fx, y}, {fx + fw, y + row})) {
+        cfg.online_name = online::clean_name(name_);
+        cfg.save();
+    }
+    const bool named = !online::clean_name(name_).empty();
+    if (!named) ImGui::SetItemDefaultFocus();
+    y += step;
+
+    // the server (and its password, once it asks for one), and Connect
+    bool edited = false;
+    const float connect_w = 150 * scale;
+    label(TX("Server (IP or DNS)"), y, row);
+    if (field(draw, body, scale, "##server", server_buf_, sizeof server_buf_, {fx, y}, {fx + fw - connect_w - 10 * scale, y + row})) {
+        cfg.online_server = server_buf_;
+        cfg.save();
+        edited = true;
+    }
+    ImGui::BeginDisabled(probe_ != nullptr || !named);
+    const char *connect_label = probe_ ? TX("Connecting...") : connected_now ? TX("Connect again") : TX("Connect");
+    if (blue_button(draw, body, scale, "##connect", connect_label, {fx + fw - connect_w, y}, {fx + fw, y + row}, 0, 19)) connect();
+    if (named && !connected_now) ImGui::SetItemDefaultFocus();
+    ImGui::EndDisabled();
+    y += step;
+    if (ask_password_) {
+        label(TX("Server password"), y, row);
+        if (field(draw, body, scale, "##password", password_, sizeof password_, {fx, y}, {fx + fw, y + row},
+                  ImGuiInputTextFlags_Password)) {
+            cfg.online_password = password_;
+            cfg.save();
+            edited = true;
+        }
+        y += step;
+    }
+    if (edited) { // another server: connect again
+        probed_.clear();
+        probe_.reset();
+    }
+    {
+        char status[256];
+        ImU32 col = muted;
+        const std::string &problem = !error_.empty() ? error_ : link ? link->error() : message;
+        if (probe_) std::snprintf(status, sizeof status, TX("Connecting to %s..."), server_.c_str()), col = amber;
+        else if (!problem.empty()) std::snprintf(status, sizeof status, "%s", problem.c_str()), col = alarm;
+        else if (!named) std::snprintf(status, sizeof status, "%s", TX("Type your name above to connect to the server.")), col = amber;
+        else if (connected_now) std::snprintf(status, sizeof status, TX("Connected to %s: choose the room's settings."), server_.c_str()), col = green;
+        else std::snprintf(status, sizeof status, "%s", TX("Connect to the server to choose the room's settings."));
+        draw->AddText(body, 14.5f * scale, {fx + 2 * scale, y - 2 * scale}, col, status, nullptr, fw);
+    }
+    y += 34 * scale;
+
+    // the race settings: each a row of choices that light up
+    {
+        const char *title = TX("Race settings");
+        const float s = 18 * scale;
+        italic(draw, body, s, {lx, y}, cyan, title, 0.14f);
+        const float tw = measure(body, s, title).x;
+        draw->AddLine({lx + tw + 16 * scale, y + s * 0.6f}, {lx + inner, y + s * 0.6f}, rgba(0.5f, 0.75f, 1, 0.3f), 1 * scale);
+    }
+    y += 34 * scale;
+    ImGui::BeginDisabled(!connected_now);
+    for (size_t i = 0; i < options.size(); ++i) {
+        const auto &o = options[i];
+        label(o.label, y, option_h);
+        const int n = int(o.values.size());
+        const float gap = 8 * scale, cw = (fw - (n - 1) * gap) / n;
+        ImGui::PushID(o.key);
+        for (int v = 0; v < n; ++v) {
+            const float cx = fx + v * (cw + gap);
+            if (choice(draw, body, scale, o.values[size_t(v)].name, o.values[size_t(v)].label, {cx, y}, {cx + cw, y + option_h},
+                       choice_[i] == v, 19)) {
+                choice_[i] = v;
+                cfg.online_room = room_settings(); // the home screen's Create uses them
+                cfg.save();
+            }
+        }
+        ImGui::PopID();
+        y += option_step;
+    }
+    ImGui::EndDisabled();
+
+    // Create the room, and Back
+    const float by = y0 + ph - pad - 64 * scale, back_w = 180 * scale;
+    ImGui::BeginDisabled(!connected_now || !named);
+    if (main_button(draw, body, scale, TX("Create the room"), {lx, by}, {lx + inner - back_w - 14 * scale, by + 64 * scale}, true, 36)) {
+        hello_ = {};
+        hello_.op = online::Hello::Op::Create;
+        hello_.room = online::random_room();
+        hello_.name = online::clean_name(name_);
+        hello_.password = password_;
+        hello_.settings = room_settings();
+        cfg.online_room = hello_.settings;
+        cfg.save();
+        room_password_ = password_;
+        error_.clear();
+        copied_ = false;
+        action = Connect;
+    }
+    if (connected_now) ImGui::SetItemDefaultFocus();
+    ImGui::EndDisabled();
+    if (main_button(draw, body, scale, TX("Back"), {lx + inner - back_w, by}, {lx + inner, by + 64 * scale}, false, 28)) action = Back;
+    if (action == Stay && ImGui::IsKeyPressed(ImGuiKey_Escape, false)) action = Back;
+    ImGui::End();
+    ImGui::PopStyleVar();
+    return action;
+}
+
 OnlineMenu::Action OnlineMenu::draw(Config &cfg, const RelayLink *link, bool racing, const std::string &message) {
     if (!init_) {
         load(cfg);
@@ -104,11 +291,12 @@ OnlineMenu::Action OnlineMenu::draw(Config &cfg, const RelayLink *link, bool rac
             connected(cfg, {{"cabinet", "twin"}, {"difficulty", "hard"}});
         }
     }
+    using State = RelayLink::State;
+    if (!link || link->state() == State::Failed) return draw_settings(cfg, link, message);
     Action action = Stay;
     const auto *view = ImGui::GetMainViewport();
     const float scale = std::max(0.7f, std::min(view->Size.y / 900.f, view->Size.x / 980.f));
     const float width = std::min(view->Size.x - 32.f, 900.f * scale);
-    const bool two_columns = width >= 640.f; // the room settings in two columns; one on a narrow window
     // as tall as its content, up to the screen (then it scrolls)
     ImGui::SetNextWindowSizeConstraints({width, 0}, {width, view->Size.y - 32.f});
     ImGui::SetNextWindowPos({view->Pos.x + view->Size.x * 0.5f, view->Pos.y + view->Size.y * 0.5f}, ImGuiCond_Always, {0.5f, 0.5f});
@@ -126,197 +314,8 @@ OnlineMenu::Action OnlineMenu::draw(Config &cfg, const RelayLink *link, bool rac
         ImGui::Dummy({0, 6.f * scale});
         ImGui::SeparatorText(title);
     };
-    using State = RelayLink::State;
-    const bool in_room = link && link->state() != State::Failed;
 
-    if (!in_room) {
-        ImGui::PushTextWrapPos(0);
-        ImGui::TextDisabled("%s", TX("Race over the Internet with up to 8 players, through a daytona-relay server."));
-        ImGui::PopTextWrapPos();
-        ImGui::Dummy({0, 4.f * scale});
-        if (text_field(TX("Your name"), "##name", name_, sizeof name_)) {
-            cfg.online_name = online::clean_name(name_);
-            cfg.save();
-        }
-
-        section(TX("Join a room"));
-        text_field(TX("Invite code"), "##invite", invite_, sizeof invite_);
-        const float half_w = (full - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
-        if (ImGui::Button(TX("Paste"), {half_w, button_h})) {
-            if (const char *clip = ImGui::GetClipboardText()) copy_to(invite_, sizeof invite_, clip);
-        }
-        ImGui::SameLine();
-        if (ImGui::Button(TX("Join"), {half_w, button_h})) {
-            if (const auto invite = online::decode_invite(invite_)) {
-                server_ = *online::normalize_server(invite->server);
-                hello_ = {};
-                hello_.op = online::Hello::Op::Join;
-                hello_.room = invite->room;
-                hello_.name = name_;
-                hello_.password = invite->password;
-                room_password_ = invite->password;
-                error_.clear();
-                copied_ = false;
-                action = Connect;
-            } else {
-                error_ = TX("Invalid invite code: copy all of it, it starts with DTN1.");
-            }
-        }
-        ImGui::PushTextWrapPos(0);
-        ImGui::TextDisabled("%s", TX("The code already holds the server, the room and the password."));
-        ImGui::PopTextWrapPos();
-
-        // Create: connect to the server first (it answers its defaults), then
-        // the room's settings, then the room
-        section(TX("Create a room"));
-        // the answer to Connect, if one is on its way
-        if (probe_) {
-            probe_->poll();
-            if (probe_->state() == State::Info) {
-                probed_ = server_ + "\n" + password_;
-                connected(cfg, probe_->info());
-                probe_.reset();
-            } else if (probe_->state() == State::Failed) {
-                error_ = probe_->error();
-                if (probe_->error_code() == "password") {
-                    if (!ask_password_) error_ = TX("This server asks for a password.");
-                    ask_password_ = true;
-                }
-                probe_.reset();
-            }
-        }
-        const bool connected_now = !probed_.empty();
-
-        // server, password and Connect on one row on a wide window (a table:
-        // a row of labels, then a row of fields, so they line up); one under
-        // the other otherwise. The password only once the server asks for one
-        // (most servers have none: a room is private by its code).
-        bool edited = false;
-        auto server_input = [&](float w) {
-            ImGui::SetNextItemWidth(w);
-            if (ImGui::InputText("##server", server_buf_, sizeof server_buf_)) {
-                cfg.online_server = server_buf_;
-                cfg.save();
-                edited = true;
-            }
-        };
-        auto password_input = [&](float w) {
-            ImGui::SetNextItemWidth(w);
-            if (ImGui::InputText("##password", password_, sizeof password_, ImGuiInputTextFlags_Password)) {
-                cfg.online_password = password_;
-                cfg.save();
-                edited = true;
-            }
-        };
-        auto connect_button = [&](float w, float h) {
-            ImGui::BeginDisabled(probe_ != nullptr);
-            if (ImGui::Button(probe_ ? TX("Connecting...") : connected_now ? TX("Connect again") : TX("Connect"), {w, h})) {
-                if (const auto server = online::normalize_server(server_buf_)) {
-                    server_ = *server;
-                    online::Hello info;
-                    info.op = online::Hello::Op::Info;
-                    info.name = name_;
-                    info.password = password_;
-                    probed_.clear();
-                    error_.clear();
-                    probe_ = std::make_unique<RelayLink>(server_, info);
-                } else {
-                    error_ = TX("Invalid server address: an IP or name, with :port if it is not 7777.");
-                }
-            }
-            ImGui::EndDisabled();
-        };
-        if (two_columns && ImGui::BeginTable("##server_row", ask_password_ ? 3 : 2, ImGuiTableFlags_SizingStretchProp)) {
-            ImGui::TableSetupColumn("##server", ImGuiTableColumnFlags_WidthStretch, ask_password_ ? 0.38f : 0.76f);
-            if (ask_password_) ImGui::TableSetupColumn("##password", ImGuiTableColumnFlags_WidthStretch, 0.38f);
-            ImGui::TableSetupColumn("##connect", ImGuiTableColumnFlags_WidthStretch, 0.24f);
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::TextUnformatted(TX("Server (IP or DNS)"));
-            if (ask_password_) {
-                ImGui::TableNextColumn();
-                ImGui::TextUnformatted(TX("Server password"));
-            }
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            server_input(-FLT_MIN);
-            if (ask_password_) {
-                ImGui::TableNextColumn();
-                password_input(-FLT_MIN);
-            }
-            ImGui::TableNextColumn();
-            connect_button(-FLT_MIN, ImGui::GetFrameHeight());
-            ImGui::EndTable();
-        } else {
-            ImGui::TextUnformatted(TX("Server (IP or DNS)"));
-            server_input(-FLT_MIN);
-            if (ask_password_) {
-                ImGui::TextUnformatted(TX("Server password"));
-                password_input(-FLT_MIN);
-            }
-            connect_button(full, button_h);
-        }
-        if (edited) { // another server: connect again
-            probed_.clear();
-            probe_.reset();
-        }
-        if (connected_now) ImGui::TextColored(good, TX("Connected to %s: choose the room's settings."), server_.c_str());
-        else ImGui::TextDisabled("%s", TX("Connect to the server to choose the room's settings."));
-
-        // the room's race settings, as every player's game will apply them
-        const auto options = room_options();
-        if (choice_.size() != options.size()) choice_.assign(options.size(), 0);
-        ImGui::BeginDisabled(!connected_now);
-        // a grid of "name [choice]": two settings a row on a wide window, one on a narrow one
-        const int pairs = two_columns ? 2 : 1;
-        if (ImGui::BeginTable("##room_settings", pairs * 2, ImGuiTableFlags_SizingFixedFit)) {
-            for (int p = 0; p < pairs; ++p) {
-                ImGui::TableSetupColumn("##name", ImGuiTableColumnFlags_WidthFixed);
-                ImGui::TableSetupColumn("##value", ImGuiTableColumnFlags_WidthStretch);
-            }
-            for (size_t i = 0; i < options.size(); ++i) {
-                const auto &o = options[i];
-                std::vector<const char *> labels;
-                for (const auto &v : o.values) labels.push_back(v.label);
-                ImGui::TableNextColumn();
-                ImGui::AlignTextToFramePadding();
-                ImGui::TextUnformatted(o.label);
-                ImGui::TableNextColumn();
-                ImGui::SetNextItemWidth(-FLT_MIN);
-                ImGui::PushID(o.key);
-                ImGui::Combo("##value", &choice_[i], labels.data(), int(labels.size()));
-                ImGui::PopID();
-            }
-            ImGui::EndTable();
-        }
-        ImGui::PushTextWrapPos(0);
-        ImGui::TextDisabled("%s", TX("Up to 8 players. You start the race once your friends are in; who joins "
-                                     "later races the next one."));
-        ImGui::PopTextWrapPos();
-        if (ImGui::Button(TX("Create the room"), {full, button_h})) {
-            hello_ = {};
-            hello_.op = online::Hello::Op::Create;
-            hello_.room = online::random_room();
-            hello_.name = name_;
-            hello_.password = password_;
-            hello_.settings = room_settings();
-            cfg.online_room = hello_.settings;
-            cfg.save();
-            room_password_ = password_;
-            error_.clear();
-            copied_ = false;
-            action = Connect;
-        }
-        ImGui::EndDisabled();
-
-        const std::string &problem = !error_.empty() ? error_ : link ? link->error() : message;
-        if (!problem.empty()) {
-            ImGui::Dummy({0, 4.f * scale});
-            ImGui::PushTextWrapPos(0);
-            ImGui::TextColored(warn, "%s", problem.c_str());
-            ImGui::PopTextWrapPos();
-        }
-    } else if (link->state() == State::Connecting) {
+    if (link->state() == State::Connecting) {
         ImGui::Text(TX("Connecting to %s..."), link->server().c_str());
         ImGui::Dummy({0, 4.f * scale});
         if (ImGui::Button(TX("Cancel"), {full, button_h})) action = Leave;

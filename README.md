@@ -28,9 +28,11 @@ by alphanu1. What it adds is listed in [CHANGELOG.md](CHANGELOG.md).
   connection comes back to the race on its own. Rooms of 8
   linked cabinets have been run through the relay. See
   [server/daytona-relay](server/daytona-relay/README.md).
-- **A PC home menu** (Revision A) over an animated sunset speedway: solo
-  race or Time Attack, the course, automatic or manual gearbox, Settings,
-  Online.
+- **A PC home menu** (Revision A) over an animated sunset speedway, in a
+  neon look: two cards, **Solo** (race or Time Attack, the course, automatic
+  or manual gearbox) and **Online** (join with an invite code, pasted on its
+  own from the clipboard, or create a room); the player's name, the server's
+  state and latency at the top, beside Settings and Quit.
 - **Enhancements, off by default:** widescreen 16:10, 16:9 or 21:9, a longer
   draw distance, 3D scenery, always-detailed opponents, arcade screen
   colours, 120 frames/s smoothing (experimental).
@@ -123,15 +125,19 @@ e.g. a second player on the same computer), `--online`, `--settings`,
 1. Someone runs the relay server (`server/daytona-relay`,
    `docker compose up -d --build`; port 7777, TCP and UDP). Its environment
    variables are the race settings' defaults.
-2. In the home menu, **Online**: type your name and the server, **Connect**,
-   choose the room's race settings (difficulty, game mode, who may start...),
-   **Create the room**, and send the invite code. A room takes up to 8
-   players.
-3. Friends paste the code under **Join a room**. The room's screen lists the
-   players with each one's latency to the server (green, yellow, red). The
-   room's owner presses **Start the race** when everyone is in; in the race the owner presses
-   Start and chooses the course, the others follow. Who joins later waits
-   for the next race (**New race with everyone**).
+2. In the home menu, the **Online** card, **Create a new room**: the room's
+   settings screen asks for your name and the server, connects, and shows
+   the race settings (difficulty, game mode, who may start...) as choices
+   that light up; **Create the room**, then **Copy the invite code** and send
+   it. A room takes up to 8 players.
+3. Friends copy the code: the Online card pastes it on its own (**Pasted**),
+   and **Join the room** (the name is asked once). The home screen shows the
+   room: its eight places in the cars' colours, the owner crowned, what it
+   waits for; **Room details...** lists each player's latency to the server
+   (green, yellow, red). The room's owner presses **Start the race** when
+   everyone is in; in the race the owner presses Start and chooses the
+   course, the others follow. Who joins later waits for the next race
+   (**New race with everyone**).
 4. In the race, the players list (first 10 s, then hold Tab) shows the live
    standings, and a tag with each player's name floats above their car. When
    the race ends the games return to the attract screen still linked: the

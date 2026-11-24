@@ -66,21 +66,25 @@ Example `.env`:
 
 ## Playing
 
-In the game's home menu, **Online**:
+In the game's home menu, the **Online** card:
 
-1. The room's creator types a name and the server (its IP or DNS name;
-   `:port` only when it is not 7777), and presses **Connect** (a password
-   field shows only when the server asks for one): the server answers its default race settings, and the room's
-   settings (cabinet, country, difficulty, game mode, rival arrow, advertise
-   sound, free play, who may start) become editable. Then **Create the
-   room** (it takes up to 8 players). An **invite code** shows (`DTN1-...`):
-   **Copy the code** and send it to the friends. It holds the server, the room
-   and the password, with a check, so a cut or mistyped code is refused.
-2. The friends type a name, paste the code under **Join a room**, **Join**.
-   The room's screen lists the players, each with their latency to the
-   server (round trip, measured every 2 s; green up to 60 ms, yellow up to
-   120 ms, red above). Between two players the delay is about the sum of
-   theirs.
+1. The room's creator presses **Create a new room**. The room's settings
+   screen asks for a name (needed before connecting) and the server (its IP
+   or DNS name; `:port` only when it is not 7777), and **Connect** (a
+   password field shows only when the server asks for one): the server
+   answers its default race settings, and the room's settings (cabinet,
+   country, difficulty, game mode, rival arrow, advertise sound, free play,
+   who may start) become choices. Then **Create the room** (it takes up to
+   8 players). **Copy the invite code** (`DTN1-...`) and send it to the
+   friends. It holds the server, the room and the password, with a check, so
+   a cut or mistyped code is refused.
+2. The friends copy the code: the Online card pastes it on its own, and
+   **Join the room** (the game asks for a name the first time). The home
+   screen shows the room; **Room details...** lists the players, each with
+   their latency to the server (round trip, measured every 2 s; green up to
+   60 ms, yellow up to 120 ms, red above). Between two players the delay is
+   about the sum of theirs. The home screen also asks the saved server every
+   minute (`op=info`) to show whether it answers.
 3. The room's owner presses **Start the race** when everyone is in: the game
    starts for everyone then in the room, the owner being the MASTER. Who joins
    later waits on the room's screen for the next race, which the owner starts

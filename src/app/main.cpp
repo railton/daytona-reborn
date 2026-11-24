@@ -1031,6 +1031,16 @@ int main(int argc, char **argv) {
     app::ForceFeedback ffb; // the drive board on the steering device
     std::unique_ptr<app::TcpLink> link; // link play (declared first: outlives the game, which holds it)
     std::unique_ptr<app::RelayLink> online_link; // online play, the same (app/relay_link.h)
+#ifndef M2_MOBILE
+    // The home screen's view of the saved server: asked (op=info) when it shows, then every minute.
+    struct ServerProbe {
+        std::unique_ptr<app::RelayLink> link;
+        std::string server;
+        uint64_t started = 0, next = 0;
+        app::HomeOnline::Probe state = app::HomeOnline::Probe::None;
+        int ms = -1;
+    } server_probe;
+#endif
     bool online_game = false;   // the game runs an online race
     bool online_wanted = false; // the next start_game is one
     uint32_t online_epoch = 0;  // the room's ring that race started on
@@ -2003,8 +2013,9 @@ int main(int argc, char **argv) {
                 // no verified ROM set (or Settings' Change...): that screen, nothing else
                 launcher.draw_rom_gate();
             } else if (draw_home && online_screen) {
+                online_menu.set_fonts(home_menu.display_font(), home_menu.body_font());
                 switch (online_menu.draw(cfg, online_link.get(), online_game && game, home_message)) {
-                case app::OnlineMenu::Back: online_screen = false; break;
+                case app::OnlineMenu::Back: online_screen = false; home_menu.show_online(); break;
                 case app::OnlineMenu::Resume: in_launcher = false; break;
                 case app::OnlineMenu::Leave: leave_online(); home_message.clear(); break;
                 case app::OnlineMenu::Begin: if (online_link) online_link->begin(); break;
@@ -2020,13 +2031,140 @@ int main(int argc, char **argv) {
                 default: break;
                 }
             } else if (draw_home) {
-                switch (home_menu.draw(pc_race, solo, home_message.c_str(), 1.f)) {
-                case app::HomeMenu::Online: online_screen = true; home_message.clear(); break;
+                using Probe = app::HomeOnline::Probe;
+                const uint64_t ms_now = SDL_GetTicks();
+                if (cfg.online_server != server_probe.server) {
+                    server_probe = ServerProbe{};
+                    server_probe.server = cfg.online_server;
+                }
+                if (!online_link && !server_probe.server.empty() && !capture_image) {
+                    if (server_probe.link) {
+                        server_probe.link->poll();
+                        const auto st = server_probe.link->state();
+                        if (st == app::RelayLink::State::Info || st == app::RelayLink::State::Failed) {
+                            const bool ok = st == app::RelayLink::State::Info;
+                            server_probe.state = ok ? Probe::Ok : server_probe.link->error_code() == "version" ? Probe::Version : Probe::Offline;
+                            // the connection and the answer: about two round trips
+                            server_probe.ms = ok ? int((ms_now - server_probe.started) / 2) : -1;
+                            server_probe.link.reset();
+                            server_probe.next = ms_now + 60000;
+                        }
+                    } else if (ms_now >= server_probe.next) {
+                        if (const auto server = app::online::normalize_server(server_probe.server)) {
+                            app::online::Hello info;
+                            info.op = app::online::Hello::Op::Info;
+                            info.name = cfg.online_name;
+                            info.password = cfg.online_password;
+                            server_probe.link = std::make_unique<app::RelayLink>(*server, info);
+                            server_probe.started = ms_now;
+                            if (server_probe.state == Probe::None) server_probe.state = Probe::Testing;
+                        } else {
+                            server_probe.state = Probe::Offline;
+                            server_probe.next = ms_now + 60000;
+                        }
+                    }
+                }
+                app::HomeOnline home_online;
+                home_online.name = cfg.online_name;
+                home_online.server = cfg.online_server;
+                home_online.settings = cfg.online_room;
+                home_online.probe = server_probe.state;
+                home_online.latency_ms = server_probe.ms;
+                if (online_link) {
+                    const auto state = online_link->state();
+                    if (state == app::RelayLink::State::Failed) {
+                        home_online.error = online_link->error();
+                    } else if (state == app::RelayLink::State::Connecting) {
+                        home_online.room = app::HomeOnline::Room::Connecting;
+                    } else {
+                        const auto &st = online_link->status();
+                        home_online.room = app::HomeOnline::Room::In;
+                        home_online.joined = st.joined;
+                        home_online.owner = st.owner;
+                        home_online.racing = st.racing;
+                        home_online.me_in_race = st.position > 0;
+                        home_online.game_running = online_game && game;
+                        home_online.me = st.me;
+                        home_online.names = st.names;
+                        home_online.code =
+                            app::online::encode_invite({online_link->server(), online_link->room(), online_menu.room_password()});
+                        if (st.me >= 1 && size_t(st.me) <= st.latency.size()) home_online.latency_ms = st.latency[size_t(st.me - 1)];
+                    }
+                }
+                // diagnostic: M2_CAPTURE_HOME_ONLINE=online|room shows the Online card (a code pasted, or in a
+                // room of 3), as with a server that answered, for a --capture-home image
+                if (const char *fake = capture_image ? std::getenv("M2_CAPTURE_HOME_ONLINE") : nullptr) {
+                    static const std::string code = app::online::encode_invite({"relay-eu.example:7777", app::online::random_room(), ""});
+                    static bool once = [&] {
+                        home_menu.show_online();
+                        if (std::strcmp(fake, "room") != 0) home_menu.paste_invite(code);
+                        return true;
+                    }();
+                    (void)once;
+                    if (home_online.name.empty()) home_online.name = "Railton";
+                    home_online.server = "relay-eu.example";
+                    home_online.settings = "difficulty:normal,cabinet:twin,start:master";
+                    home_online.probe = Probe::Ok;
+                    home_online.latency_ms = 92;
+                    if (!std::strcmp(fake, "room")) {
+                        home_online.room = app::HomeOnline::Room::In;
+                        home_online.joined = 3;
+                        home_online.owner = true;
+                        home_online.me = 1;
+                        home_online.names = {home_online.name, "Ana", "Bruno"};
+                        home_online.code = code;
+                    }
+                }
+                const auto home_action = home_menu.draw(pc_race, solo, home_message.c_str(), 1.f, home_online);
+                switch (home_action) {
+                case app::HomeMenu::Online: online_screen = true; online_menu.reload(); home_message.clear(); break;
                 case app::HomeMenu::Play: begin_solo(home_menu.request()); break;
                 case app::HomeMenu::Resume: in_launcher = false; break;
                 case app::HomeMenu::Settings: settings = true; break;
                 case app::HomeMenu::Quit: running = false; break;
                 case app::HomeMenu::Cancel: cancel_start(); break;
+                case app::HomeMenu::SetName:
+                    cfg.online_name = home_menu.name();
+                    cfg.save();
+                    online_menu.reload();
+                    break;
+                case app::HomeMenu::StartRace: if (online_link) online_link->begin(); break;
+                case app::HomeMenu::LeaveRoom: leave_online(); home_message.clear(); break;
+                case app::HomeMenu::JoinRoom:
+                case app::HomeMenu::CreateRoom: {
+                    // the race starts as soon as the room fills: the ROM set first
+                    if (!launcher.rom_ok()) {
+                        home_message = TX("First choose the Daytona Revision A ROM set.");
+                        break;
+                    }
+                    app::online::Hello hello;
+                    hello.name = cfg.online_name;
+                    std::optional<std::string> server;
+                    if (home_action == app::HomeMenu::JoinRoom) {
+                        const auto invite = app::online::decode_invite(home_menu.invite());
+                        if (!invite || !(server = app::online::normalize_server(invite->server))) {
+                            home_message = TX("Invalid invite code: copy all of it, it starts with DTN1.");
+                            break;
+                        }
+                        hello.op = app::online::Hello::Op::Join;
+                        hello.room = invite->room;
+                        hello.password = invite->password;
+                    } else {
+                        if (!(server = app::online::normalize_server(cfg.online_server))) { // where: the Online screen asks
+                            online_screen = true;
+                            break;
+                        }
+                        hello.op = app::online::Hello::Op::Create;
+                        hello.room = app::online::random_room();
+                        hello.password = cfg.online_password;
+                        hello.settings = cfg.online_room;
+                    }
+                    leave_online();
+                    online_menu.set_room_password(hello.password);
+                    home_message.clear();
+                    online_link = std::make_unique<app::RelayLink>(*server, hello);
+                    break;
+                }
                 default: break;
                 }
             } else
