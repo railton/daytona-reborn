@@ -122,6 +122,18 @@ struct StartGate {
 // ticking (M2Board::link_idle_tick): a game still selecting needs the held
 // ones' answers (with the link frozen too, the MASTER never finished its
 // selection).
+// Online: blocks held in reserve by the comm board's pacing
+// (CommBoard::set_paced), a cushion against frames with no block arriving.
+// 4 cabinets at 100 +- 15 ms per hop, the game's logic ticks: none 80-96%,
+// 1 block 91-99%, 2 blocks 96-100% (two runs each, the worst the MASTER's);
+// each block is about 17 ms more of delay on the other cars' data.
+constexpr int kLinkReserve = 2;
+
+// The comm board's link id for a place in the ring of `size` (place 1 = the
+// MASTER), as the FF/FE numbering hands them out: the MASTER 1, then the
+// cabinet after it `size`, the next `size` - 1... (CommBoard::preset_ring).
+inline int link_id(int place, int size) { return place == 1 ? 1 : size + 2 - place; }
+
 class StartBarrier {
 public:
     static constexpr int hold_mode = 21;

@@ -162,6 +162,9 @@ msgstr "SOLO   /   JEU LIBRE"
 msgid "SDR   /   %d × %d"
 msgstr "SDR   /   %d × %d"
 
+msgid "V%s (%s)   /   ONLINE %d"
+msgstr "V%s (%s)   /   EN LIGNE %d"
+
 msgid "Choose the ROM set again with Browse."
 msgstr "Choisissez de nouveau le jeu de ROM avec Parcourir."
 

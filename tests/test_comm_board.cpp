@@ -3,9 +3,13 @@
 // on the master, 0 on the slave; cn starts the board). No ROM, no network.
 // Checks the numbering token round the ring (cabinet 1 of 2, 2 of 2), that
 // race data crosses each way into the frame offset, that frames split into
-// small pieces still arrive whole, and that a closed line loses the link.
+// small pieces still arrive whole, and that a closed line loses the link;
+// then a ring of 3 numbered by FF/FE gives the ids rt::online::link_id
+// computes, and the same ring preset (CommBoard::preset_ring) is up at once
+// and passes data.
 
 #include "runtime/comm_board.h"
+#include "runtime/online_settings.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -98,6 +102,43 @@ int main() {
     a_to_b.closed = true;
     for (int frame = 0; frame < 3; frame++) a.vblank();
     check(a.link() == rt::CommBoard::Link::Lost && ram_a[0] == 0xff, "a closed line loses the link");
+
+    // A ring of 3 (place 1 the MASTER, then 2, then 3): the ids the numbering
+    // hands out, then the same ring preset.
+    for (const bool preset : {false, true}) {
+        Wire w12, w23, w31;
+        std::vector<uint8_t> r1(0x4000), r2(0x4000), r3(0x4000);
+        Loop l1(w31, w12, 900), l2(w12, w23, 900), l3(w23, w31, 900);
+        rt::CommBoard c1(r1.data()), c2(r2.data()), c3(r3.data());
+        c1.set_transport(&l1), c2.set_transport(&l2), c3.set_transport(&l3);
+        rt::CommBoard *ring[3] = {&c1, &c2, &c3};
+        for (int place = 1; place <= 3; ++place) {
+            ring[place - 1]->fg_w(place == 1 ? 1 : 0);
+            if (preset) ring[place - 1]->preset_ring(rt::online::link_id(place, 3), 3);
+        }
+        for (auto *c : ring) c->cn_w(1);
+        if (preset)
+            check(c1.link() == rt::CommBoard::Link::Up && c2.link() == rt::CommBoard::Link::Up &&
+                      c3.link() == rt::CommBoard::Link::Up,
+                  "preset ring: up at once");
+        int frames = 0;
+        for (; frames < 400 && !(c1.link() == rt::CommBoard::Link::Up && c2.link() == rt::CommBoard::Link::Up &&
+                                 c3.link() == rt::CommBoard::Link::Up);
+             ++frames)
+            for (auto *c : ring) c->vblank();
+        check(c1.link() == rt::CommBoard::Link::Up && c2.link() == rt::CommBoard::Link::Up && c3.link() == rt::CommBoard::Link::Up,
+              "ring of 3 up");
+        for (int place = 1; place <= 3; ++place)
+            check(ring[place - 1]->id() == rt::online::link_id(place, 3) && ring[place - 1]->count() == 3,
+                  preset ? "preset ids" : "numbered ids match link_id");
+        // the MASTER's data goes round
+        for (int i = 0; i < 0x20; i++) r1[0x2000 + i] = uint8_t(0x30 + i);
+        for (int frame = 0; frame < 6; frame++)
+            for (auto *c : ring) c->vblank(), (void)c->fg_r();
+        bool got = true;
+        for (int i = 0; i < 0x20; i++) got &= r2[0x21c0 + i] == uint8_t(0x30 + i);
+        check(got, preset ? "preset ring passes data" : "numbered ring passes data");
+    }
 
     if (failures) return 1;
     std::printf("test_comm_board: ok\n");

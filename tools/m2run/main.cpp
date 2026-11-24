@@ -153,6 +153,7 @@ int main(int argc, char **argv) {
     std::string dump_dir, inputs_path, wav_path, nvram_dir, save_nvram_dir, link_next, scenery_log_path, race_log_path;
     std::string rom_object_counts_path;
     int link_listen = 0;
+    int link_place = 0; // --link-place N: LINK ID and CAR NUMBER as the test menu would set them (link play)
     std::string relay_server, relay_create, relay_join, relay_name, relay_password, relay_settings;
     std::optional<rt::StartRaceRequest> solo;
     std::optional<rt::RaceTransmission> transmission;
@@ -162,6 +163,16 @@ int main(int argc, char **argv) {
     const bool relay_framesync = [] {
         const char *v = std::getenv("M2_TEST_RELAY_SYNC");
         return v && !std::strcmp(v, "on");
+    }();
+    // M2_TEST_RELAY_PACE=0: zfg flips as MAME, not held for the game's read; =N: paced with N-1 blocks of reserve (comparisons)
+    const int relay_pace = [] {
+        const char *v = std::getenv("M2_TEST_RELAY_PACE");
+        return v && *v ? std::atoi(v) : 1 + rt::online::kLinkReserve; // as the game
+    }();
+    // M2_TEST_RELAY_PRESET=0: the FF/FE numbering instead of the relay's ring (comparisons)
+    const bool relay_preset = [] {
+        const char *v = std::getenv("M2_TEST_RELAY_PRESET");
+        return !(v && !std::strcmp(v, "0"));
     }();
     // M2_TEST_RELAY_BARRIER=0: no start barrier (comparisons)
     const bool relay_barrier = [] {
@@ -217,6 +228,7 @@ int main(int argc, char **argv) {
         else if (!std::strcmp(argv[i], "--nvram")) nvram_dir = argv[i + 1];
         else if (!std::strcmp(argv[i], "--save-nvram")) save_nvram_dir = argv[i + 1];
         else if (!std::strcmp(argv[i], "--link-listen")) link_listen = std::atoi(argv[i + 1]);
+        else if (!std::strcmp(argv[i], "--link-place")) link_place = std::atoi(argv[i + 1]);
         else if (!std::strcmp(argv[i], "--link-next")) link_next = argv[i + 1];
         else if (!std::strcmp(argv[i], "--relay")) relay_server = argv[i + 1];
         else if (!std::strcmp(argv[i], "--relay-create")) relay_create = argv[i + 1];
@@ -371,6 +383,7 @@ int main(int argc, char **argv) {
             link = std::make_unique<app::TcpLink>(uint16_t(link_listen), link_next);
             if (!link->error().empty()) throw std::runtime_error("link: " + link->error());
             game.board().set_link(link.get(), link_sync);
+            if (link_place > 0) rt::online::configure(game.board(), link_place, {});
         }
         // Online: join the room, wait until it is full, then the cabinet's
         // settings from the server and this player's place (as the app does).
@@ -416,6 +429,8 @@ int main(int argc, char **argv) {
             // As the desktop Online mode: no frame sync, the start barrier
             // (rt::online::StartBarrier) lines up the race.
             game.board().set_link(relay.get(), relay_framesync);
+            if (relay_preset) game.board().preset_link_ring(rt::online::link_id(st.position, st.size), st.size);
+            game.board().set_link_paced(relay_pace > 0, relay_pace > 1 ? relay_pace - 1 : 0);
         }
         game.set_frame_skip(frame_skip);
         if (aspect > 0) {
@@ -443,10 +458,11 @@ int main(int argc, char **argv) {
         if (online_trace_path && *online_trace_path) {
             online_trace.exceptions(std::ios::failbit | std::ios::badbit);
             online_trace.open(online_trace_path);
-            online_trace << "frame,wall_ms,mode,step,course,link\n";
+            online_trace << "frame,wall_ms,mode,step,course,link,tick\n";
         }
         int previous_mode = -1, previous_step = -1, previous_link = -1;
         bool relay_failure_told = false;
+        int races_seen = 0, previous_race_mode = -1;
         rt::online::StartBarrier relay_barrier_state; // as the app: everyone starts the race together
         bool relay_holding = false;
         auto steady_ms = [] {
@@ -517,6 +533,19 @@ int main(int argc, char **argv) {
                 std::printf("m2run: relay connection failed at frame %" PRIu64 ": %s\n", game.frames(), relay->error().c_str());
                 relay_failure_told = true;
             }
+            { // each race: its course on entry, the standings this game knew at its end
+                const int race_mode = game.board().read_byte(0x5010a0);
+                if (race_mode == 22 && previous_race_mode != 22)
+                    std::printf("m2run: race %d at frame %" PRIu64 ", course %d\n", ++races_seen, game.frames(),
+                                int(game.board().read_byte(0x501460)));
+                if (race_mode != 22 && previous_race_mode == 22 && relay) {
+                    std::printf("m2run: race %d ended at frame %" PRIu64 ", standings:", races_seen, game.frames());
+                    for (int car = 1; car <= relay->status().size; ++car)
+                        std::printf(" %d:%d", car, relay_standings.rank(car) + 1);
+                    std::printf("\n");
+                }
+                previous_race_mode = race_mode;
+            }
             if (online_trace.is_open()) {
                 const int mode = game.board().read_byte(0x5010a0);
                 const int step = game.board().read_byte(0x5010f8);
@@ -527,7 +556,7 @@ int main(int argc, char **argv) {
                         std::chrono::steady_clock::now().time_since_epoch()).count();
                     online_trace << game.frames() << ',' << ms << ',' << mode << ',' << step << ','
                                  << int(game.board().read_byte(0x501460)) << ','
-                                 << link_state << '\n';
+                                 << link_state << ',' << int(game.board().comm_ram()[0x200a]) << '\n';
                     online_trace.flush();
                 }
                 previous_mode = mode;

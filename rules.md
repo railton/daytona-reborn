@@ -100,12 +100,19 @@ legal problem, or hours re-deriving something already established.
     a contributor would notice**: what it does, in plain words, under the
     right heading, and any new known limit. A finding that lives only in a
     commit message is lost.
+14. **Every commit that changes code raises the version** in `VERSION`
+    (`MAJOR.MINOR.PATCH`, shown on the home screen and in Settings with the
+    commit): PATCH for a fix or a small change, MINOR for a new feature or
+    any change to the Online mode or the relay's protocol (with rule 17),
+    MAJOR for a milestone. `CHANGELOG.md` gets a section for that version
+    (`## 0.11.1 (date)`) in the same commit. A commit that only touches
+    documentation keeps the version.
 
 ## Language
 
-14. **English everywhere in the repository**: code, comments, identifiers,
+15. **English everywhere in the repository**: code, comments, identifiers,
     commit messages, documentation, log and server messages, script output.
-15. **Interface text is written in English and goes through the translation
+16. **Interface text is written in English and goes through the translation
     files.** `TX("...")` in the app, `TXR("...")` in files that build without
     the translator (`app/i18n.h`, `app/i18n_mark.h`); the English text is the
     key. After adding or changing interface text, run
@@ -116,26 +123,26 @@ legal problem, or hours re-deriving something already established.
 
 ## Online play
 
-16. **Any change to what the game sends or how it behaves online raises
+17. **Any change to what the game sends or how it behaves online raises
     `app::online::kOnlineVersion`** (`src/app/online.h`): the server keeps a
     room to one version, so every player of a room behaves the same.
-17. **The relay server answers with error codes**, with English text for its
+18. **The relay server answers with error codes**, with English text for its
     log; the game shows its own translated text for each code
     (`server_error` in `src/app/relay_link.cpp`). A new code gets its text
     in the game in the same change.
-18. **Online play is tested headless** before it is committed: several
+19. **Online play is tested headless** before it is committed: several
     `m2run --relay` cabinets against a local server (see the server's README)
     for anything the cabinets exchange.
 
 ## Building, testing, sharing
 
-19. **Every commit builds and passes the tests**: `ctest` in the build folder
+20. **Every commit builds and passes the tests**: `ctest` in the build folder
     and `go test ./...` in `server/daytona-relay`.
-20. **Docker is the reference Linux build** (`scripts/docker-build.sh`,
+21. **Docker is the reference Linux build** (`scripts/docker-build.sh`,
     `docker/linux-build`); nothing else needs installing on the host. The
     Windows build is `setup.ps1`; `zig-setup.ps1` is not recommended to
     players (it runs as administrator and downloads without checksums).
-21. **Game builds are never shared.** A build, its `build*` folders and its
+22. **Game builds are never shared.** A build, its `build*` folders and its
     generated code hold code derived from the ROM (rule 6): every player
     builds from their own ROM set, and only the source and the guide
     (`docs/BUILDING.md`) are passed on.

@@ -130,7 +130,11 @@ e.g. a second player on the same computer), `--online`, `--settings`,
    first player presses Start again for the next race.
 
 The link data is compressed: about 0.1 to 0.3 Mbit/s each way a player
-(2 to 8 players) instead of 3.3. Details, settings and the protocol:
+(2 to 8 players) instead of 3.3. Rooms work across continents: the games
+start the race together (a start barrier) and keep the game's speed when
+the network jitters (4 players from Brazil through a server in Europe ran
+at 97-100% of the game's speed, starting 29 ms apart); the other cars are
+shown as old as the network makes them. Details, settings and the protocol:
 [server/daytona-relay/README.md](server/daytona-relay/README.md).
 Not yet tried between distant networks; see the known limits in
 [CHANGELOG.md](CHANGELOG.md).
@@ -161,6 +165,9 @@ desktop computer from your ROM set, then built for the other platform.
 
 - Design: [docs/daytona-usa-recomp-design.md](docs/daytona-usa-recomp-design.md);
   project rules: [rules.md](rules.md).
+- Version: `VERSION` (`MAJOR.MINOR.PATCH`), raised with every code change
+  and listed in `CHANGELOG.md`; the home screen shows it with the commit
+  the build came from.
 - Tests: `ctest` in the build folder (C++); `go test ./...` in
   `server/daytona-relay`.
 - After changing a recompiler or the seeds: `python3 scripts/recompile.py`

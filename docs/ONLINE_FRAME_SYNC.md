@@ -58,6 +58,44 @@ at boot failed in every run (with or without the barrier): the link came up
 around frame 500, the cabinets stayed in mode 0, and two of them restarted
 the link every ~825 frames.
 
+### Rooms of 4 to 8 over long routes (the link preset and the paced flag)
+
+The boot failure: each SLAVE raises its ready flag in its own slot at a
+fixed frame (about 510) and only if the link is up by then. The FF/FE
+numbering waits 232 frames, then a trip round the ring and one hop per
+cabinet down: with 4 cabinets at ~250 ms a hop it came up too late, and
+nothing numbers the ring again after the game restarts the board. Online
+games now preset the ring from the relay's room (`CommBoard::preset_ring`,
+ids as the numbering gives them: `tests/test_comm_board.cpp` checks a ring
+of 3).
+
+The slow motion: the game's vblank interrupt reads the link flag (fg bit 7)
+and keeps it as a reference; its main loop then spins until the flag
+differs, and runs that frame's logic. Each received block flips the flag:
+a block landing in the vblank tick (before the reference) or two in one
+frame (an even count) left nothing to wait for, so the frame's logic tick
+was lost. Paced (`CommBoard::set_paced`), a flip is held and shown at the
+game's first fg read after the reference, at most once a frame, with blocks
+in reserve against frames with no arrival. The game's own tick counter
+(byte 0x0a of its block, the trace's `tick`), share of the frames, 4
+cabinets through the local relay:
+
+| Condition | Unpaced | Paced, no reserve | Reserve 1 | Reserve 2 |
+| --- | --- | --- | --- | --- |
+| 0 ms, race | 88-100% | 100% | | |
+| 100 +- 15 ms, selection | ~25% (no Start seen) | 82-95% | 91-96% | 96-97% |
+| 100 +- 15 ms, race | | 80-96% | 92-99% | 98-100% |
+
+Through the relay in Europe from Brazil, 4 cabinets (two +80 ms), defaults
+(preset, paced with 2 in reserve, barrier): selection 97%, race 98-100%,
+race entry 29 ms apart; unpaced on the same route 53-81% in the race.
+Further headless runs with the defaults: 8 cabinets at 100 +- 15 ms
+(93-100%, entry 24 ms apart); 3 cabinets, two races in a row (Expert, then
+Advanced chosen by the MASTER: all followed), one pausing 5 s in the first
+race, the same standings on all three at each race's end; a player leaving
+mid-race (the others carry on, the relay breaks the ring); link play on a
+local network (unpaced) up through a race.
+
 ## Results
 
 | Test | Master race frame | Slave race frame | Slave wall time minus master |

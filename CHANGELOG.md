@@ -1,8 +1,21 @@
 # Changelog
 
-Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
+Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`). The
+fork's version is in `VERSION`, raised with every code change (rules.md
+rule 14); each version has its section here.
 
-## Unreleased
+## 0.11.0 (2026-11-24)
+
+The fork's first numbered version: everything since Daytona Reborn beta
+0.10.
+
+### Version
+
+- **The version shows on the home screen** (the bottom bar's middle: the
+  version, the commit it was built from, "+changes" for a build with
+  uncommitted changes, and the online version), in Settings beside the
+  title, and in the log at start. It comes from `VERSION` and git at each
+  build (`cmake/app_version.cmake`).
 
 ### Controls
 
@@ -36,6 +49,24 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
   started 0.02 to 10.5 s after the other depending on the run; with it,
   0.28 s (the first waited 2.7 s). `docs/ONLINE_FRAME_SYNC.md` has the
   measurements.
+- **Online rooms of 4 to 8 across continents.** The link comes up at once
+  from the relay's room (`CommBoard::preset_ring`: each game's link id
+  from its place, `rt::online::link_id`) instead of the FF/FE numbering,
+  which waits 232 frames and then a trip round the ring: with 4 players at
+  ~230 to 310 ms each the game's own network check at boot failed every
+  time; now they reach attract at the usual frame.
+- **No slow motion when the network jitters.** The game reads the link's
+  flag once a frame against a reference taken by its vblank interrupt; a
+  block landing in the vblank tick, or two in one frame, cost it that
+  frame's logic tick (4 players at 100 +- 15 ms: the game ran at ~25%, it
+  never left attract). Online now holds each block's flag flip for the
+  game's own wait, at most one a frame, with 2 blocks in reserve
+  (`CommBoard::set_paced`, `rt::online::kLinkReserve`; about 34 ms more on
+  the other cars' data): 96-100% of the ticks at 100 +- 15 ms, and 100% in
+  the race with no latency (88-100% before). Through the relay in Europe
+  from Brazil, 4 players: 97% in the selection, 98-100% in the race,
+  started 29 ms apart (without it 53-81% in the race). Link play keeps the
+  board as MAME has it. Online version 8.
 - **Link data fetched while the game waits for it.** The comm board fetched
   what the network had brought only once a frame (or in frame sync's
   wait): a game waiting for the other cabinets' data inside a frame waited
@@ -212,8 +243,12 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
 - `tests/test_link_codec.cpp`: the link codec's round trip on synthetic
   frames shaped as the comm board's, and malformed messages refused.
 - `m2run`: `M2_TEST_RELAY_SYNC=on` holds frame sync on for a whole relay
-  session, `M2_TEST_RELAY_BARRIER=0` turns the start barrier off
-  (comparisons); `M2_TEST_STALL_AT=FRAME M2_TEST_STALL_MS=MS` stalls once,
+  session, `M2_TEST_RELAY_BARRIER=0` turns the start barrier off,
+  `M2_TEST_RELAY_PRESET=0` uses the FF/FE numbering, `M2_TEST_RELAY_PACE=0`
+  the board's unpaced flag (`=N`: N-1 blocks of reserve) (comparisons);
+  each race's course and the standings at its end are printed; the online
+  trace has the game's own tick counter (`tick`); `--link-place N` sets
+  LINK ID and CAR NUMBER for link play; `M2_TEST_STALL_AT=FRAME M2_TEST_STALL_MS=MS` stalls once,
   as the game's Esc pause does; a failed relay connection is printed with
   its frame.
 - `tests/test_car_tags.cpp`: the tags' place from synthetic polygons (the
@@ -226,10 +261,15 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
 - Headless test cabinets must run at the arcade's pace (`m2run --realtime`)
   for large rooms: free-running ones at different speeds flood each other
   and lose the link.
-- Rooms of 4 players or more with long round trips (4 players through a
-  relay in Europe from Brazil, ~230 to 310 ms each) do not get past the
-  game's own network check at boot: the cabinets restart the link every
-  ~14 s and never reach attract. 2 players on the same path play.
+- Over long distances the other cars are as old as the network makes them
+  (one relay hop each way, ~100 to 300 ms, plus ~34 ms of reserve); the
+  ring passes each car's data through the players before it, so in a room
+  of 8 the farthest car's is older still. A star topology at the relay
+  would cut that to one hop.
+- Tested headless: rooms of 8 at 100 +- 15 ms, 4 through the relay in
+  Europe from Brazil, two races in a row with a course change, a player
+  pausing 5 s and one leaving mid-race; not yet with people on different
+  networks.
   At the arcade's pace 8 cabinets through the relay link and stay linked
   (two runs of 104 s and 157 s, no link lost before the end).
 - Traffic: compressed, about 0.1 to 0.3 Mbit/s each way per player (2 to

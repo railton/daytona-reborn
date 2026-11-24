@@ -163,6 +163,9 @@ msgstr ""
 msgid "SDR   /   %d × %d"
 msgstr ""
 
+msgid "V%s (%s)   /   ONLINE %d"
+msgstr ""
+
 msgid "Choose the ROM set again with Browse."
 msgstr ""
 

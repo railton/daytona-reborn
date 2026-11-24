@@ -46,6 +46,29 @@ public:
     // Hold each cabinet to the master's frame (MAME's -comm_framesync); off
     // by default, as in MAME: cabinets run free and exchange data as it comes.
     void set_framesync(bool on) { framesync_ = on ? 1 : 0; }
+    // The ring known beforehand (the Online relay tells each game its place):
+    // each start of the board (cn) brings the link up at once with this id and
+    // count instead of the FF/FE numbering round the ring, which waits 232
+    // frames and then one round trip per cabinet (too slow for the game's own
+    // boot check with long round trips). id: 1 the MASTER, else as FF/FE would
+    // number it (rt::online::link_id). 0: the numbering, as MAME.
+    // Over the Internet blocks arrive out of step: two in one frame flip zfg
+    // back (the game reads one per frame: an even count, zero included, made
+    // it miss that frame's logic tick, measured 24-56% of the ticks with 4
+    // cabinets at 100 +- 15 ms), and one landing in the vblank tick flips it
+    // before the game's vblank interrupt takes its reference. Paced, each
+    // block's flip is held and shown at the game's next fg read after that
+    // reference, at most one a frame. Off (MAME) by default; Online turns it on.
+    // reserve: blocks held back once at the start (a cushion against a frame
+    // with no arrival, one frame of extra delay each).
+    void set_paced(bool on, int reserve = 0) {
+        paced_ = on;
+        reserve_ = uint8_t(reserve);
+    }
+    void preset_ring(int id, int count) {
+        preset_id_ = uint8_t(id);
+        preset_count_ = uint8_t(count);
+    }
 
     uint8_t cn_r() const { return uint8_t(cn_ | 0xfe); }
     void cn_w(uint8_t data);
@@ -66,6 +89,12 @@ private:
     uint8_t zfg_ = 0, cn_ = 0, fg_ = 0, framesync_ = 0;
     uint8_t linkenable_ = 0, linkalive_ = 0, linkid_ = 0, linkcount_ = 0, zfg_delay_ = 0;
     uint16_t linktimer_ = 0;
+    uint8_t preset_id_ = 0, preset_count_ = 0; // preset_ring
+    bool paced_ = false, zfg_shown_ = false;   // set_paced: zfg flips held for the game's read
+    uint8_t zfg_pending_ = 0, reserve_ = 0;
+    bool primed_ = false; // the reserve has been built once
+    uint32_t fg_reads_ = 0; // since the vblank tick
+    void data_arrived();
     std::chrono::steady_clock::time_point last_fg_poll_{}; // read_fg's transport poll, at most once a ms
     uint8_t buffer0_[0x1000] = {};
     std::vector<uint8_t> rx_; // bytes received toward the next whole frame

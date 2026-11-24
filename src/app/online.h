@@ -19,7 +19,7 @@ constexpr size_t kMaxName = 20;
 // data, how it starts and joins races). The server keeps a room to one
 // version, so every player of a room behaves the same. Raise it with any
 // such change.
-constexpr int kOnlineVersion = 7;
+constexpr int kOnlineVersion = 8;
 
 // What a friend needs to join: the server, the room, the server's password.
 struct Invite {

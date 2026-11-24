@@ -40,6 +40,7 @@
 #include "app/relay_link.h"
 #include "app/online_menu.h"
 #include "app/selection_steer.h"
+#include "app_version.h" // generated: cmake/app_version.cmake
 #include "app/online_overlay.h"
 #include "runtime/online_settings.h"
 #include "app/gpu/dxr_scene.h"
@@ -747,6 +748,7 @@ int main(int argc, char **argv) {
                                           window_height ? window_height : H * 2, flags);
     if (!window) return fail("SDL_CreateWindow");
     app::apply_fullscreen_mode(window, cfg.fullscreen_mode);
+    SDL_Log("Daytona version %s (%s), online version %d", DAYTONA_APP_VERSION, DAYTONA_APP_COMMIT, app::online::kOnlineVersion);
     SDL_Log("SDL %d; compiled GPU backends: %d", SDL_GetVersion(), SDL_GetNumGPUDrivers());
     for (int i = 0; i < SDL_GetNumGPUDrivers(); ++i)
         SDL_Log("GPU backend: %s", SDL_GetGPUDriver(i));
@@ -1114,6 +1116,11 @@ int main(int argc, char **argv) {
                 // (rt::online::StartBarrier); the game runs at the arcade's rate
                 // here, whatever the display (pc_home pacing)
                 game->board().set_link(online_link.get(), false);
+                // the relay told this game its place: the link up at once, no FF/FE round the
+                // ring (with 4 players at ~250 ms each it missed the game's boot check)
+                game->board().preset_link_ring(rt::online::link_id(st.position, st.size), st.size);
+                // blocks arriving out of step must not cost the game its logic ticks
+                game->board().set_link_paced(true, rt::online::kLinkReserve);
                 online_game = true;
                 online_epoch = online_link->epoch();
                 online_entry = {};

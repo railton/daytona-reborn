@@ -1,4 +1,6 @@
 #include "app/home_menu.h"
+#include "app/online.h"
+#include "app_version.h" // generated: cmake/app_version.cmake
 #include "app/i18n.h"
 
 #include "imgui.h"
@@ -345,6 +347,12 @@ HomeMenu::Action HomeMenu::draw(bool has_race, bool loading, const char *message
         std::snprintf(display, sizeof display, TX("SDR   /   %d × %d"), int(w * ratio.x), int(h * ratio.y));
         const ImVec2 wide = measure(body_, 12 * scale, display);
         draw->AddText(body_, 12 * scale, px(w - left - wide.x, bottom + 16 * scale), muted, display);
+        // this build's version (git describe) and its online version, in the middle
+        char version[96];
+        std::snprintf(version, sizeof version, TX("V%s (%s)   /   ONLINE %d"), DAYTONA_APP_VERSION, DAYTONA_APP_COMMIT,
+                      online::kOnlineVersion);
+        const ImVec2 v = measure(body_, 12 * scale, version);
+        draw->AddText(body_, 12 * scale, px((w - v.x) * 0.5f, bottom + 16 * scale), muted, version);
     }
     ImGui::End();
     ImGui::PopStyleVar(2);

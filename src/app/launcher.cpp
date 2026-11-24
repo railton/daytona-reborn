@@ -1,4 +1,5 @@
 #include "app/launcher.h"
+#include "app_version.h" // generated: cmake/app_version.cmake
 #include "app/i18n.h"
 #include "app/rom_file.h"
 #ifdef SDL_PLATFORM_IOS
@@ -326,7 +327,7 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
         ImGui::PushFont(nullptr, 30.f * scale);
         ImGui::TextUnformatted(from_home ? TX("Settings") : "DAYTONA USA");
         ImGui::PopFont();
-        ImGui::TextDisabled("%s", TX("static recompilation, native engine"));
+        ImGui::TextDisabled("%s   v%s (%s)", TX("static recompilation, native engine"), DAYTONA_APP_VERSION, DAYTONA_APP_COMMIT);
         ImGui::EndGroup();
     }
     {   // the interface language, each in its own script (app/i18n.h); only those with a translation

@@ -33,6 +33,8 @@ void CommBoard::cn_w(uint8_t data) {
         // reset command
         linkenable_ = 0x00;
         zfg_ = 0;
+        zfg_pending_ = 0;
+        primed_ = false;
         cn_ = 0;
         fg_ = 0;
     } else {
@@ -57,16 +59,45 @@ void CommBoard::cn_w(uint8_t data) {
         shared_[0x14] = uint8_t(frame_offset_ & 0xff);
         shared_[0x15] = uint8_t(frame_offset_ >> 8);
 
+        if (preset_count_ > 0) { // the ring is known: up at once, as the numbering would leave it
+            linkid_ = preset_id_;
+            linkcount_ = preset_count_;
+            linkalive_ = 0x01;
+            linktimer_ = 0x00;
+            shared_[0] = 0x01;
+            shared_[2] = linkid_;
+            shared_[3] = linkcount_;
+        }
+
         comm_tick();
     }
 }
 
 uint8_t CommBoard::fg_r() {
     read_fg();
+    // paced: a block's flip shows at the game's own wait, after the frame's
+    // reference read (the vblank interrupt reads fg first), once a frame
+    if (paced_ && ++fg_reads_ >= 2 && !zfg_shown_ && zfg_pending_ > (primed_ ? 0 : reserve_)) {
+        zfg_ ^= 0x01;
+        --zfg_pending_;
+        zfg_shown_ = true;
+        primed_ = true;
+    }
     return uint8_t(fg_ | (~zfg_ << 7) | 0x7e);
 }
 
-void CommBoard::vblank() { comm_tick(); }
+// A block of the previous cabinet's has landed: zfg flips (MAME), or, paced,
+// the flip waits for the game's read (fg_r).
+void CommBoard::data_arrived() {
+    if (!paced_) zfg_ ^= 0x01;
+    else if (zfg_pending_ < 2 + reserve_) ++zfg_pending_; // further behind: the game reads the newest data anyway
+}
+
+void CommBoard::vblank() {
+    fg_reads_ = 0;
+    zfg_shown_ = false;
+    comm_tick();
+}
 
 void CommBoard::lost() {
     linkalive_ = 0x02;
@@ -198,7 +229,7 @@ void CommBoard::comm_tick() {
                 if (idx >= 0 && idx <= linkcount_) {
                     // save message to "ring buffer"
                     for (int j = 0x00; j < frame_size; j++) shared_[(frame_offset + j) & 0x3fff] = buffer0_[1 + j];
-                    zfg_ ^= 0x01;
+                    data_arrived();
                     if (is_slave) send_data(linkid_, frame_start, frame_size, data_size);
                     else if (is_relay) send_frame(data_size);
                 } else if (idx == 0xfc) {
@@ -270,7 +301,7 @@ void CommBoard::read_fg() {
             const int idx = buffer0_[0];
             if (idx >= 0 && idx <= linkcount_) {
                 for (int j = 0x00; j < frame_size; j++) shared_[(frame_offset + j) & 0x3fff] = buffer0_[1 + j];
-                zfg_ ^= 0x01;
+                data_arrived();
                 if (is_slave) send_data(linkid_, frame_start, frame_size, data_size);
                 else if (is_relay) send_frame(data_size);
             } else if (idx == 0xfc) {

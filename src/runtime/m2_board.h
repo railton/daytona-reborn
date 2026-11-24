@@ -161,6 +161,16 @@ public:
     void link_idle_tick() {
         if (comm_board_) comm_board_->vblank();
     }
+    // Block flips held for the game's own wait (CommBoard::set_paced). After set_link.
+    void set_link_paced(bool on, int reserve = 0) {
+        if (comm_board_) comm_board_->set_paced(on, reserve);
+    }
+    // The comm board's 16 KB shared RAM (diagnostics: this cabinet's block at 0x2000).
+    const uint8_t *comm_ram() const { return comm_.data(); }
+    // The ring known beforehand (CommBoard::preset_ring). After set_link.
+    void preset_link_ring(int id, int count) {
+        if (comm_board_) comm_board_->preset_ring(id, count);
+    }
 #ifdef M2_DC_SPIN_SKIP
     uint64_t spin_skipped() const { return spin_skipped_; } // instructions skipped in the frame wait (read_byte)
 #endif

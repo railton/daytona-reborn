@@ -125,9 +125,11 @@ after another has closed is expected.
   between cabinets). Online games run at full speed without frame sync;
   before the race each waits for the others (a start barrier) so all start
   together, and in the race the other cars are as old as the network makes
-  them. Rooms of 4 or more with long round trips (from Brazil to Europe,
-  ~230 ms each) do not get past the game's network check at boot yet; 2
-  players do. See `../../docs/ONLINE_FRAME_SYNC.md`.
+  them. The link comes up at once from the room (no numbering round the
+  ring) and the games' link flag is paced against jitter, so rooms of 4
+  across continents run at full speed (measured from Brazil through a relay
+  in Europe: 97-100% of the game's ticks, started 29 ms apart). See
+  `../../docs/ONLINE_FRAME_SYNC.md`.
 - Traffic: the game compresses its link data (`src/app/link_codec.h`): a
   game frame of 7170 bytes became 121 / 197 / 323 bytes on average over
   captured 2 / 4 / 8 player sessions, about 0.1 to 0.3 Mbit/s each way a
