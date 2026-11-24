@@ -16,6 +16,15 @@ This repository is a fork of [Daytona Reborn](https://github.com/yodo113/Daytona
 by yodo113, itself built on [daytona-arcade-recomp](https://github.com/alphanu1/daytona-arcade-recomp)
 by alphanu1. What it adds is listed in [CHANGELOG.md](CHANGELOG.md).
 
+## Original project documentation
+
+From Daytona Reborn beta 0.10, kept in this repository:
+
+- Install and play: [English](docs/INSTALLATION-EN.md) · [Français](docs/INSTALLATION-FR.md)
+- Beta 0.10 release notes: [English](docs/NOTES-BETA-EN.md) · [Français](docs/NOTES-BETA-FR.md)
+- Setup guide: [docs/getting-started.md](docs/getting-started.md), and its
+  [troubleshooting](docs/getting-started.md#troubleshooting)
+
 ## Highlights
 
 - **Online mode.** Race friends over the Internet, up to 8 players a room,
