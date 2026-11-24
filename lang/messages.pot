@@ -179,9 +179,6 @@ msgstr ""
 msgid "Play"
 msgstr ""
 
-msgid "Quit"
-msgstr ""
-
 msgid "New race"
 msgstr ""
 
@@ -267,6 +264,9 @@ msgid "Then your name, the server and the race settings."
 msgstr ""
 
 msgid "Join the room"
+msgstr ""
+
+msgid "Quit"
 msgstr ""
 
 msgid "Settings"

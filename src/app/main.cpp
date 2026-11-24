@@ -2169,6 +2169,9 @@ int main(int argc, char **argv) {
                 }
             } else
 #endif
+#ifndef M2_MOBILE
+            if (pc_home) launcher.set_fonts(home_menu.display_font(), home_menu.body_font());
+#endif
             if (in_launcher) switch (launcher.draw(game != nullptr, devices
 #ifndef M2_MOBILE
                 , pc_home
@@ -2278,7 +2281,8 @@ int main(int argc, char **argv) {
 #endif
             bool painted = false;
 #ifndef M2_MOBILE
-            if (draw_home && home_3d)
+            // the speedway also behind the home's Settings (their neon panel), unless a paused race is there
+            if ((draw_home || (pc_home && settings && !have_frame)) && home_3d)
                 painted = home_scene.render(cmd, target, sw, sh, capture_image ? 3.0 : double(now) / 1e9, 1.f);
             if (capture_image && !painted) capture_status = 1;
             if (have_frame && !draw_home)

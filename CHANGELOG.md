@@ -4,6 +4,16 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`). The
 fork's version is in `VERSION`, raised with every code change (rules.md
 rule 14); each version has its section here.
 
+## 0.14.1 (2026-11-24)
+
+### Home screen
+
+- **Settings in the same neon look** as the room's settings: a panel over
+  the dimmed speedway (a paused race stays behind it), the title with a
+  gear, the language at the right, one column that scrolls, and **Back**
+  at the panel's foot. The six tabs and their settings are unchanged; the
+  cabinet launcher outside the PC home keeps its look.
+
 ## 0.14.0 (2026-11-24)
 
 ### Home screen

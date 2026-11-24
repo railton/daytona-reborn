@@ -182,9 +182,6 @@ msgstr "Continuar"
 msgid "Play"
 msgstr "Jogar"
 
-msgid "Quit"
-msgstr "Sair"
-
 msgid "New race"
 msgstr "Nova corrida"
 
@@ -271,6 +268,9 @@ msgstr "Em seguida: seu nome, o servidor e as configurações da corrida."
 
 msgid "Join the room"
 msgstr "Entrar na sala"
+
+msgid "Quit"
+msgstr "Sair"
 
 msgid "Settings"
 msgstr "Configurações"

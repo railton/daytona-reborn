@@ -17,6 +17,8 @@
 #include <utility>
 #include <vector>
 
+struct ImFont;
+
 namespace app {
 
 // Fullscreen in Config::fullscreen_mode ("WxH@Hz", "*density" when not 1):
@@ -32,6 +34,9 @@ public:
     bool handle_event(const SDL_Event &e);
     // Draw the interface (between ImGui::NewFrame and ImGui::Render).
     Result draw(bool game_running, const Devices &devices, bool from_home = false);
+    // The home screen's fonts (HomeMenu): with them, the PC home's Settings
+    // take its neon look (app/neon_ui.h), as the room's settings.
+    void set_fonts(ImFont *display, ImFont *body) { display_font_ = display, body_font_ = body; }
 
     bool rom_ok() const { return rom_ok_; }
     // The PC home's ROM set screen: shown, and nothing else usable, until a
@@ -45,6 +50,7 @@ public:
     void set_pacing_status(const std::string &s) { pacing_status_ = s; } // frame pacing now, for the Game tab
 
 private:
+    ImFont *display_font_ = nullptr, *body_font_ = nullptr;
     void check_rom();
     void browse();
     void take_dialog_result(); // the file window's choice, from its thread

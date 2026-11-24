@@ -32,7 +32,8 @@ by alphanu1. What it adds is listed in [CHANGELOG.md](CHANGELOG.md).
   neon look: two cards, **Solo** (race or Time Attack, the course, automatic
   or manual gearbox) and **Online** (join with an invite code, pasted on its
   own from the clipboard, or create a room); the player's name, the server's
-  state and latency at the top, beside Settings and Quit.
+  state and latency at the top, beside Settings and Quit. Settings and the
+  room's settings open as neon panels over the speedway.
 - **Enhancements, off by default:** widescreen 16:10, 16:9 or 21:9, a longer
   draw distance, 3D scenery, always-detailed opponents, arcade screen
   colours, 120 frames/s smoothing (experimental).

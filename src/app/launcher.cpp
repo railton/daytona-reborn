@@ -1,6 +1,7 @@
 #include "app/launcher.h"
 #include "app_version.h" // generated: cmake/app_version.cmake
 #include "app/i18n.h"
+#include "app/neon_ui.h"
 #include "app/rom_file.h"
 #ifdef SDL_PLATFORM_IOS
 #include "rom_picker.h"
@@ -432,14 +433,67 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
     ImGui::SetNextWindowBgAlpha(game_running ? 0.85f : 1.0f);
 #ifdef M2_MOBILE
     const float scale = 1.0f; // the mobile style is sized for touch already (main.cpp)
+    const bool neon_look = false;
 #else
     const float scale = std::max(0.7f, std::min(vp->WorkSize.y / 900.f, vp->WorkSize.x / 980.f));
-    ImGui::PushFont(nullptr, 19.f * scale);
+    // from the PC home: a neon panel over the dimmed scene, as the room's settings (app/online_menu.cpp)
+    const bool neon_look = from_home && body_font_;
+    int neon_colors = 0, neon_vars = 0;
+    if (neon_look) {
+        using namespace neon;
+        const float pw = std::min(vp->WorkSize.x - 32.f, 1060.f * scale), ph = vp->WorkSize.y - 48.f * scale;
+        const ImVec2 a = {vp->WorkPos.x + (vp->WorkSize.x - pw) * 0.5f, vp->WorkPos.y + 24.f * scale}, b = {a.x + pw, a.y + ph};
+        auto *bg = ImGui::GetBackgroundDrawList();
+        bg->AddRectFilled(vp->Pos, {vp->Pos.x + vp->Size.x, vp->Pos.y + vp->Size.y}, rgba(0.01f, 0.03f, 0.08f, game_running ? 0.75f : 0.55f));
+        const auto panel = rounded(a, b, 0, 16 * scale);
+        fill(bg, panel, rgba(0.05f, 0.11f, 0.25f, 0.97f), rgba(0.02f, 0.05f, 0.12f, 0.97f), a.y, b.y);
+        glow(bg, panel, kBlue, 0.9f, scale);
+        ImGui::SetNextWindowPos(a);
+        ImGui::SetNextWindowSize({pw, ph});
+        ImGui::SetNextWindowBgAlpha(0);
+        const std::pair<ImGuiCol, ImVec4> colors[] = {
+            {ImGuiCol_ChildBg, {0, 0, 0, 0}},
+            {ImGuiCol_FrameBg, {0.01f, 0.03f, 0.08f, 0.94f}},
+            {ImGuiCol_FrameBgHovered, {0.05f, 0.12f, 0.26f, 0.95f}},
+            {ImGuiCol_FrameBgActive, {0.07f, 0.18f, 0.38f, 1}},
+            {ImGuiCol_Border, {0.38f, 0.78f, 1, 0.55f}},
+            {ImGuiCol_Button, {0.16f, 0.44f, 0.92f, 1}},
+            {ImGuiCol_ButtonHovered, {0.30f, 0.64f, 1, 1}},
+            {ImGuiCol_ButtonActive, {0.10f, 0.32f, 0.80f, 1}},
+            {ImGuiCol_CheckMark, {0.45f, 0.86f, 1, 1}},
+            {ImGuiCol_SliderGrab, {0.38f, 0.78f, 1, 1}},
+            {ImGuiCol_SliderGrabActive, {0.62f, 0.90f, 1, 1}},
+            {ImGuiCol_Header, {0.16f, 0.44f, 0.92f, 0.85f}},
+            {ImGuiCol_HeaderHovered, {0.30f, 0.64f, 1, 0.9f}},
+            {ImGuiCol_HeaderActive, {0.10f, 0.32f, 0.80f, 1}},
+            {ImGuiCol_Tab, {0.06f, 0.13f, 0.28f, 1}},
+            {ImGuiCol_TabHovered, {0.30f, 0.64f, 1, 1}},
+            {ImGuiCol_TabSelected, {0.18f, 0.48f, 0.96f, 1}},
+            {ImGuiCol_TabSelectedOverline, {0.62f, 0.90f, 1, 1}},
+            {ImGuiCol_Separator, {0.38f, 0.78f, 1, 0.35f}},
+            {ImGuiCol_Text, {0.97f, 0.98f, 1, 1}},
+            {ImGuiCol_TextDisabled, {0.70f, 0.78f, 0.90f, 1}},
+            {ImGuiCol_PopupBg, {0.04f, 0.08f, 0.18f, 0.98f}},
+            {ImGuiCol_ScrollbarBg, {0, 0, 0, 0}},
+            {ImGuiCol_ScrollbarGrab, {0.38f, 0.78f, 1, 0.45f}},
+            {ImGuiCol_ScrollbarGrabHovered, {0.38f, 0.78f, 1, 0.7f}},
+            {ImGuiCol_ScrollbarGrabActive, {0.62f, 0.90f, 1, 0.9f}},
+            {ImGuiCol_NavCursor, {1, 0.9f, 0.35f, 1}},
+        };
+        for (const auto &[col, value] : colors) ImGui::PushStyleColor(col, value);
+        neon_colors = int(std::size(colors));
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {30.f * scale, 22.f * scale});
+        ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.f);
+        ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 1.f);
+        ImGui::PushStyleVar(ImGuiStyleVar_PopupRounding, 6.f * scale);
+        neon_vars = 4;
+    }
+    ImGui::PushFont(neon_look ? body_font_ : nullptr, (neon_look ? 20.f : 19.f) * scale);
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {10.f * scale, 7.f * scale});
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, {12.f * scale, 8.f * scale});
-    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 5.f * scale);
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, (neon_look ? 6.f : 5.f) * scale);
     ImGui::PushStyleVar(ImGuiStyleVar_GrabMinSize, 24.f * scale);
-    ImGui::PushStyleVar(ImGuiStyleVar_TabRounding, 5.f * scale);
+    ImGui::PushStyleVar(ImGuiStyleVar_TabRounding, (neon_look ? 6.f : 5.f) * scale);
 #endif
     ImGui::Begin("Daytona USA", nullptr,
                  ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse |
@@ -449,19 +503,45 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
     const float avail = ImGui::GetContentRegionAvail().x;
     const float column = std::min(avail, 1000.f * scale);
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (avail - column) * 0.5f);
-    ImGui::BeginChild("##settings", {column, 0});
+    // the neon panel: Back stays at its foot, the rest scrolls above it
+    const float footer = neon_look ? 82.f * scale : 0.f;
+    ImGui::BeginChild("##settings", {column, -footer});
     ImGui::PushTextWrapPos(0.0f);
-    const bool wide = column >= 620.f;
+    const bool wide = column >= 620.f && !neon_look; // the neon panel: one column, it scrolls
     const float button_h = 44.f * scale;
     const ImVec4 good(0.48f, 0.98f, 0.79f, 1), warn(1, 0.74f, 0.45f, 1), bad(1, 0.45f, 0.4f, 1);
 
     // header: back, title, language
     const float header_right = ImGui::GetCursorPosX() + ImGui::GetContentRegionAvail().x;
+#ifndef M2_MOBILE
+    if (neon_look) { // a gear in a badge, the title; the language and Back at the right
+        using namespace neon;
+        auto *wd = ImGui::GetWindowDrawList();
+        const ImVec2 at = ImGui::GetCursorScreenPos();
+        const float right = at.x + ImGui::GetContentRegionAvail().x;
+        const ImVec2 badge = {at.x + 22 * scale, at.y + 26 * scale};
+        wd->AddCircleFilled(badge, 22 * scale, rgba(0.02f, 0.06f, 0.15f, 0.95f), 32);
+        wd->AddCircle(badge, 22 * scale, rgba(0.38f, 0.80f, 1), 32, 2 * scale);
+        gear(wd, badge, 26 * scale, rgba(0.97f, 0.98f, 1), rgba(0.02f, 0.06f, 0.15f));
+        italic(wd, display_font_ ? display_font_ : body_font_, 32 * scale, {at.x + 58 * scale, at.y + 4 * scale}, rgba(0.97f, 0.98f, 1),
+               TX("Settings"), 0.18f);
+        char sub[160];
+        std::snprintf(sub, sizeof sub, "%s   v%s (%s)", TX("static recompilation, native engine"), DAYTONA_APP_VERSION, DAYTONA_APP_COMMIT);
+        wd->AddText(body_font_, 15 * scale, {at.x + 60 * scale, at.y + 44 * scale}, rgba(0.70f, 0.78f, 0.90f), sub);
+        const float lang_w = 220 * scale;
+        ImGui::SetCursorScreenPos({right - lang_w, at.y - 2 * scale});
+        ImGui::BeginGroup(); // its label and its list, one under the other, at the right
+        language_combo(lang_w);
+        ImGui::EndGroup();
+        ImGui::SetCursorScreenPos({at.x, at.y + 72 * scale});
+        ImGui::Dummy({1, 1});
+    } else
+#endif
     if (from_home) {
         if (ImGui::Button(TX("Back"), {120.f * scale, button_h})) result = Back;
         ImGui::SameLine();
     }
-    {
+    if (!neon_look) {
         ImGui::BeginGroup();
         ImGui::PushFont(nullptr, 30.f * scale);
         ImGui::TextUnformatted(from_home ? TX("Settings") : "DAYTONA USA");
@@ -469,7 +549,7 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
         ImGui::TextDisabled("%s   v%s (%s)", TX("static recompilation, native engine"), DAYTONA_APP_VERSION, DAYTONA_APP_COMMIT);
         ImGui::EndGroup();
     }
-    {
+    if (!neon_look) {
         const float width = 200.f * scale;
         ImGui::SameLine(header_right - width);
         ImGui::BeginGroup();
@@ -994,10 +1074,22 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
         ImGui::SetScrollY(ImGui::GetScrollY() - ImGui::GetIO().MouseDelta.y);
 #endif
     ImGui::EndChild();
+#ifndef M2_MOBILE
+    if (neon_look) { // Back, as on the room's settings: at the panel's foot, on the right
+        const ImVec2 at = ImGui::GetCursorScreenPos();
+        const float right = ImGui::GetWindowPos().x + ImGui::GetWindowSize().x - ImGui::GetStyle().WindowPadding.x;
+        const float back_w = 180 * scale;
+        if (neon::main_button(ImGui::GetWindowDrawList(), body_font_, scale, TX("Back"), {right - back_w, at.y + 12 * scale},
+                              {right, at.y + 76 * scale}, false, 28))
+            result = Back;
+    }
+#endif
     ImGui::End();
 #ifndef M2_MOBILE
     ImGui::PopStyleVar(5);
     ImGui::PopFont();
+    ImGui::PopStyleVar(neon_vars);
+    ImGui::PopStyleColor(neon_colors);
 #endif
     return result;
 }
