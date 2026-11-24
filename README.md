@@ -200,7 +200,8 @@ the network jitters, and a player whose connection drops comes back to the
 race on their own within 10 s. 4 players from Brazil through a server in
 Europe: the farthest car about 0.4 s old instead of 1 s; with 1% packet
 loss on a test line the other cars move smoothly in 99% of the frames.
-Details, settings and the protocol:
+How it works, with diagrams: [docs/ONLINE-PROTOCOL.md](docs/ONLINE-PROTOCOL.md).
+The server's settings and byte formats:
 [server/daytona-relay/README.md](server/daytona-relay/README.md).
 Not yet tried between distant networks; see the known limits in
 [CHANGELOG.md](CHANGELOG.md).
