@@ -36,7 +36,8 @@ From Daytona Reborn beta 0.10, kept in this repository:
   player's name rides above their car. No router port to open; a dropped
   connection comes back to the race on its own. Rooms of 8
   linked cabinets have been run through the relay. See
-  [server/daytona-relay](server/daytona-relay/README.md).
+  [server/daytona-relay](server/daytona-relay/README.md); how to play:
+  [docs/PLAYING-ONLINE.md](docs/PLAYING-ONLINE.md).
 - **A PC home menu** (Revision A) over an animated sunset speedway, in a
   neon look: two cards, **Solo** (race or Time Attack, the course, automatic
   or manual gearbox) and **Online** (join with an invite code, pasted on its
@@ -144,6 +145,8 @@ frame is shown.
 | **Room settings**: name, server, and the race for every player. | **Settings**: display, enhancements, controls, sound. |
 
 ## Online play
+
+**Step by step, with pictures: [docs/PLAYING-ONLINE.md](docs/PLAYING-ONLINE.md).**
 
 1. Someone runs the relay server (`server/daytona-relay`,
    `docker compose up -d --build`; port 7777, TCP and UDP). Its environment
