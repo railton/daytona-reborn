@@ -2009,6 +2009,8 @@ int main(int argc, char **argv) {
 #endif
             ImGui::NewFrame();
 #ifndef M2_MOBILE
+            // the PC home's Settings take its fonts (and with them its neon look)
+            if (pc_home) launcher.set_fonts(home_menu.display_font(), home_menu.body_font());
             if (pc_home && in_launcher && launcher.rom_gate()) {
                 // no verified ROM set (or Settings' Change...): that screen, nothing else
                 launcher.draw_rom_gate();
@@ -2168,9 +2170,6 @@ int main(int argc, char **argv) {
                 default: break;
                 }
             } else
-#endif
-#ifndef M2_MOBILE
-            if (pc_home) launcher.set_fonts(home_menu.display_font(), home_menu.body_font());
 #endif
             if (in_launcher) switch (launcher.draw(game != nullptr, devices
 #ifndef M2_MOBILE

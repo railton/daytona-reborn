@@ -4,6 +4,15 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`). The
 fork's version is in `VERSION`, raised with every code change (rules.md
 rule 14); each version has its section here.
 
+## 0.14.2 (2026-11-24)
+
+### Fixed
+
+- **0.14.1 drew the old Settings over the home screen** at every start:
+  the line giving Settings the home screen's fonts split the chain that
+  picks the screen, so the launcher was drawn whatever else was shown. It
+  now comes before that chain.
+
 ## 0.14.1 (2026-11-24)
 
 ### Home screen
