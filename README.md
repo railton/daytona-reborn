@@ -75,8 +75,11 @@ Step by step, with the usual problems and fixes:
 [docs/BUILDING.md](docs/BUILDING.md). More detail on every platform and option:
 [docs/getting-started.md](docs/getting-started.md).
 
-**Updating:** `git pull`, then run the build again (updates can change the
-generated code, which is rebuilt from your ROM set). **Never share your
+**Updating:** get the new version (`git pull`, or download the new source
+zip and unzip it over the old folder), then build again: double-click
+`Build Daytona.bat` on Windows, or run the same build command (updates can
+change the generated code, which is rebuilt from your ROM set; the tools in
+`.tools/`, `extern/` and your `roms/` are kept). **Never share your
 builds:** they contain code generated from the ROM.
 
 ## Playing
