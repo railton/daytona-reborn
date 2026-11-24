@@ -397,7 +397,10 @@ int main(int argc, char **argv) {
             std::printf("m2run: relay room %s race: player %d of %d (%s)\n", relay->room().c_str(), st.position, st.size,
                         st.position == 1 ? "MASTER" : "SLAVE");
             rt::online::configure(game.board(), st.position, st.eeprom);
-            game.board().set_link(relay.get(), link_sync);
+            // Match the desktop Online mode. The override is for A/B probes
+            // against the previous asynchronous behavior, not normal play.
+            const char *async_probe = std::getenv("M2_TEST_RELAY_ASYNC");
+            game.board().set_link(relay.get(), !(async_probe && !std::strcmp(async_probe, "1")));
         }
         game.set_frame_skip(frame_skip);
         if (aspect > 0) {
@@ -418,7 +421,24 @@ int main(int argc, char **argv) {
         uint64_t drive_commands = 0, drive_kinds[16] = {}; // the force feedback drive board's commands, by type
         auto &scenery = *game.board().scenery();
         const auto paced_from = std::chrono::steady_clock::now();
+        // Optional online timing evidence: state transitions plus a heartbeat.
+        // The monotonic clock can be compared between processes on this host.
+        const char *online_trace_path = std::getenv("M2_ONLINE_TRACE");
+        std::ofstream online_trace;
+        if (online_trace_path && *online_trace_path) {
+            online_trace.exceptions(std::ios::failbit | std::ios::badbit);
+            online_trace.open(online_trace_path);
+            online_trace << "frame,wall_ms,mode,step,course,link\n";
+        }
+        int previous_mode = -1, previous_step = -1, previous_link = -1;
+        // Fault injection for the headless timing probe only; never enabled by default.
+        const char *delay_env = std::getenv("M2_TEST_FRAME_DELAY_MS");
+        const int test_delay_ms = delay_env ? std::max(0, std::atoi(delay_env)) : 0;
+        const char *delay_from_env = std::getenv("M2_TEST_FRAME_DELAY_FROM");
+        const uint64_t test_delay_from = delay_from_env ? std::strtoull(delay_from_env, nullptr, 10) : 2500;
         for (uint64_t f = 0; f < frames; f++) {
+            if (test_delay_ms && f >= test_delay_from)
+                std::this_thread::sleep_for(std::chrono::milliseconds(test_delay_ms));
             if (realtime) // linked cabinets running at the arcade's pace, as players' games do
                 std::this_thread::sleep_until(paced_from + std::chrono::nanoseconds(int64_t(double(f) * 1e9 / 57.524)));
             const bool omit_this_tick = omit_cell && f == omit_cell->first;
@@ -440,6 +460,23 @@ int main(int argc, char **argv) {
                 relay_entry.apply(game.board(), inputs);
             }
             game.run_frame(inputs);
+            if (online_trace.is_open()) {
+                const int mode = game.board().read_byte(0x5010a0);
+                const int step = game.board().read_byte(0x5010f8);
+                const auto *comm = game.board().comm_board();
+                const int link_state = comm ? int(comm->link()) : 0;
+                if (mode != previous_mode || step != previous_step || link_state != previous_link || f % 60 == 0) {
+                    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                        std::chrono::steady_clock::now().time_since_epoch()).count();
+                    online_trace << game.frames() << ',' << ms << ',' << mode << ',' << step << ','
+                                 << int(game.board().read_byte(0x501460)) << ','
+                                 << link_state << '\n';
+                    online_trace.flush();
+                }
+                previous_mode = mode;
+                previous_step = step;
+                previous_link = link_state;
+            }
             // Diagnostic (divergence search): M2_RAM_HASH=FILE.csv writes, per
             // frame from M2_RAM_HASH_FROM, an FNV-1a hash of each 4 KB of work
             // RAM (0x500000..0x5fffff) and of each 4 KB of 0x200000..0x21ffff.

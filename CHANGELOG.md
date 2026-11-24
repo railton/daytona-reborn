@@ -6,6 +6,12 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
 
 ### Online play
 
+- **Keep online cabinets on the same frame clock.** Online now enables the
+  communication board's existing frame synchronization. With an artificial
+  22 ms delay on the master, the previous asynchronous mode let the slave
+  enter the race 6.926 s earlier; synchronization reduced that gap to 27 ms
+  on the local relay. Online compatibility version is now 5. See
+  `docs/ONLINE_FRAME_SYNC.md` for measurements and limits.
 - **Online mode** in the home menu (Revision A, `daytona`): race over the
   Internet with up to 8 players through a relay server. No port to open on
   any player's router; works behind CGNAT. The game connects out to the
@@ -175,7 +181,8 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`).
 - Not yet tested between players on different networks.
 - Headless test cabinets must run at the arcade's pace (`m2run --realtime`)
   for large rooms: free-running ones at different speeds flood each other
-  and lose the link, and the frame sync option drops it after 3 s of wait.
+  and lose the link. Frame sync drops the link after 3 s without its token;
+  this timeout still applies to the synchronized Online mode.
   At the arcade's pace 8 cabinets through the relay link and stay linked
   (two runs of 104 s and 157 s, no link lost before the end).
 - Traffic: about 3.5 KB per cabinet per frame, passed round the ring, so

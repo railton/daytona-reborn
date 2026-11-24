@@ -1,0 +1,161 @@
+baseline-master
+m2run: relay room measure-baseline-580396 race: player 1 of 2 (MASTER)
+m2run: 6500 frames, 985088001 i960 instructions (all native), 28729069 TGP instructions, 6718 interrupts, 135 bytes to the sound board; 112.98 s (58 frames/s)
+  last screen hash d3ffbe9d3d7f97bb
+  relay standings:
+  link: lost
+  drive board: 7 commands (0-: 4, 2-: 1, 7-: 1, f-: 1)
+  sound board: 84972992 68000 instructions (all native), 135 command bytes received
+
+baseline-slave
+m2run: relay room measure-baseline-580396 race: player 2 of 2 (SLAVE)
+m2run: 6500 frames, 985088001 i960 instructions (all native), 28848092 TGP instructions, 6718 interrupts, 135 bytes to the sound board; 112.98 s (58 frames/s)
+  last screen hash 0f32a0afbf394998
+  relay standings: 1:0 2:1
+  link: up, cabinet 2 of 2
+  drive board: 7 commands (0-: 4, 2-: 1, 7-: 1, f-: 1)
+  sound board: 84972992 68000 instructions (all native), 135 command bytes received
+
+frame-sync-master
+m2run: relay room measure-frame-sync-580497 race: player 1 of 2 (MASTER)
+m2run: 6500 frames, 985088001 i960 instructions (all native), 144189959 TGP instructions, 6795 interrupts, 183 bytes to the sound board; 112.98 s (58 frames/s)
+  last screen hash bd8b3c70ef2779c1
+  relay standings: 1:2 2:1
+  link: up, cabinet 1 of 2
+  drive board: 10 commands (0-: 5, 1-: 1, 2-: 2, 7-: 1, f-: 1)
+  sound board: 84972992 68000 instructions (all native), 183 command bytes received
+
+frame-sync-slave
+m2run: relay room measure-frame-sync-580497 race: player 2 of 2 (SLAVE)
+m2run: 6500 frames, 985088001 i960 instructions (all native), 134856606 TGP instructions, 6800 interrupts, 186 bytes to the sound board; 112.99 s (58 frames/s)
+  last screen hash d119c8daab50f698
+  relay standings: 1:2 2:1
+  link: up, cabinet 2 of 2
+  drive board: 10 commands (0-: 5, 1-: 1, 2-: 2, 7-: 1, f-: 1)
+  sound board: 84972992 68000 instructions (all native), 186 command bytes received
+
+slow-repeat-master
+m2run: relay room measure-slow-repeat-581661 race: player 1 of 2 (MASTER)
+m2run: 6500 frames, 985088001 i960 instructions (all native), 27932389 TGP instructions, 6797 interrupts, 183 bytes to the sound board; 143.21 s (45 frames/s)
+  last screen hash 23864fb5d080eab4
+  relay standings:
+  link: lost
+  drive board: 9 commands (0-: 4, 1-: 1, 2-: 2, 7-: 1, f-: 1)
+  sound board: 84972992 68000 instructions (all native), 183 command bytes received
+
+slow-repeat-slave
+m2run: relay room measure-slow-repeat-581661 race: player 2 of 2 (SLAVE)
+m2run: 6500 frames, 985088001 i960 instructions (all native), 42860339 TGP instructions, 6802 interrupts, 186 bytes to the sound board; 112.98 s (58 frames/s)
+  last screen hash e4c5653497ab5b73
+  relay standings: 1:2 2:1
+  link: up, cabinet 2 of 2
+  drive board: 9 commands (0-: 4, 1-: 1, 2-: 2, 7-: 1, f-: 1)
+  sound board: 84972992 68000 instructions (all native), 186 command bytes received
+
+slow-sync-master
+m2run: relay room measure-slow-sync-581067 race: player 1 of 2 (MASTER)
+m2run: 6500 frames, 985088001 i960 instructions (all native), 144189959 TGP instructions, 6795 interrupts, 183 bytes to the sound board; 139.49 s (47 frames/s)
+  last screen hash bd8b3c70ef2779c1
+  relay standings: 1:2 2:1
+  link: up, cabinet 1 of 2
+  drive board: 10 commands (0-: 5, 1-: 1, 2-: 2, 7-: 1, f-: 1)
+  sound board: 84972992 68000 instructions (all native), 183 command bytes received
+
+slow-sync-slave
+m2run: relay room measure-slow-sync-581067 race: player 2 of 2 (SLAVE)
+m2run: 6500 frames, 985088001 i960 instructions (all native), 134856606 TGP instructions, 6800 interrupts, 186 bytes to the sound board; 139.49 s (47 frames/s)
+  last screen hash d119c8daab50f698
+  relay standings: 1:2 2:1
+  link: up, cabinet 2 of 2
+  drive board: 10 commands (0-: 5, 1-: 1, 2-: 2, 7-: 1, f-: 1)
+  sound board: 84972992 68000 instructions (all native), 186 command bytes received
+
+eight-1
+m2run: relay room measure-eight-581853 race: player 1 of 8 (MASTER)
+m2run: 6500 frames, 985088001 i960 instructions (all native), 166129057 TGP instructions, 6795 interrupts, 183 bytes to the sound board; 112.98 s (58 frames/s)
+  last screen hash 70dd1610d117a7e6
+  relay standings: 1:8 2:1 3:2 4:3 5:5 6:4 7:6 8:7
+  link: up, cabinet 1 of 8
+  drive board: 10 commands (0-: 5, 1-: 1, 2-: 2, 7-: 1, f-: 1)
+  sound board: 84972992 68000 instructions (all native), 183 command bytes received
+
+eight-2
+m2run: relay room measure-eight-581853 race: player 2 of 8 (SLAVE)
+m2run: 6500 frames, 985088001 i960 instructions (all native), 151164910 TGP instructions, 6800 interrupts, 186 bytes to the sound board; 112.99 s (58 frames/s)
+  last screen hash 7a41e3069e416c9e
+  relay standings:
+  link: lost
+  drive board: 10 commands (0-: 5, 1-: 1, 2-: 2, 7-: 1, f-: 1)
+  sound board: 84972992 68000 instructions (all native), 186 command bytes received
+
+eight-3
+m2run: relay room measure-eight-581853 race: player 3 of 8 (SLAVE)
+m2run: 6500 frames, 985088001 i960 instructions (all native), 155024989 TGP instructions, 6795 interrupts, 183 bytes to the sound board; 112.99 s (58 frames/s)
+  last screen hash 697f5030948a7e3e
+  relay standings:
+  link: lost
+  drive board: 10 commands (0-: 5, 1-: 1, 2-: 2, 7-: 1, f-: 1)
+  sound board: 84972992 68000 instructions (all native), 183 command bytes received
+
+eight-4
+m2run: relay room measure-eight-581853 race: player 4 of 8 (SLAVE)
+m2run: 6500 frames, 985088001 i960 instructions (all native), 151387906 TGP instructions, 6800 interrupts, 186 bytes to the sound board; 112.99 s (58 frames/s)
+  last screen hash 121c65c77f0370c2
+  relay standings:
+  link: lost
+  drive board: 10 commands (0-: 5, 1-: 1, 2-: 2, 7-: 1, f-: 1)
+  sound board: 84972992 68000 instructions (all native), 186 command bytes received
+
+eight-5
+m2run: relay room measure-eight-581853 race: player 5 of 8 (SLAVE)
+m2run: 6500 frames, 985088001 i960 instructions (all native), 150530923 TGP instructions, 6800 interrupts, 186 bytes to the sound board; 112.99 s (58 frames/s)
+  last screen hash f47998c6224d1a4c
+  relay standings:
+  link: lost
+  drive board: 10 commands (0-: 5, 1-: 1, 2-: 2, 7-: 1, f-: 1)
+  sound board: 84972992 68000 instructions (all native), 186 command bytes received
+
+eight-6
+m2run: relay room measure-eight-581853 race: player 6 of 8 (SLAVE)
+m2run: 6500 frames, 985088001 i960 instructions (all native), 152673363 TGP instructions, 6795 interrupts, 183 bytes to the sound board; 112.99 s (58 frames/s)
+  last screen hash 95470427956ba958
+  relay standings:
+  link: lost
+  drive board: 10 commands (0-: 5, 1-: 1, 2-: 2, 7-: 1, f-: 1)
+  sound board: 84972992 68000 instructions (all native), 183 command bytes received
+
+eight-7
+m2run: relay room measure-eight-581853 race: player 7 of 8 (SLAVE)
+m2run: 6500 frames, 985088001 i960 instructions (all native), 166781408 TGP instructions, 6800 interrupts, 186 bytes to the sound board; 113.00 s (58 frames/s)
+  last screen hash 80aff6d6ed779b7b
+  relay standings:
+  link: lost
+  drive board: 10 commands (0-: 5, 1-: 1, 2-: 2, 7-: 1, f-: 1)
+  sound board: 84972992 68000 instructions (all native), 186 command bytes received
+
+eight-8
+m2run: relay room measure-eight-581853 race: player 8 of 8 (SLAVE)
+m2run: 6500 frames, 985088001 i960 instructions (all native), 153952164 TGP instructions, 6800 interrupts, 186 bytes to the sound board; 112.99 s (58 frames/s)
+  last screen hash 2660db7aeccedbc6
+  relay standings:
+  link: lost
+  drive board: 10 commands (0-: 5, 1-: 1, 2-: 2, 7-: 1, f-: 1)
+  sound board: 84972992 68000 instructions (all native), 186 command bytes received
+
+final-default-master
+m2run: relay room measure-final-default-586762 race: player 1 of 2 (MASTER)
+m2run: 4500 frames, 681984001 i960 instructions (all native), 83118202 TGP instructions, 4795 interrupts, 183 bytes to the sound board; 90.64 s (50 frames/s)
+  last screen hash ea0407c125102e8f
+  relay standings: 1:2 2:1
+  link: up, cabinet 1 of 2
+  drive board: 10 commands (0-: 5, 1-: 1, 2-: 2, 7-: 1, f-: 1)
+  sound board: 58827456 68000 instructions (all native), 183 command bytes received
+
+final-default-slave
+m2run: relay room measure-final-default-586762 race: player 2 of 2 (SLAVE)
+m2run: 4500 frames, 681984001 i960 instructions (all native), 81627162 TGP instructions, 4800 interrupts, 186 bytes to the sound board; 90.65 s (50 frames/s)
+  last screen hash 037a50da81b9fc92
+  relay standings: 1:2 2:1
+  link: up, cabinet 2 of 2
+  drive board: 10 commands (0-: 5, 1-: 1, 2-: 2, 7-: 1, f-: 1)
+  sound board: 58827456 68000 instructions (all native), 186 command bytes received

@@ -1106,7 +1106,9 @@ int main(int argc, char **argv) {
                 // server's race settings, written before the first frame
                 const auto &st = online_link->status();
                 rt::online::configure(game->board(), st.position, st.eeprom);
-                game->board().set_link(online_link.get(), false);
+                // Keep the cabinets on the ring's frame clock: independent
+                // pacing lets a faster client finish the countdown first.
+                game->board().set_link(online_link.get(), true);
                 online_game = true;
                 online_epoch = online_link->epoch();
                 online_entry = {};

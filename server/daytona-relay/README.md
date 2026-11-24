@@ -167,6 +167,14 @@ after another has closed is expected.
 Every game tells the server its online version; a room only takes games of
 the version that created it, so every player of a room behaves the same.
 
+Online version 5 enables the communication board's frame synchronization in
+both the desktop game and `m2run --relay`. A faster cabinet waits for the
+ring instead of advancing its countdown independently. The existing
+3-second token timeout still applies, and a slow cabinet can slow the room.
+All players must rebuild to join the same room; the relay needs no update
+for this version change. Local timing measurements and diagnostic commands
+are in `../../docs/ONLINE_FRAME_SYNC.md`.
+
 ## Protocol
 
 One TCP connection a player. A greeting line
