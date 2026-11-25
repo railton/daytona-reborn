@@ -72,13 +72,18 @@ int main(int argc, char **argv) {
         if (!std::strcmp(argv[i], "--stretch-backdrop")) stretch = true;
         if (!std::strcmp(argv[i], "--original-selection")) original_selection = true;
     }
-    for (int i = 3; i + 1 < argc; i += 2) {
-        if (!std::strcmp(argv[i], "--hud-edges") || !std::strcmp(argv[i], "--stretch-backdrop") ||
-            !std::strcmp(argv[i], "--bench") || !std::strcmp(argv[i], "--original-selection") ||
-            !std::strcmp(argv[i], "--smooth-cars") || !std::strcmp(argv[i], "--car-reflections") ||
-            !std::strcmp(argv[i], "--sharp-car-textures") || !std::strcmp(argv[i], "--car-shadows") ||
-            !std::strcmp(argv[i], "--car-shadows-and-game-shadow") ||
-            !std::strcmp(argv[i], "--bloom") || !std::strcmp(argv[i], "--crt")) { i--; continue; }
+    // options with a value take the next argument; switches none (read in
+    // the loops before and after); anything else is skipped on its own, so an
+    // option's place on the command line never changes what is read
+    auto is_switch = [](const char *a) {
+        for (const char *s : {"--hud-edges", "--stretch-backdrop", "--bench", "--original-selection", "--smooth-cars",
+                              "--car-reflections", "--sharp-car-textures", "--smooth-2d", "--car-shadows",
+                              "--car-shadows-and-game-shadow", "--bloom", "--crt"})
+            if (!std::strcmp(a, s)) return true;
+        return false;
+    };
+    for (int i = 3; i + 1 < argc; ++i) {
+        if (is_switch(argv[i]) || std::strncmp(argv[i], "--", 2) != 0) continue;
         if (!std::strcmp(argv[i], "--aspect")) {
             double a = 0, b = 0;
             if (std::sscanf(argv[i + 1], "%lf:%lf", &a, &b) == 2 && b > 0) aspect = a / b;

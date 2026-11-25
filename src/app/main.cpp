@@ -2041,7 +2041,8 @@ int main(int argc, char **argv) {
 #ifndef M2_MOBILE
         { // the image quality, in the session's first race: did the graphics card keep up?
             const bool enhanced = cfg.uses_native_resolution() || cfg.supersampling > 1 || cfg.msaa > 1 || cfg.aniso > 1 ||
-                                  cfg.smooth_cars || cfg.car_reflections || cfg.car_shadows;
+                                  cfg.smooth_cars || cfg.car_reflections || cfg.car_shadows || cfg.sharp_car_textures ||
+                                  cfg.smooth_2d || cfg.hires_textures || hires_from_env || cfg.bloom || cfg.crt_filter;
             const bool racing = hardware && !in_launcher && enhanced &&
                                 game->board().read_byte(rt::online::AutoEntry::mode_address) == rt::online::CourseSync::race;
             if (!racing) speed_check.interrupt();

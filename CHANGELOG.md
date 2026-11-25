@@ -6,6 +6,34 @@ rule 14); each version has its section here.
 
 ## Unreleased (version to be decided)
 
+### Fixes from an external graphics review
+
+- **High-resolution textures fall back safely:** a failed upload of the
+  pack's index (a transfer buffer that could not be mapped) counted as done
+  and the texture RAM as checked, so the shader could read an empty or stale
+  index. Now the replacement is asked for only once this texture RAM's
+  index is on the GPU; until then the game's textures are drawn and the
+  upload is tried again next frame. Checked with `M2_TEST_HIRES_INDEX_FAIL=3`
+  (a test hook): the first three frames equal the pack-off frames, the rest
+  the pack-on frames, byte for byte.
+- **`m2gpushot` reads its options in any order:** `--smooth-2d` was missing
+  from its switches, so placed before `--dump DIR --every N` it failed, and
+  elsewhere it could swallow an option. Each option now takes its own
+  argument count; the switch first and last give identical frames (21).
+- **The race's speed check** (whether the graphics card kept up) also runs
+  with only sharp car textures, smooth menus and HUD, the texture pack,
+  bloom or the arcade monitor on.
+
+### Windows build fixes
+
+- Two tests used `std::llabs` and `std::puts` without their headers
+  (`<cstdlib>`, `<cstdio>`): llvm-mingw's libc++ stopped there on Windows 11
+  (GCC pulled them in). Every target cross-built with llvm-mingw 20261117.
+- `Build Daytona.bat` writes the build's own output (CMake, the compiler's
+  errors, Python) to `windows-build.log`, which PowerShell 5.1's transcript
+  left out; names the ROM set file in full; retries its downloads (three
+  tries, then Windows' curl.exe) after "the decryption operation failed".
+
 ### The home screen says when a newer version is out
 
 Once a day the game asks GitHub for the project's latest release, through

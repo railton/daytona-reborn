@@ -219,6 +219,7 @@ private:
     SDL_GPUBuffer *hires_index_ = nullptr, *hires_data_ = nullptr;
     bool hires_data_uploaded_ = false;
     uint64_t hires_generation_ = ~0ull; // the texture RAM generation hires_index_ was checked against
+    bool hires_index_ready_ = false;    // hires_index_ holds that generation's index on the GPU
     size_t hires_live_ = 0;
     std::vector<uint32_t> hires_words_;
     void hires_upload(SDL_GPUCommandBuffer *cmd, const rt::VideoMem &mem);

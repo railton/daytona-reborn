@@ -346,6 +346,7 @@ void GpuRenderer::shutdown() {
         if (*b) SDL_ReleaseGPUBuffer(dev_, *b), *b = nullptr;
     hires_data_uploaded_ = false;
     hires_generation_ = ~0ull;
+    hires_index_ready_ = false;
     if (sky_env_pipe_) SDL_ReleaseGPUGraphicsPipeline(dev_, sky_env_pipe_), sky_env_pipe_ = nullptr;
     for (SDL_GPUTexture **t : {&sky_env_, &sky_none_})
         if (*t) SDL_ReleaseGPUTexture(dev_, *t), *t = nullptr;
@@ -768,7 +769,7 @@ void GpuRenderer::build(const rt::Video &video, int w, int h, int scale, bool sh
         if (sharp_textures) material.info[0] |= 1u << 23;
         if (msaa_ > 1) material.info[0] |= 1u << 25; // alpha to coverage for cut-out texels (m2.hlsl)
         material.info[0] |= aniso_bits_ << 26;
-        if (hires_data_uploaded_ && renderer >= 2) material.info[0] |= 1u << 11; // m2.hlsl hires_texel
+        if (hires_data_uploaded_ && hires_index_ready_ && renderer >= 2) material.info[0] |= 1u << 11; // m2.hlsl hires_texel
         if (poly.local_texture) {
             material.info[0] = 1u << 24;
             material.info[1] = poly.local_texture - 1;
@@ -1741,6 +1742,7 @@ bool GpuRenderer::load_hires_textures(const std::string &path) {
     hires_ = hires::Pack{};
     hires_data_uploaded_ = false;
     hires_generation_ = ~0ull;
+    hires_index_ready_ = false;
     hires_live_ = 0;
     if (path.empty()) return true;
     if (!hires_.load(path)) {
@@ -1775,7 +1777,8 @@ void GpuRenderer::hires_upload(SDL_GPUCommandBuffer *cmd, const rt::VideoMem &me
         ti.size = size;
         SDL_GPUTransferBuffer *tb = SDL_CreateGPUTransferBuffer(dev_, &ti);
         if (!tb) return false;
-        if (void *p = SDL_MapGPUTransferBuffer(dev_, tb, false)) {
+        void *p = SDL_MapGPUTransferBuffer(dev_, tb, false);
+        if (p) {
             std::memcpy(p, bytes, size);
             SDL_UnmapGPUTransferBuffer(dev_, tb);
             SDL_GPUCopyPass *copy = SDL_BeginGPUCopyPass(cmd);
@@ -1785,7 +1788,7 @@ void GpuRenderer::hires_upload(SDL_GPUCommandBuffer *cmd, const rt::VideoMem &me
             SDL_EndGPUCopyPass(copy);
         }
         SDL_ReleaseGPUTransferBuffer(dev_, tb); // freed once the upload is done
-        return true;
+        return p != nullptr; // not mapped: nothing was uploaded
     };
     if (!hires_data_uploaded_) {
         std::vector<uint8_t> padded(hires_.data);
@@ -1797,10 +1800,28 @@ void GpuRenderer::hires_upload(SDL_GPUCommandBuffer *cmd, const rt::VideoMem &me
             return;
         }
     }
-    if (mem.tex_generation == hires_generation_ && hires_index_) return;
+    if (mem.tex_generation == hires_generation_ && hires_index_ready_) return;
+    // the index for this texture RAM: until it is on the GPU the materials
+    // ask for no replacement (build), so a failed upload draws the game's
+    // own textures and is tried again next frame, never a stale index
+    hires_index_ready_ = false;
     const uint64_t t0 = SDL_GetTicksNS();
     const size_t live = hires_.index(mem.tex0, mem.tex1, hires_words_);
-    upload(hires_index_, hires_words_.data(), uint32_t(hires_words_.size() * 4));
+    static int fail_uploads = [] { // a test hook: M2_TEST_HIRES_INDEX_FAIL=N fails the first N index uploads
+        const char *v = std::getenv("M2_TEST_HIRES_INDEX_FAIL");
+        return v ? std::atoi(v) : 0;
+    }();
+    if (fail_uploads > 0) {
+        --fail_uploads;
+        std::fprintf(stderr, "daytona: high-resolution textures: index upload failed (test), the game's textures drawn\n");
+        return;
+    }
+    if (!upload(hires_index_, hires_words_.data(), uint32_t(hires_words_.size() * 4))) {
+        std::fprintf(stderr, "daytona: high-resolution textures: index upload failed (%s), the game's textures drawn\n",
+                     SDL_GetError());
+        return;
+    }
+    hires_index_ready_ = true;
     hires_generation_ = mem.tex_generation;
     if (live != hires_live_)
         std::printf("daytona: high-resolution textures: %zu of %zu in use (checked in %.1f ms)\n", live,
