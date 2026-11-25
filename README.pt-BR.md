@@ -212,8 +212,10 @@ do próprio aplicativo e o seu autódromo em 3D, capturados com
 | --- | --- |
 | ![O cartão Online: um código de convite colado sozinho, Criar uma sala, Entrar na sala](docs/images/home-online.jpg) | ![Numa sala: as oito vagas nas cores dos carros, o dono coroado, Começar a corrida](docs/images/home-room.jpg) |
 | **Online**: o código de convite é colado sozinho; ou crie uma sala. | **Numa sala**: as vagas nas cores dos carros, o que ela aguarda. |
-| ![As configurações da sala: nome, servidor e as configurações da corrida como opções](docs/images/room-settings.jpg) | ![Configurações: abas numa coluna que rola](docs/images/settings.jpg) |
-| **Configurações da sala**: nome, servidor e a corrida para todos os jogadores. | **Configurações**: vídeo, melhorias, controles, som. |
+| ![As configurações da sala: nome, servidor e as configurações da corrida como opções](docs/images/room-settings.jpg) | ![Configurações: sete abas, a aba Melhorias aberta](docs/images/settings.jpg) |
+| **Configurações da sala**: nome, servidor e a corrida para todos os jogadores. | **Configurações**: vídeo, melhorias, controles, texturas IA, som. |
+| ![Configurações > Texturas IA: o que este computador tem, gerar o pacote, usá-lo](docs/images/ai-textures.jpg) | |
+| **Texturas IA** (experimental): gere o pacote de texturas em alta resolução neste computador. | |
 
 ## Novas versões
 
