@@ -139,4 +139,88 @@ struct Pack {
     }
 };
 
+// The texture RAM words that hold one 32 x 32-texel cell (texel's layout):
+// 16 rows of 8 words. fn(word index) for each.
+template <class Fn> inline void cell_words(uint32_t cx, uint32_t cy, Fn fn) {
+    for (uint32_t r = 0; r < 16; ++r) {
+        uint32_t x2 = cx * 32, y2 = cy * 32 + r * 2;
+        if (x2 >= 1024) x2 -= 1024, y2 ^= 1024;
+        const uint32_t first = ((y2 / 2) * 512 + x2 / 2) >> 1;
+        for (uint32_t k = 0; k < 8; ++k) fn((first + k) & (kSheetWords - 1));
+    }
+}
+
+// Pack::index kept up to date as texture RAM changes: a copy of the RAM as
+// last checked tells which 32 x 32 cells changed, and only the entries over
+// a changed cell are hashed again (a full check at first). Its output equals
+// Pack::index's (tests/test_hires.cpp).
+class Indexer {
+public:
+    size_t refresh(const Pack &pack, const uint32_t *tex0, const uint32_t *tex1, std::vector<uint32_t> &out) {
+        const uint32_t *ram[2] = {tex0, tex1};
+        if (pack_ != &pack || seen_[0].size() != kSheetWords) { // first: everything
+            pack_ = &pack;
+            for (int s = 0; s < 2; ++s) seen_[s].assign(ram[s], ram[s] + kSheetWords);
+            match_.assign(pack.entries.size(), 0);
+            for (size_t i = 0; i < pack.entries.size(); ++i) {
+                const Entry &e = pack.entries[i];
+                match_[i] = hash(ram[e.sheet], e.x, e.y, e.w, e.h) == e.hash;
+            }
+            last_rehashed_ = pack.entries.size();
+        } else {
+            changed_.assign(size_t(2) * kCellsPerSheet, 0);
+            bool any = false;
+            for (uint32_t s = 0; s < 2; ++s)
+                for (uint32_t cy = 0; cy < 32; ++cy)
+                    for (uint32_t cx = 0; cx < 64; ++cx) {
+                        bool diff = false;
+                        cell_words(cx, cy, [&](uint32_t w) { diff |= seen_[s][w] != ram[s][w]; });
+                        if (!diff) continue;
+                        changed_[s * kCellsPerSheet + cy * 64 + cx] = 1;
+                        cell_words(cx, cy, [&](uint32_t w) { seen_[s][w] = ram[s][w]; });
+                        any = true;
+                    }
+            last_rehashed_ = 0;
+            for (size_t i = 0; any && i < pack.entries.size(); ++i) {
+                const Entry &e = pack.entries[i];
+                bool touched = false;
+                for (uint32_t y = e.y / 32; !touched && y < (e.y + e.h) / 32; ++y)
+                    for (uint32_t x = e.x / 32; !touched && x < (e.x + e.w) / 32; ++x)
+                        touched = changed_[e.sheet * kCellsPerSheet + y * 64 + x];
+                if (!touched) continue;
+                match_[i] = hash(ram[e.sheet], e.x, e.y, e.w, e.h) == e.hash;
+                ++last_rehashed_;
+            }
+        }
+        // the slots, as Pack::index fills them
+        out.assign(size_t(2) * kCellsPerSheet * kSlots * 2, 0u);
+        size_t live = 0;
+        for (size_t i = 0; i < pack.entries.size(); ++i) {
+            if (!match_[i]) continue;
+            const Entry &e = pack.entries[i];
+            const uint32_t cell = e.sheet * kCellsPerSheet + (e.y / 32) * 64 + e.x / 32;
+            const uint32_t key = e.w | (e.h << 16) | ((e.flags & kCutout) ? kIndexCutout : 0u);
+            uint32_t *slot = &out[size_t(cell) * kSlots * 2], *free = nullptr;
+            bool there = false;
+            for (uint32_t k = 0; k < kSlots; ++k) {
+                there |= slot[k * 2 + 1] == key;
+                if (!slot[k * 2 + 1] && !free) free = &slot[k * 2];
+            }
+            if (there || !free) continue;
+            free[0] = uint32_t(e.offset);
+            free[1] = key;
+            ++live;
+        }
+        return live;
+    }
+    void reset() { pack_ = nullptr; }
+    size_t last_rehashed() const { return last_rehashed_; } // entries hashed by the last refresh
+
+private:
+    const Pack *pack_ = nullptr;
+    std::vector<uint32_t> seen_[2];
+    std::vector<uint8_t> match_, changed_;
+    size_t last_rehashed_ = 0;
+};
+
 } // namespace app::hires

@@ -81,8 +81,11 @@ bool GpuRenderer::init(SDL_GPUDevice *dev, SDL_GPUTextureFormat format, int msaa
     SDL_GPUShader *ps_front = shader(k_ps_tiles_front_spv, sizeof k_ps_tiles_front_spv, k_ps_tiles_front_dxil,
                                      sizeof k_ps_tiles_front_dxil, k_ps_tiles_front_msl, "ps_tiles_front",
                                      SDL_GPU_SHADERSTAGE_FRAGMENT, 0, 0, 2);
-    if (!vs_poly || !ps_poly || !vs_quad || !ps_quad || !ps_back || !ps_front) {
-        for (SDL_GPUShader *s : {vs_poly, ps_poly, vs_quad, ps_quad, ps_back, ps_front})
+    SDL_GPUShader *ps_quad_smooth = shader(k_ps_quad_smooth_spv, sizeof k_ps_quad_smooth_spv, k_ps_quad_smooth_dxil,
+                                           sizeof k_ps_quad_smooth_dxil, k_ps_quad_smooth_msl, "ps_quad_smooth",
+                                           SDL_GPU_SHADERSTAGE_FRAGMENT, 0, 1);
+    if (!vs_poly || !ps_poly || !vs_quad || !ps_quad || !ps_back || !ps_front || !ps_quad_smooth) {
+        for (SDL_GPUShader *s : {vs_poly, ps_poly, vs_quad, ps_quad, ps_back, ps_front, ps_quad_smooth})
             if (s) SDL_ReleaseGPUShader(dev_, s);
         return false;
     }
@@ -187,10 +190,13 @@ bool GpuRenderer::init(SDL_GPUDevice *dev, SDL_GPUTextureFormat format, int msaa
     qi.target_info.color_target_descriptions = &front_color;
     qi.fragment_shader = ps_front;
     front_pipe_ = SDL_CreateGPUGraphicsPipeline(dev_, &qi);
+    qi.fragment_shader = ps_quad_smooth; // the CPU's front layers, smooth (blending their edges too)
+    quad_smooth_pipe_ = SDL_CreateGPUGraphicsPipeline(dev_, &qi);
     qi.target_info.color_target_descriptions = &color;
 
-    for (SDL_GPUShader *s : {vs_poly, ps_poly, vs_quad, ps_quad, ps_back, ps_front}) SDL_ReleaseGPUShader(dev_, s);
-    if (!poly_pipe_ || !quad_pipe_ || !back_pipe_ || !front_pipe_) {
+    for (SDL_GPUShader *s : {vs_poly, ps_poly, vs_quad, ps_quad, ps_back, ps_front, ps_quad_smooth})
+        SDL_ReleaseGPUShader(dev_, s);
+    if (!poly_pipe_ || !quad_pipe_ || !back_pipe_ || !front_pipe_ || !quad_smooth_pipe_) {
         error_ = std::string("SDL_CreateGPUGraphicsPipeline: ") + SDL_GetError();
         shutdown();
         return false;
@@ -324,7 +330,7 @@ bool GpuRenderer::init(SDL_GPUDevice *dev, SDL_GPUTextureFormat format, int msaa
 void GpuRenderer::shutdown() {
     if (!dev_) return;
     if (poly_pipe_) SDL_ReleaseGPUGraphicsPipeline(dev_, poly_pipe_), poly_pipe_ = nullptr;
-    for (SDL_GPUGraphicsPipeline **p : {&quad_pipe_, &back_pipe_, &front_pipe_})
+    for (SDL_GPUGraphicsPipeline **p : {&quad_pipe_, &back_pipe_, &front_pipe_, &quad_smooth_pipe_})
         if (*p) SDL_ReleaseGPUGraphicsPipeline(dev_, *p), *p = nullptr;
     if (sampler_) SDL_ReleaseGPUSampler(dev_, sampler_), sampler_ = nullptr;
     if (shadow_sampler_) SDL_ReleaseGPUSampler(dev_, shadow_sampler_), shadow_sampler_ = nullptr;
@@ -347,6 +353,7 @@ void GpuRenderer::shutdown() {
     hires_data_uploaded_ = false;
     hires_generation_ = ~0ull;
     hires_index_ready_ = false;
+    hires_indexer_.reset();
     if (sky_env_pipe_) SDL_ReleaseGPUGraphicsPipeline(dev_, sky_env_pipe_), sky_env_pipe_ = nullptr;
     for (SDL_GPUTexture **t : {&sky_env_, &sky_none_})
         if (*t) SDL_ReleaseGPUTexture(dev_, *t), *t = nullptr;
@@ -562,13 +569,22 @@ void GpuRenderer::shadow_casters(const std::vector<rt::GeoPoly> &polys) {
     float lo[2][3], hi[2][3];
     for (int c = 0; c < 2; ++c)
         for (int a = 0; a < 3; ++a) lo[c][a] = 1e30f, hi[c][a] = -1e30f;
+    // a whole car goes to one cascade, by its farthest corner: assigned by
+    // face, a car crossing kShadowNear was split between the two maps, its
+    // shadow's halves at two sharpnesses
+    std::unordered_map<uint32_t, float> car_far; // mobile slot -> farthest depth of its casting faces
+    for (size_t i : casters_now_) {
+        const rt::GeoPoly &p = polys[i];
+        float &far = car_far[p.mobile_key.slot];
+        for (int k = 0; k < p.num_vertices; ++k) far = std::max(far, p.v[k].p[0]);
+    }
     for (size_t i : casters_now_) {
         const rt::GeoPoly &p = polys[i];
         if (p.num_vertices < 3) continue;
         float zmin = 1e30f, zmax = 0.0f;
         for (int k = 0; k < p.num_vertices; ++k) zmin = std::min(zmin, p.v[k].p[0]), zmax = std::max(zmax, p.v[k].p[0]);
         if (zmin <= 0.0f || zmax >= kShadowFar) continue;
-        const int c = zmax < kShadowNear ? 0 : 1;
+        const int c = car_far[p.mobile_key.slot] < kShadowNear ? 0 : 1;
         kept[c].push_back(i);
         for (int k = 0; k < p.num_vertices; ++k) {
             float l[3];
@@ -1214,7 +1230,7 @@ bool GpuRenderer::render(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *target, int 
         SDL_SetGPUScissor(pass, &full);
         SDL_GPUBufferBinding qb{qbuf_, 0};
         SDL_BindGPUVertexBuffers(pass, 0, &qb, 1);
-        if (pipe == quad_pipe_) {
+        if (pipe == quad_pipe_ || pipe == quad_smooth_pipe_) {
             SDL_GPUTextureSamplerBinding tsb{front_, sampler_};
             SDL_BindGPUFragmentSamplers(pass, 0, &tsb, 1);
         } else {
@@ -1247,7 +1263,7 @@ bool GpuRenderer::render(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *target, int 
             SDL_DrawGPUPrimitives(pass, b.count, 1, b.first, 0);
         }
     }
-    draw_quad(cpu_front ? quad_pipe_ : front_pipe_);
+    draw_quad(cpu_front ? (smooth_2d_ ? quad_smooth_pipe_ : quad_pipe_) : front_pipe_);
     SDL_EndGPURenderPass(pass);
     if (multisampled) {
         SDL_GPUCopyPass *copy_out = SDL_BeginGPUCopyPass(cmd);
@@ -1743,6 +1759,7 @@ bool GpuRenderer::load_hires_textures(const std::string &path) {
     hires_data_uploaded_ = false;
     hires_generation_ = ~0ull;
     hires_index_ready_ = false;
+    hires_indexer_.reset();
     hires_live_ = 0;
     if (path.empty()) return true;
     if (!hires_.load(path)) {
@@ -1763,6 +1780,8 @@ bool GpuRenderer::load_hires_textures(const std::string &path) {
 // The pack's tones, once; its index whenever texture RAM changed (the
 // entries whose texels are there now). Own transfer buffers: rare uploads.
 void GpuRenderer::hires_upload(SDL_GPUCommandBuffer *cmd, const rt::VideoMem &mem) {
+    static uint64_t calls = 0; // the frames drawn with a pack, for M2_HIRES_TRACE
+    ++calls;
     if (!mem.tex0 || !mem.tex1) return;
     auto upload = [&](SDL_GPUBuffer *&buffer, const void *bytes, uint32_t size) {
         if (!buffer) {
@@ -1806,7 +1825,7 @@ void GpuRenderer::hires_upload(SDL_GPUCommandBuffer *cmd, const rt::VideoMem &me
     // own textures and is tried again next frame, never a stale index
     hires_index_ready_ = false;
     const uint64_t t0 = SDL_GetTicksNS();
-    const size_t live = hires_.index(mem.tex0, mem.tex1, hires_words_);
+    const size_t live = hires_indexer_.refresh(hires_, mem.tex0, mem.tex1, hires_words_); // the changed cells only
     static int fail_uploads = [] { // a test hook: M2_TEST_HIRES_INDEX_FAIL=N fails the first N index uploads
         const char *v = std::getenv("M2_TEST_HIRES_INDEX_FAIL");
         return v ? std::atoi(v) : 0;
@@ -1826,6 +1845,13 @@ void GpuRenderer::hires_upload(SDL_GPUCommandBuffer *cmd, const rt::VideoMem &me
     if (live != hires_live_)
         std::printf("daytona: high-resolution textures: %zu of %zu in use (checked in %.1f ms)\n", live,
                     hires_.entries.size(), double(SDL_GetTicksNS() - t0) / 1e6);
+    static std::FILE *trace = [] { // diagnostic: M2_HIRES_TRACE=FILE, per index refresh: frame, generation, live, rehashed, ms
+        const char *f = std::getenv("M2_HIRES_TRACE");
+        return f && *f ? std::fopen(f, "w") : nullptr;
+    }();
+    if (trace) std::fprintf(trace, "%llu,%llu,%zu,%zu,%.3f\n", static_cast<unsigned long long>(calls),
+                            static_cast<unsigned long long>(mem.tex_generation), live, hires_indexer_.last_rehashed(),
+                            double(SDL_GetTicksNS() - t0) / 1e6);
     hires_live_ = live;
 }
 

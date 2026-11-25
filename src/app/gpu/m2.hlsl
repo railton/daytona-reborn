@@ -190,43 +190,9 @@ uint get_texel(uint base_x, uint base_y, int x, int y, uint sheet) {
 }
 
 // raster.cpp fetch_bilinear_texel; level -1 is the microtexture
-uint fetch_texel(uint4 info, int level, int u, int v, bool translucent, float2 footprint) {
-    const uint flags = info.x;
-    const bool swap = (flags >> 10) & 1u;
-    uint tex_width, tex_height, tex_x, tex_y, sheet;
-    if (level == -1) {
-        tex_width = 128u;
-        tex_height = 128u;
-        tex_x = info.z & 0xffffu;
-        tex_y = info.z >> 16;
-        sheet = swap ? 0u : 1u; // texsheet[1]
-        const uint sh = 1u << ((flags >> 8) & 3u);
-        u <<= sh;
-        v <<= sh;
-        footprint *= float(1u << sh);
-    } else {
-        const uint texx = info.y & 0xffffu, texy = info.y >> 16;
-        tex_width = (32u << ((flags >> 17) & 7u)) >> uint(level);
-        tex_height = (32u << ((flags >> 20) & 7u)) >> uint(level);
-        tex_x = ((texx - 2048u) >> uint(level)) & 2047u;
-        tex_y = ((texy - 1024u) >> uint(level)) & 1023u;
-        sheet = ((level & 1) != 0) != swap ? 1u : 0u; // texsheet[level & 1]
-        u >>= level;
-        v >>= level;
-        footprint *= 1.0 / float(1u << level);
-    }
-    if (((flags >> 5) & 1u) && (u & int(tex_width << 8)) != 0) u = ~u;
-    if (((flags >> 6) & 1u) && (v & int(tex_height << 8)) != 0) v = ~v;
-    // the upscaled texture (info.x bit 11), where this one is magnified on
-    // screen and the texture RAM holds the texels it was made from; a cut-out
-    // one only for a cut-out polygon
-    if (level == 0 && ((flags >> 11) & 1u) != 0u && max(footprint.x, footprint.y) < 1.0) {
-        const uint slots = (sheet * 2048u + (tex_y >> 5) * 64u + (tex_x >> 5)) * kHiresSlots * 2u;
-        const uint key = tex_width | (tex_height << 16) | (translucent ? kHiresCutout : 0u);
-        [unroll] for (uint k = 0u; k < kHiresSlots; ++k)
-            if (hires_index[slots + k * 2u + 1u] == key)
-                return hires_texel(hires_index[slots + k * 2u], tex_width, tex_height, u, v, flags, translucent);
-    }
+// The game's own texel at the mirrored (u, v) of a texture (raster.cpp).
+uint game_texel(uint flags, int u, int v, uint tex_x, uint tex_y, uint tex_width, uint tex_height, uint sheet,
+                bool translucent, float2 footprint) {
     u -= 0x80;
     v -= 0x80;
     uint ufrac = uint(u) & 0xffu;
@@ -290,6 +256,53 @@ uint fetch_texel(uint4 info, int level, int u, int v, bool translucent, float2 f
         if (t1x == 0xf0u) t1x = t0x & 0xffu;
     }
     return lerp8(t0x, t1x, vfrac);
+}
+
+uint fetch_texel(uint4 info, int level, int u, int v, bool translucent, float2 footprint) {
+    const uint flags = info.x;
+    const bool swap = (flags >> 10) & 1u;
+    uint tex_width, tex_height, tex_x, tex_y, sheet;
+    if (level == -1) {
+        tex_width = 128u;
+        tex_height = 128u;
+        tex_x = info.z & 0xffffu;
+        tex_y = info.z >> 16;
+        sheet = swap ? 0u : 1u; // texsheet[1]
+        const uint sh = 1u << ((flags >> 8) & 3u);
+        u <<= sh;
+        v <<= sh;
+        footprint *= float(1u << sh);
+    } else {
+        const uint texx = info.y & 0xffffu, texy = info.y >> 16;
+        tex_width = (32u << ((flags >> 17) & 7u)) >> uint(level);
+        tex_height = (32u << ((flags >> 20) & 7u)) >> uint(level);
+        tex_x = ((texx - 2048u) >> uint(level)) & 2047u;
+        tex_y = ((texy - 1024u) >> uint(level)) & 1023u;
+        sheet = ((level & 1) != 0) != swap ? 1u : 0u; // texsheet[level & 1]
+        u >>= level;
+        v >>= level;
+        footprint *= 1.0 / float(1u << level);
+    }
+    if (((flags >> 5) & 1u) && (u & int(tex_width << 8)) != 0) u = ~u;
+    if (((flags >> 6) & 1u) && (v & int(tex_height << 8)) != 0) v = ~v;
+    // the upscaled texture (info.x bit 11), where this one is magnified on
+    // screen and the texture RAM holds the texels it was made from; a cut-out
+    // one only for a cut-out polygon. Across the last quarter before the
+    // footprint reaches one texel it blends into the game's own texel, so
+    // the detail fades in along the road instead of starting at a line.
+    if (level == 0 && ((flags >> 11) & 1u) != 0u && max(footprint.x, footprint.y) < 1.0) {
+        const uint slots = (sheet * 2048u + (tex_y >> 5) * 64u + (tex_x >> 5)) * kHiresSlots * 2u;
+        const uint key = tex_width | (tex_height << 16) | (translucent ? kHiresCutout : 0u);
+        [unroll] for (uint k = 0u; k < kHiresSlots; ++k)
+            if (hires_index[slots + k * 2u + 1u] == key) {
+                const uint hi = hires_texel(hires_index[slots + k * 2u], tex_width, tex_height, u, v, flags, translucent);
+                const float w = saturate((1.0 - max(footprint.x, footprint.y)) * 4.0);
+                if (w >= 1.0) return hi;
+                const uint g = game_texel(flags, u, v, tex_x, tex_y, tex_width, tex_height, sheet, translucent, footprint);
+                return lerp8(g, hi, uint(w * 256.0 + 0.5));
+            }
+    }
+    return game_texel(flags, u, v, tex_x, tex_y, tex_width, tex_height, sheet, translucent, footprint);
 }
 
 // raster.cpp draw_tex_span's texel at (u, v) (8 fractional bits) for the
@@ -729,6 +742,36 @@ float4 ps_tiles_back(QuadOut i) : SV_Target { return tiles_back(i.pos.xy); }
 
 // The front layers, over the 3D layer: 3 to 0, the last drawn winning; holes
 // where none draws.
+// The front layers composed on the CPU (the HUD at the screen edges), drawn
+// smooth (smooth 2D): the same colour vote over the layer texture's texels,
+// one texel a logical pixel; its 0 pixels are holes.
+uint layer_key(int2 p, int2 dims) {
+    const float4 c = layer_tex.Load(int3(clamp(p, int2(0, 0), dims - 1), 0));
+    if (all(c == 0.0)) return 0u;
+    const uint3 b = uint3(c.rgb * 255.0 + 0.5);
+    return 0xff000000u | (b.r << 16) | (b.g << 8) | b.b;
+}
+
+float4 ps_quad_smooth(QuadOut i) : SV_Target {
+    uint w, h;
+    layer_tex.GetDimensions(w, h);
+    const int2 dims = int2(int(w), int(h));
+    const float2 lp = i.uv * float2(dims) - 0.5;
+    const float2 a = floor(lp);
+    const int2 at = int2(a);
+    const float soft = max(fwidth(lp.x), fwidth(lp.y)); // one output pixel, in texels
+    float4 c;
+    if (soft >= 1.0) { // not magnified: as ps_quad
+        c = layer_tex.Sample(layer_smp, i.uv);
+        if (all(c == 0.0)) discard;
+        return float4(c.rgb, 1.0);
+    }
+    c = smooth_vote(layer_key(at, dims), layer_key(at + int2(1, 0), dims), layer_key(at + int2(0, 1), dims),
+                    layer_key(at + int2(1, 1), dims), lp - a, soft);
+    if (c.a <= 0.0) discard;
+    return c;
+}
+
 // The front layers' colour at logical (x, y), 0xffRRGGBB, or 0 for a hole.
 uint front_at(int x, int y) {
     if (x < 0 || x >= kTileW || y < 0 || y >= kTileH) return 0u;

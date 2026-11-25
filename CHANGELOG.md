@@ -20,6 +20,25 @@ rule 14); each version has its section here.
   from its switches, so placed before `--dump DIR --every N` it failed, and
   elsewhere it could swallow an option. Each option now takes its own
   argument count; the switch first and last give identical frames (21).
+- **High-resolution detail fades in:** the shader switched from the game's
+  texel to the upscaled one where a texture's footprint reached one texel:
+  a line across the road, fixed on screen, where the grain began (6 to 9 %
+  of the pixels a frame). Across the last quarter before it the two now
+  blend. 3840 x 2160, MSAA 4x, pack on: renderer CPU 0.16 -> 0.19 ms.
+- **Smooth menus and HUD at the screen edges:** with "HUD at the screen
+  edges" the front layers are composed on the CPU and drawn as a texture,
+  without the smoothing; they now take the same colour vote, their edges
+  blended. With smoothing off that path is unchanged.
+- **Opponents' shadows:** a car's faces went to the near or far cascade
+  each by its own depth, so a car crossing 40 units had its shadow split
+  between two sharpnesses; now a whole car goes to one cascade.
+- **The pack's index refresh:** each texture RAM change hashed every entry
+  again (124 refreshes in 9,000 frames, in bursts of 31 to 61 frames at the
+  loads, 4.8 ms each). A copy of the RAM as last checked now tells which
+  32 x 32 cells changed and only the entries over them are hashed: 0.46 ms
+  on average (max 1.4 ms), 7 of 360 entries; a full check only at the
+  pack's first frame. Test: after 50 rounds of random writes the index
+  equals a full rebuild. `M2_HIRES_TRACE=FILE` logs each refresh.
 - **The race's speed check** (whether the graphics card kept up) also runs
   with only sharp car textures, smooth menus and HUD, the texture pack,
   bloom or the arcade monitor on.

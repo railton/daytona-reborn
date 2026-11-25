@@ -58,7 +58,7 @@ public:
     void set_car_textures(bool sharp) { sharp_car_textures_ = sharp; }
     // Smooth 2D (an enhancement): the tilemap layers (menus, HUD, text)
     // magnified with smooth curves and diagonals instead of square pixels
-    // (m2.hlsl smooth_vote); not the CPU front layers (HUD at the edges).
+    // (m2.hlsl smooth_vote), the CPU's front layers (HUD at the edges) too.
     void set_smooth_2d(bool on) { smooth_2d_ = on; }
     // no high-resolution textures any more (load_hires_textures loads a pack)
     void clear_hires_textures();
@@ -220,6 +220,7 @@ private:
     bool hires_data_uploaded_ = false;
     uint64_t hires_generation_ = ~0ull; // the texture RAM generation hires_index_ was checked against
     bool hires_index_ready_ = false;    // hires_index_ holds that generation's index on the GPU
+    hires::Indexer hires_indexer_;      // keeps the index up to date, rehashing what changed
     size_t hires_live_ = 0;
     std::vector<uint32_t> hires_words_;
     void hires_upload(SDL_GPUCommandBuffer *cmd, const rt::VideoMem &mem);
@@ -233,7 +234,8 @@ private:
     };
 
     SDL_GPUDevice *dev_ = nullptr;
-    SDL_GPUGraphicsPipeline *poly_pipe_ = nullptr, *quad_pipe_ = nullptr, *back_pipe_ = nullptr, *front_pipe_ = nullptr;
+    SDL_GPUGraphicsPipeline *poly_pipe_ = nullptr, *quad_pipe_ = nullptr, *back_pipe_ = nullptr, *front_pipe_ = nullptr,
+                            *quad_smooth_pipe_ = nullptr;
     SDL_GPUSampler *sampler_ = nullptr;
     SDL_GPUTexture *front_ = nullptr; // the front layers from the CPU (HUD at the edges)
     SDL_GPUTexture *depth_ = nullptr;

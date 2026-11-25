@@ -3,6 +3,7 @@
 #include "app/gpu/hires_textures.h"
 #include "app/hires_maker.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <filesystem>
@@ -114,6 +115,43 @@ int main() {
     {
         Pack p;
         check(!p.load((std::filesystem::temp_directory_path() / "test_hires_missing.m2tex").string()), "no file");
+    }
+
+    // the incremental index equals the full one as texture RAM changes
+    {
+        std::vector<Spec> many;
+        for (uint32_t i = 0; i < 40; ++i) {
+            const uint32_t sheet = i & 1, x = (i * 96) % 1984, y = (i * 160) % 960, w = 32u << (i % 3), h = 32u << ((i / 3) % 2);
+            const uint32_t cx = std::min(x, 2048 - w) / 32 * 32, cy = std::min(y, 1024 - h) / 32 * 32;
+            many.push_back({sheet, cx, cy, w, h, 0, hash(sheet ? tex1.data() : tex0.data(), cx, cy, w, h)});
+        }
+        many.push_back({0, 1024 - 32, 64, 64, 32, 0, hash(tex0.data(), 1024 - 32, 64, 64, 32)}); // across the fold at 1024
+        Pack big;
+        check(big.load(write("test_hires_many.m2tex", make_pack(many))), "a pack of 41 loads");
+        Indexer indexer;
+        std::vector<uint32_t> full, incremental;
+        indexer.refresh(big, tex0.data(), tex1.data(), incremental);
+        big.index(tex0.data(), tex1.data(), full);
+        check(full == incremental, "the first refresh equals the full index");
+        uint32_t seed = 12345;
+        bool all_equal = true, fewer = true;
+        for (int round = 0; round < 50; ++round) {
+            for (int k = 0; k < 1 + round % 5; ++k) { // a few writes, anywhere
+                seed = seed * 1664525u + 1013904223u;
+                auto &sheet = (seed >> 31) ? tex1 : tex0;
+                sheet[(seed >> 8) % kSheetWords] ^= 1u << ((seed >> 3) % 32);
+            }
+            const size_t a = indexer.refresh(big, tex0.data(), tex1.data(), incremental);
+            const size_t b = big.index(tex0.data(), tex1.data(), full);
+            all_equal &= a == b && full == incremental;
+            fewer &= indexer.last_rehashed() <= big.entries.size();
+        }
+        check(all_equal, "after random writes the incremental index equals the full one");
+        check(fewer, "the incremental index hashes at most every entry");
+        Indexer quiet;
+        quiet.refresh(big, tex0.data(), tex1.data(), incremental);
+        quiet.refresh(big, tex0.data(), tex1.data(), incremental);
+        check(quiet.last_rehashed() == 0, "nothing changed: nothing hashed again");
     }
 
     // the maker's progress lines and the Dockerfile's base image
