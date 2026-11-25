@@ -283,7 +283,19 @@ folder. What differed from the Camaro, and what to reuse:
   its position on the lamp (mirrored on the left). Front and back lamps sit
   at nearly the same x and y: the kind is chosen by the end of the car
   first. A lamp found from every saturated face around it took in the
-  bumper and paint (an ellipse of 0.3 m): only the lens's own depth counts. Wider arches, a ducktail and a diffuser
+  bumper and paint (an ellipse of 0.3 m): only the lens's own depth counts.
+- **The rear rebuilt to match the picture.** Painting over the model's own
+  parts kept their shapes (round lamp housings with notches, a bumper with
+  overriders and tubes), so they are replaced with new geometry: each tail
+  lamp an oval dome (16 x 22 cm, on the model's lens and facing as it does,
+  a black skirt back into the wing), textured with the lamp's own cell
+  (red, an amber band, a bright core, a clear reversing lens); a straight
+  gloss-black bar with red LED inserts in place of the bumper; a two-sided
+  black ducktail lip along the engine lid (its root found by rays from
+  behind). Vertical vents under the window, slats on the lid, and the
+  plate painted over. New faces are wound outward by a helper that checks
+  each one's normal against the direction it should face. 19,934 faces,
+  game + renderer CPU median 6.9 ms in the benchmark. Wider arches, a ducktail and a diffuser
   would need new geometry and were left out.
 - **A straight wheel.** The model's front wheels are steered about 9
   degrees: spun about the game's axle, that one wobbled. The rear wheel is
