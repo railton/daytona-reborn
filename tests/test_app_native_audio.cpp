@@ -4,6 +4,7 @@
 #include "../src/app/native_audio.h"
 #include <cassert>
 #include <condition_variable>
+#include <cstdio>
 #include <mutex>
 #include <stdexcept>
 #include <thread>

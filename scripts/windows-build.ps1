@@ -33,6 +33,16 @@ Start-Transcript -Path (Join-Path $root 'windows-build.log') -Append | Out-Null
 
 function Say([string]$text) { Write-Host ''; Write-Host "== $text" -ForegroundColor Cyan }
 
+# A program run so that its output reaches windows-build.log: Windows
+# PowerShell 5.1's transcript does not record what programs write to the
+# console themselves, so the compiler's errors were only on screen. cmd merges
+# the program's errors into its output (no line becomes a PowerShell error
+# under 'Stop'); Python prints as it goes. $LASTEXITCODE is the program's.
+function Run-Logged([string]$command) {
+    $env:PYTHONUNBUFFERED = '1'
+    & cmd /c "$command 2>&1" | Out-Host
+}
+
 # The tools, pinned (update URL and SHA-256 together). Inner: the folder the
 # archive holds them in, if any. Bin: where the executables are.
 $tools = @(
@@ -53,6 +63,29 @@ $tools = @(
        Sha = '4a92850b6e917da4fd010669b614b55dccf5b0ec333a534cc4be4700dfefdafd'; Inner = '' }
 )
 
+# A download, retried: Windows PowerShell 5.1's Invoke-WebRequest can fail
+# mid-way on a large file ("the decryption operation failed", a connection
+# dropped or inspected by an antivirus), so it is tried three times, then
+# with Windows' own curl.exe (Windows 10 1803 and later), which resumes and
+# retries by itself. The caller checks the file's SHA-256 either way.
+function Get-Download([string]$url, [string]$out) {
+    for ($try = 1; $try -le 3; $try++) {
+        try {
+            Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $out
+            return
+        } catch {
+            Write-Host "     try $try failed: $($_.Exception.Message)"
+            if (Test-Path $out) { Remove-Item $out -Force }
+            Start-Sleep -Seconds (2 * $try)
+        }
+    }
+    $curl = Join-Path $env:SystemRoot 'System32\curl.exe'
+    if (-not (Test-Path $curl)) { throw "Downloading $url failed three times, and this Windows has no curl.exe." }
+    Write-Host '     trying with curl.exe...'
+    & $curl --fail --location --retry 5 --retry-delay 3 --retry-all-errors --continue-at - --output $out $url
+    if ($LASTEXITCODE -ne 0) { throw "Downloading $url failed (Invoke-WebRequest three times, then curl.exe exit $LASTEXITCODE): check the connection, or an antivirus or proxy inspecting HTTPS." }
+}
+
 function Get-Tool($t) {
     $dest = Join-Path $toolsDir $t.Dir
     $stamp = Join-Path $dest '.sha256'
@@ -65,7 +98,7 @@ function Get-Tool($t) {
     $good = (Test-Path $zip) -and ((Get-FileHash -Algorithm SHA256 $zip).Hash.ToLower() -eq $t.Sha)
     if (-not $good) {
         Write-Host "   $($t.Name): downloading..."
-        Invoke-WebRequest -UseBasicParsing -Uri $t.Url -OutFile $zip
+        Get-Download $t.Url $zip
         $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLower()
         if ($hash -ne $t.Sha) {
             Remove-Item $zip -Force
@@ -97,7 +130,7 @@ try {
     if ($Update) {
         Say 'Fetching the latest source'
         if (Test-Path (Join-Path $root '.git')) {
-            & git pull --ff-only
+            Run-Logged 'git pull --ff-only'
             if ($LASTEXITCODE -ne 0) { throw 'git pull failed (local changes?). The build was not started.' }
         } else {
             Write-Host 'This folder is not a git clone: download the new release instead.'
@@ -107,7 +140,7 @@ try {
     Say 'Your ROM set'
     $roms = Join-Path $root 'roms'
     New-Item -ItemType Directory -Path $roms -Force | Out-Null
-    $have = @('daytona.zip', 'daytona.7z') | Where-Object { Test-Path (Join-Path $roms $_) }
+    $have = @(@('daytona.zip', 'daytona.7z') | Where-Object { Test-Path (Join-Path $roms $_) }) # an array even for one
     if (-not $have) {
         Write-Host 'Choose your Daytona USA ROM set: Revision A, 1994 (MAME''s "daytona", a .zip or .7z).'
         Add-Type -AssemblyName System.Windows.Forms
@@ -123,15 +156,15 @@ try {
     }
 
     Say 'Libraries (pinned, into extern\)'
-    & python scripts\setup.py --no-build
+    Run-Logged 'python scripts\setup.py --no-build'
     if ($LASTEXITCODE -ne 0) { throw 'Fetching the libraries failed (see above).' }
 
     Say 'Recompiling the game from your ROM set and building it (10 to 40 minutes the first time)'
     if (-not (Test-Path (Join-Path $buildDir 'CMakeCache.txt'))) {
-        & cmake -S . -B $buildDir -G Ninja -DCMAKE_BUILD_TYPE=Release -DM2_ROMSET=daytona
+        Run-Logged "cmake -S . -B $buildDir -G Ninja -DCMAKE_BUILD_TYPE=Release -DM2_ROMSET=daytona"
         if ($LASTEXITCODE -ne 0) { throw 'CMake could not configure the build (see above).' }
     }
-    & python scripts\recompile.py --set daytona --build-dir $buildDir
+    Run-Logged "python scripts\recompile.py --set daytona --build-dir $buildDir"
     if ($LASTEXITCODE -eq 3) { throw 'Your ROM set was rejected: the "m2import:" line above names the file that is missing or wrong. It must be MAME''s "daytona" (Revision A, 1994).' }
     if ($LASTEXITCODE -ne 0) { throw 'The build failed (the errors are above, and in windows-build.log).' }
 
