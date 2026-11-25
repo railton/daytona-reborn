@@ -4,6 +4,41 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`). The
 fork's version is in `VERSION`, raised with every code change (rules.md
 rule 14); each version has its section here.
 
+## Unreleased (version to be decided)
+
+### A custom body for the player's car (experimental)
+
+Settings > Enhancements > Player's car draws a body from the data folder's
+`cars/NAME/` (or `M2_PLAYER_BODY=FOLDER`) in place of the player's car body,
+with the hardware renderer (docs/CUSTOM-CARS.md). Only the look changes; the
+game's wheels, light, shadow and physics stay, and online the others see
+the game's car.
+
+- The body's faces are lit by the game's own light: each frame the game
+  car's faces fit luma = a + w . n (their object-space normals and the luma
+  the game gave them), which lights the new faces by their normals. They
+  keep the game car's identity, so smooth shading, the sky reflection and
+  the car shadow (its own outline) apply too.
+- Surface roles: 6 glass (15 % reflection, the sun's glint too), 7 and 8
+  matte (wheel wells, grille mesh, spoilers). The game's own window
+  reflection (an overlay of oba 4, texture 0x4409/7064 on the glass's
+  projection) is dropped with the glass: it made the new glass a mirror.
+- The game's wheels are drawn 10 % bigger with a custom body, standing on
+  the same ground, so they stand proud of the new body as on the game's car.
+- Up to 32768 faces for the player's body (opponents: 1024); its faces turned away from the camera still cast the shadow (the sun sees them).
+- Its own wheels (optional `wheel.m2car`, `M2WHEEL1`): one wheel in the
+  game wheel's space (hub at 0, axle along x, outer face +x), drawn on each
+  of the game's four wheels through their matrices, so they spin and
+  steer; mirrored for the left, raised to stand on the same ground, its
+  textures the atlas's second body.
+- The mission select screen's two turning cars (not keyed: known by their
+  ROM objects) take the body and wheels too, each lit by its own game light
+  over the brightest's, so the car not chosen stays dimmed as the game's.
+- Known limits: the cockpit view (VR2) still shows the game car's hood.
+- Checked with a 22,586-face body made from a third-party model (kept local,
+  its licence's): no flicker between consecutive frames, the shadow with its
+  outline, the numbers upright from every camera.
+
 ## 0.21.0 (2026-11-25)
 
 ### Fixes from an external graphics review

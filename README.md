@@ -87,6 +87,9 @@ From Daytona Reborn beta 0.10, kept in this repository:
   model best at its kind (lettering, natural surfaces, the road); cut-out
   textures keep crisp outlines. Made from Settings > AI textures (Linux with
   Docker for now); what it needs: [docs/HIRES-TEXTURES.md](docs/HIRES-TEXTURES.md).
+- **A custom body for your car (experimental):** a body you made (or
+  converted from a model you may use) in place of your car's, lit by the
+  game's light, on the game's wheels; see [docs/CUSTOM-CARS.md](docs/CUSTOM-CARS.md).
 - **Controls** for keyboard, gamepads, wheels and pedals, with analogue axes
   and force feedback (experimental).
 - **Languages:** English, French, Brazilian Portuguese.

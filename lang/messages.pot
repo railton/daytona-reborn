@@ -933,6 +933,12 @@ msgstr ""
 msgid "The game's 2D pictures (menus, speedometer, lap times, results) get smooth curves and diagonals at high resolution instead of square pixels. Their colours and dithering stay the game's."
 msgstr ""
 
+msgid "Player's car (experimental)"
+msgstr ""
+
+msgid "A car body you made, in a folder of %scars (docs/CUSTOM-CARS.md). The game's wheels, light and handling are kept. Takes effect at the next start."
+msgstr ""
+
 msgid "Car shadows"
 msgstr ""
 

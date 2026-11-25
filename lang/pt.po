@@ -973,6 +973,12 @@ msgstr "Menus e HUD suaves"
 msgid "The game's 2D pictures (menus, speedometer, lap times, results) get smooth curves and diagonals at high resolution instead of square pixels. Their colours and dithering stay the game's."
 msgstr "As imagens 2D do jogo (menus, velocímetro, tempos de volta, resultados) ganham curvas e diagonais suaves em alta resolução, em vez de pixels quadrados. As cores e o pontilhado continuam os do jogo."
 
+msgid "Player's car (experimental)"
+msgstr "Carro do jogador (experimental)"
+
+msgid "A car body you made, in a folder of %scars (docs/CUSTOM-CARS.md). The game's wheels, light and handling are kept. Takes effect at the next start."
+msgstr "Uma carroceria feita por você, numa pasta de %scars (docs/CUSTOM-CARS.md). As rodas, a luz e a dirigibilidade continuam as do jogo. Vale a partir da próxima vez que o jogo abrir."
+
 msgid "Car shadows"
 msgstr "Sombra dos carros"
 

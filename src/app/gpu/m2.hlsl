@@ -325,7 +325,7 @@ uint sample_tex(uint4 info, int mml, int u, int v, bool translucent, float2 foot
 // A car's paint (an enhancement, info.x bit 30): the sky and the ground
 // reflected, more at grazing angles (Schlick's Fresnel), and the sun as a
 // highlight, from the corners' normals blended across the face.
-float3 car_paint(float3 base, PolyOut i) {
+float3 car_paint(float3 base, PolyOut i, float strength = 1.0) {
     const float3 q = i.position_oz / i.oz.x;
     const float3 p = float3(q.xy, abs(q.z)); // z is negative on a car (no shadows on it)
     const float3 n = normalize(i.normal_oz);
@@ -351,8 +351,8 @@ float3 car_paint(float3 base, PolyOut i) {
         env = r.y >= 0.0 ? lerp(horizon, zenith, sqrt(saturate(r.y)))
                          : lerp(horizon * 0.8, ground, saturate(-r.y * 4.0));
     }
-    float3 c = lerp(base, env, 0.02 + 0.6 * fresnel); // little head on, more at grazing angles
-    c += pow(saturate(dot(r, car_light.sun.xyz)), 96.0) * float3(1.0, 0.96, 0.88) * 0.9;
+    float3 c = lerp(base, env, (0.02 + 0.6 * fresnel) * strength); // little head on, more at grazing angles
+    c += pow(saturate(dot(r, car_light.sun.xyz)), 96.0) * float3(1.0, 0.96, 0.88) * 0.9 * strength;
     return saturate(c);
 }
 
@@ -391,7 +391,19 @@ float4 ps_poly(PolyOut i) : SV_Target {
     const float2 uv = i.oz.yz * z;
     // The 2x render has two raster pixels per output pixel per axis.
     const float2 footprint = 2.0 * (abs(ddx(uv)) + abs(ddy(uv)));
-    if ((flags & (1u << 24)) != 0u) return opponent_paint(uv, footprint, i.info.y, i.info.z);
+    if ((flags & (1u << 24)) != 0u) { // a local car body: the player's lit as the game's cars (bits 29, 30)
+        const bool smooth = ((flags >> 29) & 1u) != 0u, reflective = ((flags >> 30) & 1u) != 0u;
+        const uint shade = smooth ? uint(clamp(i.light_oz / i.oz.x + 0.5, 0.0, 255.0)) : i.info.z;
+        const float4 c = opponent_paint(uv, footprint, i.info.y, shade);
+        if (!smooth && !reflective) return c;
+        // a player body's surfaces by role (OpponentBodies, after the
+        // opponents' 30 textures): its glass (6) reflects 15 % as much (sky and sun),
+        // dark tinted; its wheel wells (7) and matte dark parts (8: the
+        // grille's mesh, spoilers) reflect nothing
+        const uint surface = i.info.y >= 30u ? (i.info.y - 30u) % 10u : 0u;
+        const float strength = surface == 6u ? 0.15 : (surface == 7u || surface == 8u) ? 0.0 : 1.0;
+        return float4((reflective && strength > 0.0 ? car_paint(c.rgb, i, strength) : c.rgb) * car_shadow_light(i), 1.0);
+    }
     if ((flags >> 2) & 1u) { // checker: the rasterizer draws pixels with (x ^ y) odd
         const uint2 p = uint2(i.pos.xy);
         if (((p.x ^ p.y) & 1u) == 0u) discard;

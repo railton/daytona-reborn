@@ -39,6 +39,10 @@ public:
     // cannot (msaa()). Not with the ray-traced shadows (their passes read
     // the depth of single-sample pixels).
     bool init(SDL_GPUDevice *dev, SDL_GPUTextureFormat format, int msaa = 1);
+    // The player's car body (experimental, app/gpu/opponent_bodies.h): a
+    // folder with bodies.m2car and liveries.rgba, read by the next init();
+    // "" the game's own car. M2_PLAYER_BODY wins.
+    void set_player_body(const std::string &directory) { player_body_dir_ = directory; }
     int msaa() const { return msaa_; }
     // Texture filtering (an enhancement): 1 the game's own (the exact path),
     // 2 to 16 anisotropic: on surfaces seen at a grazing angle (the road, the
@@ -249,7 +253,10 @@ private:
     SDL_GPUBuffer *vbuf_ = nullptr, *qbuf_ = nullptr;
     // storage buffers: texture RAM (both sheets), luma RAM, colour translation with gamma
     SDL_GPUBuffer *texram_ = nullptr, *luma_ = nullptr, *xlat_ = nullptr;
-    OpponentBodies opponent_bodies_;
+    OpponentBodies opponent_bodies_, player_body_;
+    bool have_opponents_ = false, have_player_ = false;
+    std::string player_body_dir_;
+    std::vector<uint8_t> atlas_cpu_; // the opponents' atlas (or blank), then the player's
     SDL_GPUBuffer *opponent_atlas_ = nullptr;
     bool opponent_atlas_uploaded_ = false;
     uint64_t texram_generation_ = ~0ull; // the texture RAM generation texram_ holds

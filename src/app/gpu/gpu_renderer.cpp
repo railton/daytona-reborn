@@ -303,13 +303,30 @@ bool GpuRenderer::init(SDL_GPUDevice *dev, SDL_GPUTextureFormat format, int msaa
     sb.usage = SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ;
     sb.size = kTexramBytes;
     texram_ = SDL_CreateGPUBuffer(dev_, &sb);
+    // local car bodies (experimental): the opponents' (M2_OPPONENT_BODIES)
+    // and the player's (M2_PLAYER_BODY, its atlas after the opponents')
     if (const char *directory = std::getenv("M2_OPPONENT_BODIES"); directory && *directory) {
-        if (opponent_bodies_.load(directory)) {
-            sb.size = OpponentBodies::atlas_bytes;
-            opponent_atlas_ = SDL_CreateGPUBuffer(dev_, &sb);
-        }
+        have_opponents_ = opponent_bodies_.load(directory);
         std::fprintf(stderr, "daytona: local opponent bodies %s\n",
-                     opponent_atlas_ ? "loaded" : "unavailable, keeping original bodies");
+                     have_opponents_ ? "loaded" : "unavailable, keeping original bodies");
+    }
+    const char *player_env = std::getenv("M2_PLAYER_BODY");
+    const std::string player_dir = player_env && *player_env ? std::string(player_env) : player_body_dir_;
+    have_player_ = false;
+    player_body_ = OpponentBodies{};
+    if (!player_dir.empty()) {
+        const std::string directory = player_dir;
+        have_player_ = player_body_.load(directory, 32768);
+        if (have_player_) player_body_.set_player(OpponentBodies::kPlayerTextureBase); // after the opponents' 3 x 10
+        std::fprintf(stderr, "daytona: local player body %s\n",
+                     have_player_ ? "loaded" : "unavailable, keeping the original car");
+    }
+    if (have_opponents_ || have_player_) {
+        atlas_cpu_ = have_opponents_ ? opponent_bodies_.atlas() : std::vector<uint8_t>(OpponentBodies::atlas_bytes, 0);
+        if (have_player_) atlas_cpu_.insert(atlas_cpu_.end(), player_body_.atlas().begin(), player_body_.atlas().end());
+        sb.size = uint32_t(atlas_cpu_.size());
+        opponent_atlas_ = SDL_CreateGPUBuffer(dev_, &sb);
+        if (!opponent_atlas_) have_opponents_ = have_player_ = false;
     }
     sb.size = kLumaBytes;
     luma_ = SDL_CreateGPUBuffer(dev_, &sb);
@@ -433,7 +450,7 @@ bool GpuRenderer::ensure(int w, int h, int pixel_w, int pixel_h, uint32_t vert_b
         if (!vbuf_) return false;
     }
     const uint32_t need = uint32_t(w) * uint32_t(h) * 4 + uint32_t(sizeof(QuadVertex) * 6) + vert_bytes +
-                          kTexramBytes + kLumaBytes + kXlatEntries * 4 + kTilePixBytes + kSkyBytes + kTileDataWords * 4 + (opponent_atlas_ && !opponent_atlas_uploaded_ ? OpponentBodies::atlas_bytes : 0);
+                          kTexramBytes + kLumaBytes + kXlatEntries * 4 + kTilePixBytes + kSkyBytes + kTileDataWords * 4 + (opponent_atlas_ && !opponent_atlas_uploaded_ ? uint32_t(atlas_cpu_.size()) : 0);
     if (need > upload_size_) {
         if (upload_) SDL_ReleaseGPUTransferBuffer(dev_, upload_);
         upload_size_ = need * 2;
@@ -484,7 +501,11 @@ void GpuRenderer::shade_cars(const std::vector<rt::GeoPoly> &polys) {
     std::unordered_map<Key, std::vector<uint32_t>, KeyHash> shared;
     for (size_t i = 0; i < polys.size(); ++i) {
         const rt::GeoPoly &p = polys[i];
-        if (!p.mobile_key.part || p.num_vertices < 3 || p.local_texture || rt::Geo::hud_overlay_address(p.object_oba))
+        // (the opponents' local bodies are not lit; the player's are: their
+        // textures come after the opponents', OpponentBodies::set_player)
+        const bool opponent_local = p.local_texture && p.local_texture <= OpponentBodies::kPlayerTextureBase;
+        if (!p.mobile_key.part || p.num_vertices < 3 || opponent_local || rt::Geo::hud_overlay_address(p.object_oba) ||
+            p.local_texture == OpponentBodies::kShadowOnlyTexture)
             continue;
         float pos[8][3], c[3] = {0, 0, 0}, n[3] = {0, 0, 0};
         for (int k = 0; k < p.num_vertices; ++k) {
@@ -691,6 +712,10 @@ void GpuRenderer::build(const rt::Video &video, int w, int h, int scale, bool sh
     for (size_t i : order_) {
         const rt::GeoPoly &poly = polys[i];
         if (poly.window > windows || poly.num_vertices < 3) continue;
+        if (poly.local_texture == OpponentBodies::kShadowOnlyTexture) { // a shadow caster only, never drawn
+            if (have_car_camera && car_shadows_) casters_now_.push_back(i);
+            continue;
+        }
         const int renderer = (poly.texheader[0] >> 13) & 3;
         if (renderer == 1) continue; // translucent solid: the rasterizer draws nothing
         // the game's own shadow under the player's car (its flat checker part
@@ -803,10 +828,11 @@ void GpuRenderer::build(const rt::Video &video, int w, int h, int scale, bool sh
         }
         // a car's opaque faces near the camera cast them (not its see-through
         // ones: the game's own checker shadow under it, the windows)
-        if (have_car_camera && car >= 0 && !poly.local_texture && !((material.info[0] >> 2) & 1u) &&
+        const bool opponent_local = poly.local_texture && poly.local_texture <= OpponentBodies::kPlayerTextureBase;
+        if (have_car_camera && car >= 0 && !opponent_local && !((material.info[0] >> 2) & 1u) &&
             (material.info[0] & 3u) != 3u)
             casters_now_.push_back(i);
-        if (car >= 0 && !poly.local_texture) {
+        if (car >= 0 && !opponent_local) {
             if (smooth_cars_) material.info[0] |= 1u << 29;
             if (sharp_car_textures_) material.info[0] |= 1u << 31;
             // the paint only: the bodies (the player's car 0x7d68 and its
@@ -966,7 +992,9 @@ bool GpuRenderer::render(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *target, int 
     const int output_h = sharp_textures ? pixel_h / 2 : pixel_h;
     const int lod_scale = std::clamp(int(std::lround(double(output_h) / h)), 1, 4);
     const auto &original = pose_polys ? *pose_polys : video.gpu_polys();
-    const auto *replacement = opponent_atlas_ ? opponent_bodies_.replace(original) : nullptr;
+    const auto *replacement = have_opponents_ ? opponent_bodies_.replace(original) : nullptr;
+    if (have_player_)
+        if (const auto *player = player_body_.replace(replacement ? *replacement : original)) replacement = player;
     // before build(): its materials ask for the pack only once it is on the GPU
     if (!hires_.entries.empty()) hires_upload(cmd, video.gpu_mem());
     build(video, w, h, lod_scale, sharp_textures, replacement ? *replacement : original);
@@ -1076,7 +1104,7 @@ bool GpuRenderer::render(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *target, int 
     const bool upload_opponents = opponent_atlas_ && !opponent_atlas_uploaded_;
     const uint32_t opponent_at = tiledata_at + kTileDataWords * 4;
     if (upload_opponents)
-        std::memcpy(p + opponent_at, opponent_bodies_.atlas().data(), OpponentBodies::atlas_bytes);
+        std::memcpy(p + opponent_at, atlas_cpu_.data(), atlas_cpu_.size());
     SDL_UnmapGPUTransferBuffer(dev_, upload_);
 
     SDL_GPUCopyPass *copy = SDL_BeginGPUCopyPass(cmd);
@@ -1111,7 +1139,7 @@ bool GpuRenderer::render(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *target, int 
     if (sky_upload) upload_buffer(sky_at, tilepix_, kTilePixBytes, kSkyBytes, false);
     upload_buffer(tiledata_at, tiledata_, 0, kTileDataWords * 4);
     if (upload_opponents) {
-        upload_buffer(opponent_at, opponent_atlas_, 0, OpponentBodies::atlas_bytes);
+        upload_buffer(opponent_at, opponent_atlas_, 0, uint32_t(atlas_cpu_.size()));
         opponent_atlas_uploaded_ = true;
     }
     SDL_EndGPUCopyPass(copy);

@@ -1046,6 +1046,9 @@ int main(int argc, char **argv) {
     app::GpuRenderer gpu;
     const char *shadows_env = std::getenv("M2_DXR_SHADOWS");
     const bool shadows_asked = shadows_env ? shadows_env[0] == '1' : cfg.sun_shadows;
+    // the player's car (experimental, Settings > Enhancements): a body from
+    // <pref dir>/cars/NAME/, read at the start
+    if (!cfg.player_car.empty()) gpu.set_player_body(app::Config::pref_dir() + "cars/" + cfg.player_car);
     if (!gpu.init(dev, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM, shadows_asked ? 1 : cfg.msaa))
         std::fprintf(stderr, "daytona: hardware renderer unavailable: %s\n", gpu.error().c_str());
     else if (cfg.renderer == "hardware" && (cfg.msaa > 1 || cfg.aniso > 1))
@@ -2042,7 +2045,8 @@ int main(int argc, char **argv) {
         { // the image quality, in the session's first race: did the graphics card keep up?
             const bool enhanced = cfg.uses_native_resolution() || cfg.supersampling > 1 || cfg.msaa > 1 || cfg.aniso > 1 ||
                                   cfg.smooth_cars || cfg.car_reflections || cfg.car_shadows || cfg.sharp_car_textures ||
-                                  cfg.smooth_2d || cfg.hires_textures || hires_from_env || cfg.bloom || cfg.crt_filter;
+                                  cfg.smooth_2d || cfg.hires_textures || hires_from_env || !cfg.player_car.empty() ||
+                                  cfg.bloom || cfg.crt_filter;
             const bool racing = hardware && !in_launcher && enhanced &&
                                 game->board().read_byte(rt::online::AutoEntry::mode_address) == rt::online::CourseSync::race;
             if (!racing) speed_check.interrupt();

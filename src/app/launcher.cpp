@@ -1109,6 +1109,36 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
                 if (ImGui::Checkbox(TX("Smooth menus and HUD"), &cfg_.smooth_2d)) cfg_.save();
                 hint(TX("The game's 2D pictures (menus, speedometer, lap times, results) get smooth curves and diagonals "
                         "at high resolution instead of square pixels. Their colours and dithering stay the game's."));
+#ifndef M2_MOBILE
+                { // the player's car (experimental): a body from <data folder>/cars/NAME/
+                    static std::vector<std::string> cars;
+                    static double listed = -1;
+                    if (ImGui::GetTime() - listed > 2.0 || listed < 0) { // the folder, again now and then
+                        listed = ImGui::GetTime();
+                        cars.clear();
+                        std::error_code ec;
+                        for (const auto &e : std::filesystem::directory_iterator(Config::pref_dir() + "cars", ec))
+                            if (e.is_directory(ec) && std::filesystem::exists(e.path() / "bodies.m2car", ec))
+                                cars.push_back(e.path().filename().string());
+                        std::sort(cars.begin(), cars.end());
+                    }
+                    ImGui::TextUnformatted(TX("Player's car (experimental)"));
+                    ImGui::SetNextItemWidth(std::min(360.f * scale, ImGui::GetContentRegionAvail().x));
+                    const std::string current = cfg_.player_car.empty() ? std::string(TX("The game's own")) : cfg_.player_car;
+                    if (ImGui::BeginCombo("##player_car", current.c_str())) {
+                        if (ImGui::Selectable(TX("The game's own"), cfg_.player_car.empty())) cfg_.player_car.clear(), cfg_.save();
+                        for (const auto &c : cars)
+                            if (ImGui::Selectable(c.c_str(), c == cfg_.player_car)) cfg_.player_car = c, cfg_.save();
+                        ImGui::EndCombo();
+                    }
+                    char where[1200];
+                    std::snprintf(where, sizeof where,
+                                  TX("A car body you made, in a folder of %scars (docs/CUSTOM-CARS.md). The game's wheels, "
+                                     "light and handling are kept. Takes effect at the next start."),
+                                  Config::pref_dir().c_str());
+                    hint("%s", where);
+                }
+#endif
                 if (ImGui::Checkbox(TX("Car shadows"), &cfg_.car_shadows)) cfg_.save();
                 hint(TX("The cars near the camera cast shadows from the game's sun on the road and the walls. Any graphics card."));
                 ImGui::Indent();

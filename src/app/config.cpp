@@ -61,6 +61,7 @@ void Config::read(std::istream &f) {
         else if (k == "crt_filter") crt_filter = v == "1";
         else if (k == "smooth_2d") smooth_2d = v == "1";
         else if (k == "hires_textures") hires_textures = v == "1";
+        else if (k == "player_car") player_car = v.find_first_of("/\\") == std::string::npos && v != ".." ? v : "";
         else if (k == "hires_processor") hires_processor = v == "1";
         else if (k == "quality_checked") quality_checked = v == "1";
         else if (k == "sun_shadows") sun_shadows = v == "1";
@@ -179,6 +180,7 @@ void Config::write(std::ostream &f) const {
     f << "crt_filter=" << (crt_filter ? 1 : 0) << "\n";
     f << "smooth_2d=" << (smooth_2d ? 1 : 0) << "\n";
     f << "hires_textures=" << (hires_textures ? 1 : 0) << "\n";
+    f << "player_car=" << player_car << "\n";
     f << "hires_processor=" << (hires_processor ? 1 : 0) << "\n";
     f << "quality_checked=" << (quality_checked ? 1 : 0) << "\n";
     f << "sun_shadows=" << (sun_shadows ? 1 : 0) << "\n";
