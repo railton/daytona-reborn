@@ -257,6 +257,17 @@ folder. What differed from the Camaro, and what to reuse:
   under the game's light and sky reflection; its paint texels are turned
   7 degrees towards yellow, their saturation x1.25 and value x1.10
   (`fusca.py GLB OUT warm`).
+- **A style from reference pictures** (`fusca.py GLB OUT tuned`): two
+  pictures of a customised Beetle were matched with the textures and small
+  changes only: one clean glossy yellow over every paint texel (wear and
+  rust painted over), every chrome face (bright, grey) baked black
+  (bumpers, mirrors, handles, emblems, bezels) through a per-face colour
+  override, three black stripes between the arches, round headlamps
+  (found as the bright or glass faces facing ahead on the wings) redrawn
+  with a white halo, engine-lid louvres, red bars on the rear bumper, a
+  black interior, the wheel 35 % wider with a black centre and its lip kept
+  polished, the body 2.5 cm lower. Wider arches, a ducktail and a diffuser
+  would need new geometry and were left out.
 - **A straight wheel.** The model's front wheels are steered about 9
   degrees: spun about the game's axle, that one wobbled. The rear wheel is
   used, its axle (the direction of least spread) turned exactly onto x.
