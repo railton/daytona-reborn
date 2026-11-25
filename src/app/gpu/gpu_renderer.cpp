@@ -509,17 +509,21 @@ void GpuRenderer::shade_cars(const std::vector<rt::GeoPoly> &polys) {
 }
 
 // The cars' shadow map (set_car_shadows): the sun's view, axes from the
-// game's light vector (camera space); the casters (build: the cars' opaque
-// faces) within kShadowReach of the camera, fitted into the map with a
-// margin; their triangles go after the scene's in verts_, already in the
-// map's clip space. The fragment uniform (car_light_) tells ps_poly the same
-// view; its strength is 0 when nothing casts.
+// game's light vector (camera space), in two cascades side by side in one
+// depth texture (kShadowMapW x kShadowMapH, each half square): the casters
+// (build: the cars' opaque faces) within kShadowNear of the camera in the
+// left half, those up to kShadowFar in the right, each fitted to its own
+// casters with a margin, so that the near cars keep their detail however far
+// the others are. Their triangles go after the scene's in verts_, already in
+// their half's clip space. The fragment uniform (car_light_) tells ps_poly the
+// same views; its strength is 0 when nothing casts.
 void GpuRenderer::shadow_casters(const std::vector<rt::GeoPoly> &polys) {
     shadow_first_ = uint32_t(verts_.size());
-    shadow_count_ = 0;
+    shadow_near_ = shadow_far_ = 0;
     std::fill(std::begin(car_light_) + 4, std::end(car_light_), 0.0f);
     if (casters_now_.empty()) return;
-    constexpr float kShadowReach = 40.0f; // camera units: the player's car is about 5 away
+    constexpr float kShadowNear = 40.0f;  // camera units: the player's car is about 5 away
+    constexpr float kShadowFar = 140.0f;  // the opponents ahead, at a coarser scale
     constexpr float kShadowDepth = 60.0f; // how far beyond the casters a receiver may be, along the light
     constexpr float kStrength = 0.45f;    // the light taken away in shadow
     float dir[3] = {game_light_[0], game_light_[1], game_light_[2]}; // the light's travel
@@ -537,47 +541,58 @@ void GpuRenderer::shadow_casters(const std::vector<rt::GeoPoly> &polys) {
         out[1] = x * up[0] + y * up[1] + z * up[2];
         out[2] = x * dir[0] + y * dir[1] + z * dir[2];
     };
-    float lo[3] = {1e30f, 1e30f, 1e30f}, hi[3] = {-1e30f, -1e30f, -1e30f};
-    std::vector<size_t> kept;
+    std::vector<size_t> kept[2]; // near, far
+    float lo[2][3], hi[2][3];
+    for (int c = 0; c < 2; ++c)
+        for (int a = 0; a < 3; ++a) lo[c][a] = 1e30f, hi[c][a] = -1e30f;
     for (size_t i : casters_now_) {
         const rt::GeoPoly &p = polys[i];
-        bool near = p.num_vertices >= 3;
-        for (int k = 0; near && k < p.num_vertices; ++k) near = p.v[k].p[0] > 0.0f && p.v[k].p[0] < kShadowReach;
-        if (!near) continue;
-        kept.push_back(i);
+        if (p.num_vertices < 3) continue;
+        float zmin = 1e30f, zmax = 0.0f;
+        for (int k = 0; k < p.num_vertices; ++k) zmin = std::min(zmin, p.v[k].p[0]), zmax = std::max(zmax, p.v[k].p[0]);
+        if (zmin <= 0.0f || zmax >= kShadowFar) continue;
+        const int c = zmax < kShadowNear ? 0 : 1;
+        kept[c].push_back(i);
         for (int k = 0; k < p.num_vertices; ++k) {
             float l[3];
             view(p, k, l);
-            for (int a = 0; a < 3; ++a) lo[a] = std::min(lo[a], l[a]), hi[a] = std::max(hi[a], l[a]);
+            for (int a = 0; a < 3; ++a) lo[c][a] = std::min(lo[c][a], l[a]), hi[c][a] = std::max(hi[c][a], l[a]);
         }
     }
-    if (kept.empty()) return;
-    const float pad = 0.5f;
-    lo[0] -= pad, lo[1] -= pad, hi[0] += pad, hi[1] += pad, lo[2] -= pad;
-    const float range = hi[2] - lo[2] + kShadowDepth;
-    for (size_t i : kept) {
-        const rt::GeoPoly &p = polys[i];
-        PolyVertex c[8] = {};
-        for (int k = 0; k < p.num_vertices; ++k) {
-            float l[3];
-            view(p, k, l);
-            c[k].x = (l[0] - lo[0]) / (hi[0] - lo[0]) * 2.0f - 1.0f;
-            c[k].y = (l[1] - lo[1]) / (hi[1] - lo[1]) * 2.0f - 1.0f;
-            c[k].depth = (l[2] - lo[2]) / range;
-        }
-        for (int k = 1; k + 1 < p.num_vertices; ++k) {
-            verts_.push_back(c[0]);
-            verts_.push_back(c[k]);
-            verts_.push_back(c[k + 1]);
-        }
-    }
-    shadow_count_ = uint32_t(verts_.size()) - shadow_first_;
+    if (kept[0].empty() && kept[1].empty()) return;
     float *u = car_light_;
     std::copy(right, right + 3, u + 4);
     std::copy(up, up + 3, u + 8);
     std::copy(dir, dir + 3, u + 12);
-    u[16] = lo[0], u[17] = lo[1], u[18] = 1.0f / (hi[0] - lo[0]), u[19] = 1.0f / (hi[1] - lo[1]);
-    u[20] = lo[2], u[21] = 1.0f / range, u[22] = kStrength, u[23] = 1.0f / float(kShadowMapSize);
+    u[22] = kStrength, u[23] = 1.0f / float(kShadowMapH); // a texel of a half
+    for (int c = 0; c < 2; ++c) {
+        if (kept[c].empty()) continue;
+        const float pad = c ? 1.0f : 0.5f;
+        lo[c][0] -= pad, lo[c][1] -= pad, hi[c][0] += pad, hi[c][1] += pad, lo[c][2] -= pad;
+        const float range = hi[c][2] - lo[c][2] + kShadowDepth;
+        const size_t before = verts_.size();
+        for (size_t i : kept[c]) {
+            const rt::GeoPoly &p = polys[i];
+            PolyVertex v[8] = {};
+            for (int k = 0; k < p.num_vertices; ++k) {
+                float l[3];
+                view(p, k, l);
+                v[k].x = (l[0] - lo[c][0]) / (hi[c][0] - lo[c][0]) * 2.0f - 1.0f;
+                v[k].y = (l[1] - lo[c][1]) / (hi[c][1] - lo[c][1]) * 2.0f - 1.0f;
+                v[k].depth = (l[2] - lo[c][2]) / range;
+            }
+            for (int k = 1; k + 1 < p.num_vertices; ++k) {
+                verts_.push_back(v[0]);
+                verts_.push_back(v[k]);
+                verts_.push_back(v[k + 1]);
+            }
+        }
+        (c ? shadow_far_ : shadow_near_) = uint32_t(verts_.size() - before);
+        float *m = c ? u + 28 : u + 16; // CarLight map / map2
+        m[0] = lo[c][0], m[1] = lo[c][1], m[2] = 1.0f / (hi[c][0] - lo[c][0]), m[3] = 1.0f / (hi[c][1] - lo[c][1]);
+        float *d = c ? u + 32 : u + 20; // depth / depth2 (x, y)
+        d[0] = lo[c][2], d[1] = 1.0f / range;
+    }
 }
 
 void GpuRenderer::build(const rt::Video &video, int w, int h, int scale, bool sharp_textures,
@@ -645,6 +660,11 @@ void GpuRenderer::build(const rt::Video &video, int w, int h, int scale, bool sh
         if (poly.window > windows || poly.num_vertices < 3) continue;
         const int renderer = (poly.texheader[0] >> 13) & 3;
         if (renderer == 1) continue; // translucent solid: the rasterizer draws nothing
+        // the game's own shadow under the player's car (its flat checker part
+        // 0x78b4), left out where the cars' shadows replace it
+        if (have_car_camera && hide_game_shadow_ && !car_first_.empty() && car_first_[i] >= 0 &&
+            poly.mobile_key.part == 0x78b4u && ((poly.texheader[0] >> 15) & 1u))
+            continue;
         // Diagnostic (3D tree study): cut-out textured scenery polygons
         // (renderer 3, a ROM object, not a car part). M2_CUTOUT_TRACE=FILE logs
         // one line per such polygon (object, texture words, object-space
@@ -1088,13 +1108,13 @@ bool GpuRenderer::render(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *target, int 
     }
 
     // the cars' shadow map, drawn before the frame that reads it
-    if (shadow_count_ && shadow_pipe_) {
+    if (shadow_near_ + shadow_far_ && shadow_pipe_) {
         if (!shadow_map_) {
             SDL_GPUTextureCreateInfo st{};
             st.type = SDL_GPU_TEXTURETYPE_2D;
             st.format = shadow_format_;
             st.usage = SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER;
-            st.width = st.height = kShadowMapSize;
+            st.width = kShadowMapW, st.height = kShadowMapH;
             st.layer_count_or_depth = st.num_levels = 1;
             shadow_map_ = SDL_CreateGPUTexture(dev_, &st);
         }
@@ -1107,12 +1127,20 @@ bool GpuRenderer::render(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *target, int 
             sd.stencil_load_op = SDL_GPU_LOADOP_DONT_CARE;
             sd.stencil_store_op = SDL_GPU_STOREOP_DONT_CARE;
             if (SDL_GPURenderPass *sp = SDL_BeginGPURenderPass(cmd, nullptr, 0, &sd)) {
-                const SDL_GPUViewport sv{0, 0, float(kShadowMapSize), float(kShadowMapSize), 0, 1};
-                SDL_SetGPUViewport(sp, &sv);
                 SDL_BindGPUGraphicsPipeline(sp, shadow_pipe_);
                 SDL_GPUBufferBinding svb{vbuf_, 0};
                 SDL_BindGPUVertexBuffers(sp, 0, &svb, 1);
-                SDL_DrawGPUPrimitives(sp, shadow_count_, 1, shadow_first_, 0);
+                constexpr float half = float(kShadowMapW) / 2.0f;
+                if (shadow_near_) { // the left half
+                    const SDL_GPUViewport sv{0, 0, half, float(kShadowMapH), 0, 1};
+                    SDL_SetGPUViewport(sp, &sv);
+                    SDL_DrawGPUPrimitives(sp, shadow_near_, 1, shadow_first_, 0);
+                }
+                if (shadow_far_) { // the right
+                    const SDL_GPUViewport sv{half, 0, half, float(kShadowMapH), 0, 1};
+                    SDL_SetGPUViewport(sp, &sv);
+                    SDL_DrawGPUPrimitives(sp, shadow_far_, 1, shadow_first_ + shadow_near_, 0);
+                }
                 SDL_EndGPURenderPass(sp);
             }
         } else {
@@ -1182,7 +1210,7 @@ bool GpuRenderer::render(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *target, int 
         SDL_GPUBuffer *storage[4] = {texram_, luma_, xlat_, opponent_atlas_ ? opponent_atlas_ : texram_};
         SDL_BindGPUFragmentStorageBuffers(pass, 0, storage, 4);
         const SDL_GPUTextureSamplerBinding textures[2] = {
-            {shadow_count_ && shadow_map_ ? shadow_map_ : shadow_none_, shadow_sampler_},
+            {shadow_near_ + shadow_far_ && shadow_map_ ? shadow_map_ : shadow_none_, shadow_sampler_},
             {car_light_[26] > 0.0f ? sky_env_ : sky_none_, sky_sampler_}};
         SDL_BindGPUFragmentSamplers(pass, 0, textures, 2);
         for (const Batch &b : batches_) {
@@ -1661,7 +1689,7 @@ bool GpuRenderer::draw_benchmark(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *targ
     SDL_SetGPUScissor(pass, &full);
     const float screen[4] = {fw, fh, 0, 0};
     SDL_PushGPUVertexUniformData(cmd, 0, screen, sizeof screen);
-    const float light[28] = {0, 1, 0};
+    float light[sizeof car_light_ / sizeof(float)] = {0, 1, 0};
     SDL_PushGPUFragmentUniformData(cmd, 0, light, sizeof light);
     SDL_BindGPUGraphicsPipeline(pass, poly_pipe_);
     SDL_GPUBufferBinding vb{vbuf_, 0};

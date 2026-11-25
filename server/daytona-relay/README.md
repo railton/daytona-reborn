@@ -87,7 +87,12 @@ few addresses, could still take the server from the others. The relay
   does not exist, a wrong password; error `slow_down`), so room codes
   (31^8) and a server password cannot be tried quickly;
 - **datagram addresses**: taken only from the address of the player's own
-  connection, so nobody can send a race's datagrams elsewhere.
+  connection, so nobody can send a race's datagrams elsewhere;
+- **the course and the gearbox**: the control messages that choose them for
+  the room (`cursor=`, `course=`, `gearcursor=`, `gearbox=`) are passed on
+  only from the race's MASTER (the ring's first), so that a modified game
+  cannot choose for the others; the other control messages (standings,
+  arrival) from anyone.
 
 The container runs as nobody, read-only, without capabilities, with at
 most 256 MB of memory and 128 processes.

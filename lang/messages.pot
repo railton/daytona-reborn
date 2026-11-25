@@ -774,6 +774,12 @@ msgstr ""
 msgid "The cars near the camera cast shadows from the game's sun on the road and the walls. Any graphics card."
 msgstr ""
 
+msgid "In place of the game's own shadow"
+msgstr ""
+
+msgid "The game's simple shadow under the car (a checkered patch) is left out while the cars' shadows are drawn."
+msgstr ""
+
 msgid "These need the Hardware renderer (Display tab)."
 msgstr ""
 
@@ -783,10 +789,16 @@ msgstr ""
 msgid "Bloom"
 msgstr ""
 
+msgid "Bloom strength"
+msgstr ""
+
 msgid "The bright parts of the picture (the sky, the lights, white lines) glow softly."
 msgstr ""
 
 msgid "Arcade monitor (CRT)"
+msgstr ""
+
+msgid "Monitor strength"
 msgstr ""
 
 msgid "The look of the cabinet's tube: the game's scanlines, the colour grille and darker corners. Best on a large or high-resolution screen."
@@ -1101,6 +1113,9 @@ msgid "The game selected another gearbox."
 msgstr ""
 
 msgid "The game did not confirm the start."
+msgstr ""
+
+msgid "The race ran at %.0f frames a second, under the game's 57.5: a lower image quality may help (Settings > Enhancements > Detect automatically)."
 msgstr ""
 
 msgid "First choose the Daytona Revision A ROM set."

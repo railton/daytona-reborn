@@ -20,6 +20,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/binary"
@@ -501,11 +502,27 @@ func latencyMoved(prev [2][]int, names, waiting []int) bool {
 	return false
 }
 
+// masterOnly: the control messages only the race's MASTER sends, the
+// course and the gearbox for the whole room (the game's CourseSync and
+// GearboxSync, src/runtime/online_settings.h): "cursor=", "course=",
+// "gearcursor=", "gearbox=".
+func masterOnly(payload []byte) bool {
+	for _, key := range []string{"cursor=", "course=", "gearcursor=", "gearbox="} {
+		if bytes.HasPrefix(payload, []byte(key)) {
+			return true
+		}
+	}
+	return false
+}
+
 // broadcast passes a control frame from c to every other member of its room.
+// The course and the gearbox are the MASTER's (the ring's first) alone: from
+// anyone else they are dropped, so that a modified game cannot choose for
+// the room.
 func (s *server) broadcast(c *client, f proto.Frame) {
 	s.mu.Lock()
 	r := c.room
-	if r == nil || f.Epoch != r.epoch || r.inRing(c) == 0 {
+	if r == nil || f.Epoch != r.epoch || r.inRing(c) == 0 || (masterOnly(f.Payload) && r.ring[0] != c) {
 		s.mu.Unlock()
 		return
 	}

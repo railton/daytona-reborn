@@ -554,8 +554,10 @@ and some stutter. Pick a server close to every player.
 - Up to 8 players a room. A server caps connections, connections and rooms
   per address and rooms in all; it rate-limits each connection (a player
   who floods is disconnected, not the others), closes idle rooms, slows
-  down whoever keeps trying wrong room codes or passwords, and takes a
-  player's datagram address only from that player's own connection
+  down whoever keeps trying wrong room codes or passwords, takes a
+  player's datagram address only from that player's own connection, and
+  passes on the course and gearbox choices (`cursor=`, `course=`,
+  `gearcursor=`, `gearbox=`) only from the race's MASTER
   (`server/daytona-relay/README.md`, "Abuse limits").
 - The connection is **not encrypted**: race data is not sensitive, but a
   room's password travels in clear.

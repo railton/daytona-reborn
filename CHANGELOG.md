@@ -4,6 +4,41 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`). The
 fork's version is in `VERSION`, raised with every code change (rules.md
 rule 14); each version has its section here.
 
+## 0.18.0 (2026-11-25)
+
+### Online server: the course and the gearbox are the MASTER's
+
+The relay passed every player's control messages to the others, and the
+games could not tell who sent them, so a modified game could choose the
+course or the gearbox for the room. The relay now passes those messages
+(`cursor=`, `course=`, `gearcursor=`, `gearbox=`) only from the race's
+MASTER (the ring's first); standings and arrival from anyone. The games are
+unchanged (`kOnlineVersion` stays 10); the relay needs updating. Checked: a
+relay test (from another player they are dropped, from the MASTER they
+arrive; it fails without the change) and two headless cabinets on the new
+relay, both on the MASTER's course.
+
+### Image enhancements
+
+- **Car shadows in two cascades**: the near cars (up to 40 camera units) in
+  one half of a 4096 x 2048 depth map, as before, the others up to 140 in
+  the other half, each fitted to its own cars: the opponents ahead cast
+  shadows now, and the player's car keeps its detail (a single map out to
+  140 made it blocky).
+- **In place of the game's own shadow** (with car shadows, on by default):
+  the game's checkered shadow under the player's car (part 0x78b4, the only
+  checkered car part in 17 race frames surveyed) is left out while the
+  cars' shadows are drawn.
+- **Bloom and monitor strength**: sliders (10-100 % and 20-100 %).
+- **The race's check**: in the session's first race with an image
+  enhancement on, the frames drawn are counted from 3 to 13 s after the
+  start; under 92 % of the game's rate the player is told a lower quality
+  may help (measured: 14.5 frames/s at Maximum on Vulkan in software).
+- The log says when the graphics card has fewer MSAA samples than asked.
+- `m2gpushot --car-shadows-and-game-shadow`.
+
+With every enhancement off the frame is unchanged (13 captures compared).
+
 ## 0.17.0 (2026-11-25)
 
 ### Image enhancements (hardware renderer, all off by default)

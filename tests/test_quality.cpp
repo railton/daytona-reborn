@@ -1,6 +1,7 @@
 // Automatic quality (app/quality.h): the level picked from measured times,
 // and each level's settings.
 #include "app/quality.h"
+#include "app/speed_check.h"
 
 #include <cstdio>
 
@@ -39,6 +40,27 @@ int main() {
     check(cfg.renderer == "hardware" && cfg.supersampling == 1 && cfg.msaa == 1 && cfg.aniso == 1 && !cfg.smooth_cars &&
               !cfg.car_reflections,
           "original: the enhancements off, the renderer kept");
+
+    // the race's check: frames drawn over the window, against the game's rate
+    auto run = [](double drawn_hz, double game_hz, app::SpeedCheck &c) {
+        const uint64_t step = uint64_t(1e9 / 240.0); // passes at 240 a second, some drawing
+        double owed = 0;
+        bool told = false;
+        for (uint64_t t = 1; t < 15'000'000'000ull; t += step) {
+            owed += drawn_hz / 240.0;
+            const bool drew = owed >= 1.0;
+            if (drew) owed -= 1.0;
+            told |= c.pass(t, drew, game_hz);
+        }
+        return told;
+    };
+    app::SpeedCheck fast, slow, interrupted;
+    check(!run(57.5, 57.5, fast) && fast.done() && !fast.slow() && fast.fps() > 57.0, "full speed: nothing to tell");
+    check(run(45.0, 57.5, slow) && slow.slow() && slow.fps() > 44.0 && slow.fps() < 46.0, "45 frames/s: told, once");
+    interrupted.pass(1, true, 57.5);
+    interrupted.pass(4'000'000'000ull, true, 57.5);
+    interrupted.interrupt();
+    check(!interrupted.done(), "a race cut short: measured again in the next");
 
     if (!failures) std::printf("quality: all checks passed\n");
     return failures ? 1 : 0;

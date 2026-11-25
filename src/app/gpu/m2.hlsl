@@ -58,6 +58,8 @@ struct CarLight {
     float4 map;                // x0, y0, 1 / width, 1 / height (in the sun's x, y)
     float4 depth;              // z0, 1 / depth range, shadow strength, 1 / map size
     float4 sky;                // the game's sky in sky_env: the camera axis (u, v), focal length / size (u, v); 0: none
+    float4 map2;               // the far cascade (the map's right half): as map; z 0: no caster there
+    float4 depth2;             // its z0, 1 / depth range
 };
 [[vk::binding(0, 3)]] cbuffer CarLightUBO : register(b0, space3) { CarLight car_light; };
 
@@ -291,21 +293,32 @@ float3 car_paint(float3 base, PolyOut i) {
 }
 
 // The cars' shadows (an enhancement): a polygon that receives them (its
-// position's z positive) looks its point up in the sun's view of the cars;
+// position's z positive) looks its point up in the sun's view of the cars,
+// in each cascade (the map's left half: the near cars, right: the far ones);
 // 3 x 3 samples soften the edge. 1: lit.
+float cascade_lit(float3 l, float4 map, float4 depth, float half_x) {
+    if (map.z <= 0.0) return 1.0;
+    const float2 uv = (l.xy - map.xy) * map.zw;
+    if (any(uv < 0.0) || any(uv > 1.0)) return 1.0;
+    const float d = saturate((l.z - depth.x) * depth.y) - 0.004;
+    const float2 texel = float2(0.5, 1.0) * car_light.depth.w; // a half is square, the map twice as wide
+    const float2 at = float2(half_x + uv.x * 0.5, 1.0 - uv.y);
+    const float x0 = half_x + texel.x, x1 = half_x + 0.5 - texel.x; // the taps stay in their half
+    float lit = 0.0;
+    [unroll] for (int y = -1; y <= 1; ++y)
+        [unroll] for (int x = -1; x <= 1; ++x) {
+            const float2 p = float2(clamp(at.x + float(x) * texel.x, x0, x1), at.y + float(y) * texel.y);
+            lit += d <= car_shadow.SampleLevel(car_shadow_smp, p, 0.0) ? 1.0 : 0.0;
+        }
+    return lit / 9.0;
+}
+
 float car_shadow_light(PolyOut i) {
     if (car_light.depth.z <= 0.0 || i.position_oz.z <= 0.0) return 1.0;
     const float3 p = i.position_oz / i.oz.x;
     const float3 l = float3(dot(p, car_light.right.xyz), dot(p, car_light.up.xyz), dot(p, car_light.dir.xyz));
-    const float2 uv = (l.xy - car_light.map.xy) * car_light.map.zw;
-    if (any(uv < 0.0) || any(uv > 1.0)) return 1.0;
-    const float d = saturate((l.z - car_light.depth.x) * car_light.depth.y) - 0.004;
-    const float2 texel = float2(car_light.depth.w, car_light.depth.w);
-    float lit = 0.0;
-    [unroll] for (int y = -1; y <= 1; ++y)
-        [unroll] for (int x = -1; x <= 1; ++x)
-            lit += d <= car_shadow.SampleLevel(car_shadow_smp, float2(uv.x, 1.0 - uv.y) + float2(x, y) * texel, 0.0) ? 1.0 : 0.0;
-    return lerp(1.0 - car_light.depth.z, 1.0, lit / 9.0);
+    const float lit = cascade_lit(l, car_light.map, car_light.depth, 0.0) * cascade_lit(l, car_light.map2, car_light.depth2, 0.5);
+    return lerp(1.0 - car_light.depth.z, 1.0, lit);
 }
 
 float4 ps_poly(PolyOut i) : SV_Target {

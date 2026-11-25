@@ -56,9 +56,14 @@ public:
     // instead of the bilinear blur (m2.hlsl fetch_texel, bit 31)
     void set_car_textures(bool sharp) { sharp_car_textures_ = sharp; }
     // The cars' shadows on the road and the walls (an enhancement, any GPU):
-    // the cars near the camera drawn from the game's sun into a depth map
-    // (2048 x 2048), which the scenery's pixels look up (m2.hlsl car_shadow_light).
-    void set_car_shadows(bool on) { car_shadows_ = on; }
+    // the cars drawn from the game's sun into a depth map, two cascades of
+    // 2048 x 2048 (up to 40 camera units, up to 140), which the scenery's
+    // pixels look up (m2.hlsl car_shadow_light).
+    // replace_game_shadow: the game's own checker shadow under the player's
+    // car left out while these are drawn.
+    void set_car_shadows(bool on, bool replace_game_shadow = false) {
+        car_shadows_ = on, hide_game_shadow_ = replace_game_shadow;
+    }
     // The game's light vector (Geo::light, camera space), each frame, for the reflections.
     void set_light(const std::array<float, 3> &light) { game_light_ = light; }
     // The display passes (enhancements, both 0 = off: a plain blit). The
@@ -161,17 +166,18 @@ private:
         // camera-space position
         float light_oz = 0, normal_oz[3] = {0, 0, 0}, position_oz[3] = {0, 0, 0};
     };
-    bool smooth_cars_ = false, car_reflect_ = false, sharp_car_textures_ = false, car_shadows_ = false;
+    bool smooth_cars_ = false, car_reflect_ = false, sharp_car_textures_ = false, car_shadows_ = false,
+         hide_game_shadow_ = false;
     // the shadow map: its pipeline, texture (and a 1 x 1 stand-in), sampler,
     // the casters' vertices after the polygons' in verts_, the fragment uniform
     SDL_GPUGraphicsPipeline *shadow_pipe_ = nullptr;
     SDL_GPUTexture *shadow_map_ = nullptr, *shadow_none_ = nullptr;
     SDL_GPUSampler *shadow_sampler_ = nullptr;
     SDL_GPUTextureFormat shadow_format_ = SDL_GPU_TEXTUREFORMAT_D16_UNORM;
-    static constexpr uint32_t kShadowMapSize = 2048;
-    uint32_t shadow_first_ = 0, shadow_count_ = 0;
+    static constexpr uint32_t kShadowMapW = 4096, kShadowMapH = 2048; // two square cascades side by side
+    uint32_t shadow_first_ = 0, shadow_near_ = 0, shadow_far_ = 0;     // the casters' vertices, near then far
     std::vector<size_t> casters_now_; // this frame's casting polygons (indices into the scene)
-    float car_light_[28] = {};        // m2.hlsl CarLight
+    float car_light_[36] = {};        // m2.hlsl CarLight
     // the real sky the paint reflects (m2.hlsl ps_sky_env): the back layers in
     // a small texture with mip levels (a 1 x 1 stand-in), and the cars' camera
     // in it: axis u, v, focal length / size u, v (0: no car this frame)

@@ -51,8 +51,11 @@ struct Config {
     bool car_reflections = false; // its cars' paint reflecting the sky and the sun
     bool sharp_car_textures = false; // its cars' numbers and logos crisp up close
     bool car_shadows = false;        // its cars' shadows from the game's sun (shadow map)
+    bool replace_game_shadow = true; // with car_shadows: the game's own checker shadow under the car left out
     bool bloom = false;              // the display: the bright parts glow (GpuRenderer::present)
     bool crt_filter = false;         // the display: an arcade monitor's scanlines, grille and corners
+    int bloom_strength = 35;         // the glow added, percent (10..100)
+    int crt_strength = 100;          // the monitor's look, percent (20..100)
     bool quality_checked = false;    // the automatic quality measured once (app/quality.h; offered at the first start)
     bool sun_shadows = false;  // ray-traced sun shadows (Direct3D 12, ray tracing tier 1.1; next start)
     bool sky_light = false;    // with the shadows: the sky's light, hidden under and between things (next start)

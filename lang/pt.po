@@ -814,6 +814,12 @@ msgstr "Sombra dos carros"
 msgid "The cars near the camera cast shadows from the game's sun on the road and the walls. Any graphics card."
 msgstr "Os carros perto da câmera projetam sombras do sol do jogo no asfalto e nos muros. Em qualquer placa de vídeo."
 
+msgid "In place of the game's own shadow"
+msgstr "No lugar da sombra original do jogo"
+
+msgid "The game's simple shadow under the car (a checkered patch) is left out while the cars' shadows are drawn."
+msgstr "A sombra simples do jogo embaixo do carro (uma mancha quadriculada) deixa de aparecer enquanto as sombras dos carros são desenhadas."
+
 msgid "These need the Hardware renderer (Display tab)."
 msgstr "Estas opções precisam do renderizador Hardware (aba Tela)."
 
@@ -823,11 +829,17 @@ msgstr "Efeitos de tela"
 msgid "Bloom"
 msgstr "Bloom (brilho)"
 
+msgid "Bloom strength"
+msgstr "Intensidade do bloom"
+
 msgid "The bright parts of the picture (the sky, the lights, white lines) glow softly."
 msgstr "As partes claras da imagem (o céu, as luzes, as faixas brancas) brilham suavemente."
 
 msgid "Arcade monitor (CRT)"
 msgstr "Monitor de fliperama (CRT)"
+
+msgid "Monitor strength"
+msgstr "Intensidade do monitor"
 
 msgid "The look of the cabinet's tube: the game's scanlines, the colour grille and darker corners. Best on a large or high-resolution screen."
 msgstr "O visual do tubo do fliperama: as linhas de varredura do jogo, a grade de cores e os cantos mais escuros. Melhor em tela grande ou de alta resolução."
@@ -1159,6 +1171,9 @@ msgstr "O jogo selecionou outro câmbio."
 
 msgid "The game did not confirm the start."
 msgstr "O jogo não confirmou a largada."
+
+msgid "The race ran at %.0f frames a second, under the game's 57.5: a lower image quality may help (Settings > Enhancements > Detect automatically)."
+msgstr "A corrida rodou a %.0f quadros por segundo, abaixo dos 57,5 do jogo: uma qualidade de imagem menor pode ajudar (Configurações > Melhorias > Detectar automaticamente)."
 
 msgid "First choose the Daytona Revision A ROM set."
 msgstr "Escolha primeiro a ROM do Daytona Revision A."

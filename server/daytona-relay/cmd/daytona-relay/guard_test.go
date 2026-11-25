@@ -242,3 +242,49 @@ func gotError(c *client, code string) bool {
 		}
 	}
 }
+
+// The course and the gearbox reach the others from the MASTER alone; other
+// control messages from anyone.
+func TestMasterOnlyControls(t *testing.T) {
+	s := newTestServer(t)
+	a, b, c := fakeClient("A"), fakeClient("B"), fakeClient("C")
+	s.join(a, proto.Hello{Op: "create", Room: "m"})
+	s.join(b, proto.Hello{Op: "join", Room: "m"})
+	s.join(c, proto.Hello{Op: "join", Room: "m"})
+	s.begin(a)
+	_, epoch := lastStatus(t, a)
+	lastStatus(t, b)
+	lastStatus(t, c)
+	send := func(from *client, text string) {
+		s.broadcast(from, proto.Frame{Type: proto.TypeControl, Epoch: epoch, Payload: []byte(text)})
+	}
+	got := func(to *client) []string {
+		var out []string
+		for {
+			select {
+			case f := <-to.out:
+				if f.Type == proto.TypeControl {
+					out = append(out, string(f.Payload))
+				}
+			default:
+				return out
+			}
+		}
+	}
+	for _, m := range []string{"cursor=2", "course=1", "gearcursor=1", "gearbox=1"} {
+		send(b, m) // a SLAVE choosing for the room
+	}
+	send(b, "pos=2:1")
+	send(b, "arrived=1:2")
+	if g := got(c); len(g) != 2 || g[0] != "pos=2:1" || g[1] != "arrived=1:2" {
+		t.Fatalf("from a SLAVE, C got %q: want only its standings and arrival", g)
+	}
+	got(a)
+	send(a, "course=1")
+	send(a, "gearbox=0")
+	for _, to := range []*client{b, c} {
+		if g := got(to); len(g) != 2 || g[0] != "course=1" || g[1] != "gearbox=0" {
+			t.Fatalf("from the MASTER, %s got %q", to.name, g)
+		}
+	}
+}

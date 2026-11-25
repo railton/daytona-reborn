@@ -969,14 +969,24 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
                 hint(TX("The cars' numbers and logos keep crisp, rounded edges when seen up close, instead of a blur."));
                 if (ImGui::Checkbox(TX("Car shadows"), &cfg_.car_shadows)) cfg_.save();
                 hint(TX("The cars near the camera cast shadows from the game's sun on the road and the walls. Any graphics card."));
+                ImGui::Indent();
+                ImGui::BeginDisabled(!cfg_.car_shadows);
+                if (ImGui::Checkbox(TX("In place of the game's own shadow"), &cfg_.replace_game_shadow)) cfg_.save();
+                ImGui::EndDisabled();
+                ImGui::Unindent();
+                hint(TX("The game's simple shadow under the car (a checkered patch) is left out while the cars' shadows are drawn."));
                 ImGui::EndDisabled();
                 hint(TX("These need the Hardware renderer (Display tab)."));
 
                 ImGui::Spacing();
                 ImGui::SeparatorText(TX("Screen effects"));
                 if (ImGui::Checkbox(TX("Bloom"), &cfg_.bloom)) cfg_.save();
+                if (cfg_.bloom && slider(TX("Bloom strength"), "##bloom_strength", &cfg_.bloom_strength, 10, 100, "%d%%"))
+                    cfg_.save();
                 hint(TX("The bright parts of the picture (the sky, the lights, white lines) glow softly."));
                 if (ImGui::Checkbox(TX("Arcade monitor (CRT)"), &cfg_.crt_filter)) cfg_.save();
+                if (cfg_.crt_filter && slider(TX("Monitor strength"), "##crt_strength", &cfg_.crt_strength, 20, 100, "%d%%"))
+                    cfg_.save();
                 hint(TX("The look of the cabinet's tube: the game's scanlines, the colour grille and darker corners. "
                         "Best on a large or high-resolution screen."));
 

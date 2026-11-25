@@ -814,6 +814,12 @@ msgstr "Ombres des voitures"
 msgid "The cars near the camera cast shadows from the game's sun on the road and the walls. Any graphics card."
 msgstr "Les voitures proches de la caméra projettent leur ombre au soleil du jeu sur la route et les murs. Toute carte graphique."
 
+msgid "In place of the game's own shadow"
+msgstr "À la place de l'ombre d'origine du jeu"
+
+msgid "The game's simple shadow under the car (a checkered patch) is left out while the cars' shadows are drawn."
+msgstr "L'ombre simple du jeu sous la voiture (une tache en damier) n'est plus dessinée pendant que les ombres des voitures le sont."
+
 msgid "These need the Hardware renderer (Display tab)."
 msgstr "Ces options demandent le rendu Matériel (onglet Affichage)."
 
@@ -823,11 +829,17 @@ msgstr "Effets d'écran"
 msgid "Bloom"
 msgstr "Bloom (halo)"
 
+msgid "Bloom strength"
+msgstr "Intensité du bloom"
+
 msgid "The bright parts of the picture (the sky, the lights, white lines) glow softly."
 msgstr "Les parties claires de l'image (le ciel, les lumières, les lignes blanches) brillent doucement."
 
 msgid "Arcade monitor (CRT)"
 msgstr "Moniteur d'arcade (CRT)"
+
+msgid "Monitor strength"
+msgstr "Intensité du moniteur"
 
 msgid "The look of the cabinet's tube: the game's scanlines, the colour grille and darker corners. Best on a large or high-resolution screen."
 msgstr "L'aspect du tube de la borne : les lignes de balayage du jeu, la grille de couleurs et les coins plus sombres. Mieux sur un grand écran ou en haute résolution."
@@ -1159,6 +1171,9 @@ msgstr "Le jeu a sélectionné une autre boîte de vitesses."
 
 msgid "The game did not confirm the start."
 msgstr "Le jeu n’a pas confirmé le départ."
+
+msgid "The race ran at %.0f frames a second, under the game's 57.5: a lower image quality may help (Settings > Enhancements > Detect automatically)."
+msgstr "La course a tourné à %.0f images par seconde, sous les 57,5 du jeu : une qualité d'image plus basse peut aider (Réglages > Améliorations > Détecter automatiquement)."
 
 msgid "First choose the Daytona Revision A ROM set."
 msgstr "Choisissez d'abord le jeu de ROM de Daytona Revision A."

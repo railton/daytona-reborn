@@ -6,7 +6,7 @@
 //             [--aspect W:H [--hud-edges] [--stretch-backdrop]] [--scale N] [--nvram DIR] [--dump-from FRAME]
 //             [--draw-distance N] [--draw-budget N] [--scenery-log FILE] [--original-selection]
 //             [--msaa N] [--aniso N] [--smooth-cars] [--car-reflections] [--sharp-car-textures] [--car-shadows]
-//             [--bloom] [--crt] [--window WxH] [--pixels WxH]
+//             [--car-shadows-and-game-shadow] [--bloom] [--crt] [--window WxH] [--pixels WxH]
 //   m2gpushot - 0 --quality-probe WxH: the automatic quality's measurement
 //             (app/gpu/quality_probe.h) for a WxH screen; no game is run
 //   m2gpushot IMAGES_DIR FRAMES --bench [--inputs ...] [--aspect ...] [--scale N]
@@ -75,6 +75,7 @@ int main(int argc, char **argv) {
             !std::strcmp(argv[i], "--bench") || !std::strcmp(argv[i], "--original-selection") ||
             !std::strcmp(argv[i], "--smooth-cars") || !std::strcmp(argv[i], "--car-reflections") ||
             !std::strcmp(argv[i], "--sharp-car-textures") || !std::strcmp(argv[i], "--car-shadows") ||
+            !std::strcmp(argv[i], "--car-shadows-and-game-shadow") ||
             !std::strcmp(argv[i], "--bloom") || !std::strcmp(argv[i], "--crt")) { i--; continue; }
         if (!std::strcmp(argv[i], "--aspect")) {
             double a = 0, b = 0;
@@ -146,7 +147,8 @@ int main(int argc, char **argv) {
         if (!std::strcmp(argv[i], "--smooth-cars")) smooth_cars = true;
         if (!std::strcmp(argv[i], "--car-reflections")) car_reflections = true;
         if (!std::strcmp(argv[i], "--sharp-car-textures")) gpu.set_car_textures(true);
-        if (!std::strcmp(argv[i], "--car-shadows")) gpu.set_car_shadows(true);
+        if (!std::strcmp(argv[i], "--car-shadows")) gpu.set_car_shadows(true, true);
+        if (!std::strcmp(argv[i], "--car-shadows-and-game-shadow")) gpu.set_car_shadows(true, false);
         if (!std::strcmp(argv[i], "--bloom")) bloom = true;
         if (!std::strcmp(argv[i], "--crt")) crt = true;
     }

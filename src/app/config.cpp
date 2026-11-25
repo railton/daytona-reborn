@@ -54,6 +54,9 @@ void Config::read(std::istream &f) {
         else if (k == "car_reflections") car_reflections = v == "1";
         else if (k == "sharp_car_textures") sharp_car_textures = v == "1";
         else if (k == "car_shadows") car_shadows = v == "1";
+        else if (k == "replace_game_shadow") replace_game_shadow = v == "1";
+        else if (k == "bloom_strength") bloom_strength = std::clamp(std::atoi(v.c_str()), 10, 100);
+        else if (k == "crt_strength") crt_strength = std::clamp(std::atoi(v.c_str()), 20, 100);
         else if (k == "bloom") bloom = v == "1";
         else if (k == "crt_filter") crt_filter = v == "1";
         else if (k == "quality_checked") quality_checked = v == "1";
@@ -161,6 +164,9 @@ void Config::write(std::ostream &f) const {
     f << "car_reflections=" << (car_reflections ? 1 : 0) << "\n";
     f << "sharp_car_textures=" << (sharp_car_textures ? 1 : 0) << "\n";
     f << "car_shadows=" << (car_shadows ? 1 : 0) << "\n";
+    f << "replace_game_shadow=" << (replace_game_shadow ? 1 : 0) << "\n";
+    f << "bloom_strength=" << bloom_strength << "\n";
+    f << "crt_strength=" << crt_strength << "\n";
     f << "bloom=" << (bloom ? 1 : 0) << "\n";
     f << "crt_filter=" << (crt_filter ? 1 : 0) << "\n";
     f << "quality_checked=" << (quality_checked ? 1 : 0) << "\n";

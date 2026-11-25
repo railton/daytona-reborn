@@ -68,6 +68,7 @@
 #include "app/gpu/home_scene.h"
 #include "app/gpu/quality_probe.h"
 #include "app/quality.h"
+#include "app/speed_check.h"
 #include "app/gpu/hardware_present_trace.h"
 #include "app/home_menu.h"
 #include "app/neon_ui.h"
@@ -999,7 +1000,9 @@ int main(int argc, char **argv) {
         std::fprintf(stderr, "daytona: hardware renderer unavailable: %s\n", gpu.error().c_str());
     else if (cfg.renderer == "hardware" && (cfg.msaa > 1 || cfg.aniso > 1))
         std::printf("daytona: MSAA %dx%s, anisotropic filtering %dx\n", gpu.msaa(),
-                    cfg.msaa > 1 && gpu.msaa() == 1 ? (shadows_asked ? " (off with the sun shadows)" : " (unsupported here)") : "",
+                    cfg.msaa > 1 && gpu.msaa() < cfg.msaa
+                        ? (shadows_asked ? " (off with the sun shadows)" : " (the most this graphics card has for it)")
+                        : "",
                     cfg.aniso);
     // The experimental ray-tracing options are both off by
     // default. M2_DXR_SCENE=1 builds the frame's acceleration structure after
@@ -1102,6 +1105,7 @@ int main(int argc, char **argv) {
     // the first start from the PC home, and again from Settings' "Detect
     // automatically"; a window shows the progress, then the levels to pick.
     app::QualityProbe quality_probe;
+    app::SpeedCheck speed_check; // and in the first race (app/speed_check.h)
     bool quality_open = false;
     uint64_t quality_since = 0;
     const bool native_modes = gpu_driver && (!std::strcmp(gpu_driver, "direct3d12") || !std::strcmp(gpu_driver, "vulkan"));
@@ -1905,7 +1909,7 @@ int main(int argc, char **argv) {
         gpu.set_anisotropy(cfg.aniso); // takes effect at once (MSAA at the next start)
         gpu.set_car_shading(cfg.smooth_cars, cfg.car_reflections);
         gpu.set_car_textures(cfg.sharp_car_textures);
-        gpu.set_car_shadows(cfg.car_shadows);
+        gpu.set_car_shadows(cfg.car_shadows, cfg.replace_game_shadow);
         if (game) gpu.set_light(game->board().light());
         if (game && hardware != reported_hardware) { // say which renderer is drawing, whenever it changes
             std::printf("daytona: renderer %s\n", hardware ? "hardware (GPU)" : "software (CPU)");
@@ -1961,6 +1965,26 @@ int main(int argc, char **argv) {
         const bool hardware_rasterized = hardware && (new_frame || pose_polys || last_render_was_pose);
 #else
         const bool hardware_rasterized = hardware && new_frame;
+#endif
+#ifndef M2_MOBILE
+        { // the image quality, in the session's first race: did the graphics card keep up?
+            const bool enhanced = cfg.uses_native_resolution() || cfg.supersampling > 1 || cfg.msaa > 1 || cfg.aniso > 1 ||
+                                  cfg.smooth_cars || cfg.car_reflections || cfg.car_shadows;
+            const bool racing = hardware && !in_launcher && enhanced &&
+                                game->board().read_byte(rt::online::AutoEntry::mode_address) == rt::online::CourseSync::race;
+            if (!racing) speed_check.interrupt();
+            else if (speed_check.pass(now, new_frame, pacer.pacing().game_hz)) {
+                std::printf("daytona: the race ran at %.1f frames/s with this image quality (the game's %.1f)\n",
+                            speed_check.fps(), pacer.pacing().game_hz);
+                char line[320];
+                std::snprintf(line, sizeof line,
+                              TX("The race ran at %.0f frames a second, under the game's 57.5: a lower image quality may help "
+                                 "(Settings > Enhancements > Detect automatically)."),
+                              speed_check.fps());
+                if (pc_home) home_message = line; // the home's message line
+                else launcher.set_error(line);     // the classic launcher's
+            }
+        }
 #endif
         if (hardware_rasterized) {
             screen_w = game->screen_width();
@@ -2490,7 +2514,8 @@ int main(int argc, char **argv) {
                         if (!gpu.init(dev, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM, shadows_asked ? 1 : cfg.msaa))
                             std::fprintf(stderr, "daytona: hardware renderer unavailable: %s\n", gpu.error().c_str());
                         else
-                            std::printf("daytona: MSAA %dx, anisotropic filtering %dx\n", gpu.msaa(), cfg.aniso);
+                            std::printf("daytona: MSAA %dx%s, anisotropic filtering %dx\n", gpu.msaa(),
+                                        gpu.msaa() < cfg.msaa ? " (the most this graphics card has for it)" : "", cfg.aniso);
                     }
                     break;
                 default: break;
@@ -2618,8 +2643,8 @@ int main(int argc, char **argv) {
                     pf.dest = SDL_Rect{int(blit.destination.x), int(blit.destination.y), int(blit.destination.w),
                                        int(blit.destination.h)};
                     pf.lines = H;
-                    pf.bloom = cfg.bloom ? 0.35f : 0.0f;
-                    pf.crt = cfg.crt_filter ? 1.0f : 0.0f;
+                    pf.bloom = cfg.bloom ? float(cfg.bloom_strength) / 100.0f : 0.0f;
+                    pf.crt = cfg.crt_filter ? float(cfg.crt_strength) / 100.0f : 0.0f;
                     post_drawn = gpu.present(cmd, pf);
                 }
                 if (!post_drawn) SDL_BlitGPUTexture(cmd, &blit);
