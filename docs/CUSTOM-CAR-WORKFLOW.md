@@ -294,8 +294,17 @@ folder. What differed from the Camaro, and what to reuse:
   black ducktail lip along the engine lid (its root found by rays from
   behind). Vertical vents under the window, slats on the lid, and the
   plate painted over. New faces are wound outward by a helper that checks
-  each one's normal against the direction it should face. 19,934 faces,
-  game + renderer CPU median 6.9 ms in the benchmark. Wider arches, a ducktail and a diffuser
+  each one's normal against the direction it should face.
+  Second pass: a straight bar looked flat against the round rear; it now
+  follows a parabola fitted to the skin between the lamps (the apron below
+  is ragged once the bumper is gone, and points near the lamps hit them),
+  its curvature limited so the ends wrap gently. The lamps sit 2 cm into
+  the wing with a lower dome, and the model's housing faces around them are
+  painted the body colour (black, they read as a second lamp). A fictitious
+  grey plate (RFN-0909) is its own quad in front of everything across its
+  area, its picture in surface 7's free lower half. The trim within 3.5 cm
+  of the glass takes the body colour: baked at the sides' resolution it
+  smeared the windows' edges. 20,004 faces. Wider arches, a ducktail and a diffuser
   would need new geometry and were left out.
 - **A straight wheel.** The model's front wheels are steered about 9
   degrees: spun about the game's axle, that one wobbled. The rear wheel is
