@@ -886,6 +886,15 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
                     SDL_OpenURL(url.c_str());
                 }
             }
+            // a new version (app/update_check.h): the PC home's notice
+            if (from_home) {
+                ImGui::Spacing();
+                ImGui::SeparatorText(TX("Updates"));
+                if (ImGui::Checkbox(TX("Check for new versions"), &cfg_.update_check)) cfg_.save();
+                hint(TX("Asks GitHub once a day whether a newer version is out, and says so on the home screen. "
+                        "Nothing about you or this computer is sent."));
+                if (!cfg_.update_latest.empty()) hint(TX("Latest version: %s"), cfg_.update_latest.c_str());
+            }
 #endif
             ImGui::EndTabItem();
         }

@@ -36,6 +36,8 @@ public:
         StartRace,  // the room's owner starts it
         LeaveRoom,
         SetName, // name() holds the name typed
+        OpenRelease,   // the new version's notice: its release page
+        DismissUpdate, // the new version's notice: not again for that version
     };
     void init();
     void select(rt::StartRaceRequest request) {
@@ -57,6 +59,9 @@ public:
     void set_solo(int country, int difficulty) { solo_country_ = country, solo_difficulty_ = difficulty; }
     ImFont *display_font() const { return display_; }
     ImFont *body_font() const { return body_; }
+    // "A new version is out" (app/update_check.h): its version ("0.19.0"),
+    // shown in a card above the bottom bar; "" for none.
+    void set_update(const std::string &version) { update_ = version; }
     // Diagnostics (a capture): an invite as if pasted.
     void paste_invite(const std::string &code);
 
@@ -72,6 +77,7 @@ private:
     ImFont *display_ = nullptr, *body_ = nullptr;
     char invite_[256] = {}, name_[64] = {}, ask_[64] = {};
     std::string invite_text_, name_text_, seen_clip_;
+    std::string update_; // the new version's notice, "" for none
     bool pasted_ = false;       // the invite came from the clipboard
     double clipboard_at_ = -10; // when the clipboard was last looked at
     bool invite_active_ = false; // its field being edited (last frame)

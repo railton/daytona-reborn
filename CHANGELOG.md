@@ -6,6 +6,21 @@ rule 14); each version has its section here.
 
 ## Unreleased (version to be decided)
 
+### The home screen says when a newer version is out
+
+Once a day the game asks GitHub for the project's latest release, through
+the system's curl; nothing about the player is sent. When the release is
+newer than the build, a card on the home screen shows its version, a button
+to its release page, and what to do: update the copy of the source (git
+pull, or download it again) and build the game again; games are never
+offered for download. Dismiss hides it until the next version. Settings >
+Game > Updates turns the check off. Offline or without curl it stays
+silent (a log line). A fork points it at its own repository with the CMake
+option DAYTONA_UPDATE_REPO (owner/name; empty turns it off). Checked
+against the real API (the latest release, v0.18.0); new test update_check
+(semver, the release's fields, the daily limit). M2_UPDATE_CHECK_VERSION
+pretends another version, for a capture.
+
 ### High-resolution textures: made from the game (experimental, Linux)
 
 Settings > **AI textures** makes the high-resolution texture pack on this

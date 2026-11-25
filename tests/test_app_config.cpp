@@ -62,5 +62,26 @@ int main() {
         loaded.aspect = value;
         check(loaded.aspect_ratio() == 0, "non-finite and invalid aspect rejected");
     }
+    {
+        app::Config fresh;
+        check(fresh.update_check && fresh.update_checked_at == 0 && fresh.update_latest.empty(),
+              "the update check is on, never run, by default");
+        fresh.update_check = false;
+        fresh.update_checked_at = 1764000000;
+        fresh.update_latest = "v0.19.0";
+        fresh.update_latest_url = "https://github.com/a/b/releases/tag/v0.19.0";
+        fresh.update_dismissed = "v0.18.1";
+        std::ostringstream saved;
+        fresh.write(saved);
+        app::Config back;
+        std::istringstream in(saved.str());
+        back.read(in);
+        check(!back.update_check && back.update_checked_at == 1764000000 && back.update_latest == "v0.19.0" &&
+                  back.update_latest_url == fresh.update_latest_url && back.update_dismissed == "v0.18.1",
+              "the update check's state survives save/load");
+        std::istringstream bad("update_latest_url=https://example.com/x\nupdate_checked_at=-5\n");
+        back.read(bad);
+        check(back.update_latest_url.empty() && back.update_checked_at == 0, "only GitHub's pages, no negative time");
+    }
     return failures ? 1 : 0;
 }

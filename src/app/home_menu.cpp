@@ -874,6 +874,33 @@ HomeMenu::Action HomeMenu::draw(bool has_race, bool loading, const char *message
         monitor(draw, px(w - left - wide.x - 22 * scale, base + 6 * scale), 22 * scale, white, 1.8f * scale);
     }
 
+    // A new version is out (app/update_check.h): a card above the bottom
+    // bar, at the right, over the scene; what to do, and its release page.
+    // Players build their own game (rules.md, 22): source, never a download.
+    if (!update_.empty() && !loading) {
+        const float pad = 18 * scale, title_s = 24 * scale, body_s = 16.5f * scale, button_h = 38 * scale;
+        const float card_w = std::min(440 * scale, std::max(300 * scale, w - left - panel - 60 * scale - left));
+        const float wrap = card_w - 2 * pad;
+        char title[96];
+        std::snprintf(title, sizeof title, TX("NEW VERSION %s"), update_.c_str());
+        const char *line = TX("Update your copy of the source (git pull, or download it again) and build the game again.");
+        const float line_h = body_->CalcTextSizeA(body_s, FLT_MAX, wrap, line).y;
+        const float card_h = pad + title_s + 10 * scale + line_h + 16 * scale + button_h + pad;
+        const ImVec2 b = px(w - left, bottom - 40 * scale), a = {b.x - card_w, b.y - card_h};
+        const auto shape = rounded(a, b, 10 * scale, 12 * scale);
+        fill(draw, shape, rgba(0.07f, 0.13f, 0.27f, 0.95f), rgba(0.02f, 0.05f, 0.13f, 0.95f), a.y, b.y);
+        glow(draw, shape, ImVec4(1, 0.80f, 0.28f, 1), 0.45f + 0.15f * std::sin(time * 2.f), scale);
+        italic(draw, display_, fit(display_, title_s, title, wrap), {a.x + pad, a.y + pad}, amber, title, 0.18f);
+        draw->AddText(body_, body_s, {a.x + pad, a.y + pad + title_s + 10 * scale}, rgba(0.88f, 0.93f, 1), line, nullptr, wrap);
+        const float by = b.y - pad - button_h, bw = (wrap - 12 * scale) * 0.5f;
+        if (neon::blue_button(draw, body_, scale, "##release_page", TX("Release page"), {a.x + pad, by},
+                              {a.x + pad + bw, by + button_h}, 0, 17.f))
+            action = OpenRelease;
+        if (neon::outline_button(draw, body_, scale, TX("Dismiss"), {b.x - pad - bw, by}, {b.x - pad, by + button_h},
+                                 ImVec4(0.55f, 0.72f, 1, 1), 17.f))
+            action = DismissUpdate;
+    }
+
     // The player's name: asked once, or from the pill.
     const ImVec2 middle = {view->Pos.x + w * 0.5f, view->Pos.y + h * 0.5f};
     if (ask_name_) {

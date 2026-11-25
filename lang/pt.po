@@ -302,6 +302,18 @@ msgstr "TESTANDO O SERVIDOR"
 msgid "SDR   /   %d × %d"
 msgstr "SDR   /   %d × %d"
 
+msgid "NEW VERSION %s"
+msgstr "NOVA VERSÃO %s"
+
+msgid "Update your copy of the source (git pull, or download it again) and build the game again."
+msgstr "Atualize sua cópia do código-fonte (git pull, ou baixe-o de novo) e compile o jogo de novo."
+
+msgid "Release page"
+msgstr "Página da versão"
+
+msgid "Dismiss"
+msgstr "Dispensar"
+
 msgid "Your name"
 msgstr "Seu nome"
 
@@ -628,6 +640,18 @@ msgstr "O que o jogo faz, e as medições de cada corrida online, guardados em d
 
 msgid "Open the logs folder"
 msgstr "Abrir a pasta dos logs"
+
+msgid "Updates"
+msgstr "Atualizações"
+
+msgid "Check for new versions"
+msgstr "Procurar novas versões"
+
+msgid "Asks GitHub once a day whether a newer version is out, and says so on the home screen. Nothing about you or this computer is sent."
+msgstr "Pergunta ao GitHub uma vez por dia se saiu uma versão mais nova, e avisa na tela inicial. Nada sobre você ou este computador é enviado."
+
+msgid "Latest version: %s"
+msgstr "Última versão: %s"
 
 msgid "Display"
 msgstr "Vídeo"
@@ -1555,6 +1579,3 @@ msgstr "O jogo não está lendo os dados recebidos."
 
 msgid "Invalid data from another player: is everyone on the same version of the game?"
 msgstr "Dados inválidos de outro jogador: todos estão com a mesma versão do jogo?"
-
-# Plus utilisés (no longer used):
-#~ msgid "Without a graphics card the tools run on the processor. Measured: about 30 minutes on 20 threads."

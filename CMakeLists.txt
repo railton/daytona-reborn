@@ -253,8 +253,15 @@ if(EXISTS ${CMAKE_SOURCE_DIR}/extern/sdl3/CMakeLists.txt)
         BYPRODUCTS ${APP_VERSION_H} VERBATIM)
     add_library(daytona_app OBJECT src/app/main.cpp src/app/launcher.cpp src/app/i18n.cpp src/app/config.cpp src/app/controls.cpp src/app/ffb.cpp src/app/link_socket.cpp src/app/relay_link.cpp src/app/link_codec.cpp src/app/online.cpp src/app/online_menu.cpp src/app/online_overlay.cpp src/app/pacing.cpp)
     if(NOT M2_MOBILE)
-        target_sources(daytona_app PRIVATE src/app/home_menu.cpp src/app/gpu/home_scene.cpp src/app/hires_maker.cpp)
+        target_sources(daytona_app PRIVATE src/app/home_menu.cpp src/app/gpu/home_scene.cpp src/app/hires_maker.cpp
+                       src/app/update_check.cpp src/app/update_fetch.cpp)
         target_include_directories(daytona_app PRIVATE tools)
+        # "A new version is out" on the PC home (app/update_check.h): the
+        # GitHub repository whose releases it asks, owner/name. A fork sets
+        # its own; empty turns the check off.
+        set(DAYTONA_UPDATE_REPO "railton/daytona-reborn" CACHE STRING
+            "GitHub owner/name whose releases the game checks for a newer version (empty: no check)")
+        target_compile_definitions(daytona_app PRIVATE DAYTONA_UPDATE_REPO="${DAYTONA_UPDATE_REPO}")
     endif()
     add_dependencies(daytona_app daytona_version)
     target_include_directories(daytona_app PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/generated)
@@ -564,6 +571,10 @@ add_test(NAME comm_board COMMAND test_comm_board)
 add_executable(test_online tests/test_online.cpp src/app/online.cpp)
 target_include_directories(test_online PRIVATE src)
 add_test(NAME online COMMAND test_online)
+# The update check's pure part: versions, GitHub's answer, the daily limit
+add_executable(test_update_check tests/test_update_check.cpp src/app/update_check.cpp)
+target_include_directories(test_update_check PRIVATE src)
+add_test(NAME update_check COMMAND test_update_check)
 add_executable(test_link_codec tests/test_link_codec.cpp src/app/link_codec.cpp)
 target_include_directories(test_link_codec PRIVATE src)
 add_test(NAME link_codec COMMAND test_link_codec)

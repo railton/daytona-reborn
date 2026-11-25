@@ -299,6 +299,18 @@ msgstr ""
 msgid "SDR   /   %d × %d"
 msgstr ""
 
+msgid "NEW VERSION %s"
+msgstr ""
+
+msgid "Update your copy of the source (git pull, or download it again) and build the game again."
+msgstr ""
+
+msgid "Release page"
+msgstr ""
+
+msgid "Dismiss"
+msgstr ""
+
 msgid "Your name"
 msgstr ""
 
@@ -621,6 +633,18 @@ msgid "What the game does, and each online race's measurements, kept in daytona.
 msgstr ""
 
 msgid "Open the logs folder"
+msgstr ""
+
+msgid "Updates"
+msgstr ""
+
+msgid "Check for new versions"
+msgstr ""
+
+msgid "Asks GitHub once a day whether a newer version is out, and says so on the home screen. Nothing about you or this computer is sent."
+msgstr ""
+
+msgid "Latest version: %s"
 msgstr ""
 
 msgid "Display"

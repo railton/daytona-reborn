@@ -176,6 +176,13 @@ frame is shown.
 | ![The room's settings: name, server, and the race settings as choices](docs/images/room-settings.jpg) | ![Settings: six tabs in one scrolling column](docs/images/settings.jpg) |
 | **Room settings**: name, server, and the race for every player. | **Settings**: display, enhancements, controls, sound. |
 
+## New versions
+
+Once a day the home screen asks GitHub whether a newer release is out and,
+if so, says which. Games are never distributed: to update, pull the source
+(`git pull`, or download it again) and build again with your own ROM set.
+The check sends nothing about you; turn it off in Settings > Game > Updates.
+
 ## Online play
 
 **Step by step, with pictures: [docs/PLAYING-ONLINE.md](docs/PLAYING-ONLINE.md).**

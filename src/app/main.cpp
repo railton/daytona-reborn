@@ -73,6 +73,8 @@
 #include "app/gpu/hardware_present_trace.h"
 #include "app/home_menu.h"
 #include "app/neon_ui.h"
+#include "app/update_check.h"
+#include "app/update_fetch.h"
 #include "app/chime.h"
 #include "app/online_race_stats.h"
 #include "common/input_script.h"
@@ -101,8 +103,13 @@
 #include <vector>
 #include <filesystem>
 #include <thread>
+#include <ctime>
 #ifndef _WIN32
 #include <unistd.h> // the log's tee: pipe, dup2
+#endif
+
+#ifndef DAYTONA_UPDATE_REPO // CMake's cache variable: the GitHub repository whose releases are checked
+#define DAYTONA_UPDATE_REPO "railton/daytona-reborn"
 #endif
 
 namespace {
@@ -997,6 +1004,19 @@ int main(int argc, char **argv) {
         ImGui::GetIO().Fonts->AddFontDefaultVector(); // the launcher's, with the other scripts merged in
         app::i18n::add_fonts();
     }
+    // A new version is out (app/update_check.h): GitHub's latest release,
+    // asked at most once a day from the home screen. Diagnostic:
+    // M2_UPDATE_CHECK_VERSION=0.17.0 asks now (the daily limit aside, a
+    // --capture-home too, which waits for the answer), as if this build were
+    // that version.
+    app::UpdateFetch update_fetch;
+    const char *update_fake = std::getenv("M2_UPDATE_CHECK_VERSION");
+    const std::string update_running = update_fake && *update_fake ? update_fake : DAYTONA_APP_VERSION;
+    const std::string update_repo = DAYTONA_UPDATE_REPO;
+    const bool update_repo_ok = app::update::valid_repo(update_repo);
+    bool update_forced = update_fake && *update_fake, update_capture_wait = false;
+    if (pc_home && !update_repo_ok)
+        SDL_Log("Update check: off (the build's repository \"%s\" is not owner/name)", update_repo.c_str());
     bool settings = open_settings && pc_home, pc_race = false;
     app::OnlineMenu online_menu;
     bool online_screen = open_online && pc_home; // the home menu shows the Online screen
@@ -2375,6 +2395,32 @@ int main(int argc, char **argv) {
                         home_online.code = code;
                     }
                 }
+                // A new version: asked once a day (and not for a capture), the answer kept in the settings
+                if (cfg.update_check && update_repo_ok && !update_fetch.busy() &&
+                    (update_forced || (!capture_image && app::update::due(int64_t(std::time(nullptr)), cfg.update_checked_at)))) {
+                    if (update_fetch.start(app::update::api_url(update_repo))) {
+                        update_capture_wait = update_forced && capture_image;
+                        update_forced = false;
+                        cfg.update_checked_at = int64_t(std::time(nullptr));
+                        cfg.save();
+                    }
+                }
+                if (const auto answer = update_fetch.take()) {
+                    update_capture_wait = false;
+                    if (answer->ok) {
+                        cfg.update_latest = answer->release.tag;
+                        cfg.update_latest_url = answer->release.url;
+                        cfg.save();
+                        SDL_Log("Update check: latest release %s, this build %s%s", answer->release.tag.c_str(),
+                                update_running.c_str(),
+                                app::update::is_newer(answer->release.tag, update_running) ? ": a newer version is out" : "");
+                    } else {
+                        SDL_Log("Update check: %s", answer->error.c_str());
+                    }
+                }
+                home_menu.set_update(app::update::show_notice(cfg.update_check, cfg.update_latest, update_running, cfg.update_dismissed)
+                                         ? app::update::display_version(cfg.update_latest)
+                                         : std::string());
                 const auto home_action = home_menu.draw(pc_race, solo, home_message.c_str(), 1.f, home_online);
                 if (const bool manual = home_menu.request().transmission == rt::RaceTransmission::Manual;
                     manual != cfg.gearbox_manual) { // the gearbox chosen: kept, and online's too
@@ -2409,6 +2455,15 @@ int main(int argc, char **argv) {
                     break;
                 case app::HomeMenu::StartRace: if (online_link) online_link->begin(); break;
                 case app::HomeMenu::LeaveRoom: leave_online(); home_message.clear(); break;
+                case app::HomeMenu::OpenRelease: {
+                    const std::string url = cfg.update_latest_url.empty() ? app::update::releases_page(update_repo) : cfg.update_latest_url;
+                    if (!SDL_OpenURL(url.c_str())) SDL_Log("Could not open %s: %s", url.c_str(), SDL_GetError());
+                    break;
+                }
+                case app::HomeMenu::DismissUpdate: // not again for this version; a newer one shows again
+                    cfg.update_dismissed = cfg.update_latest;
+                    cfg.save();
+                    break;
                 case app::HomeMenu::JoinRoom:
                 case app::HomeMenu::CreateRoom: {
                     // the race starts as soon as the room fills: the ROM set first
@@ -2762,7 +2817,7 @@ int main(int argc, char **argv) {
                     SDL_Log("Displayed capture failed: %s", SDL_GetError());
                 if (copy) SDL_ReleaseGPUTexture(dev, copy);
             }
-        } else if (capture_image && ++capture_frames >= 3) {
+        } else if (capture_image && !update_capture_wait && ++capture_frames >= 3) {
             if (!save_home_capture(dev, cmd, capture_image, ii.ColorTargetFormat, sw, sh, capture_home)) {
                 SDL_Log("Home capture failed: %s", SDL_GetError());
                 capture_status = 1;
@@ -2861,6 +2916,7 @@ int main(int argc, char **argv) {
         hardware_trace.reset();
     }
     home_scene.shutdown();
+    update_fetch.stop(); // a request still running: curl stopped before SDL goes
     hdr_present.reset();
     sdr_curve.reset(); // before the device goes
     if (mire) SDL_ReleaseGPUTexture(dev, mire);

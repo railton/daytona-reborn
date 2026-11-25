@@ -118,6 +118,11 @@ void Config::read(std::istream &f) {
         else if (k == "solo_country") solo_country = std::clamp(std::atoi(v.c_str()), 0, 2);
         else if (k == "solo_difficulty") solo_difficulty = std::clamp(std::atoi(v.c_str()), 0, 3);
         else if (k == "logs") write_logs = v != "0";
+        else if (k == "update_check") update_check = v != "0";
+        else if (k == "update_checked_at") update_checked_at = std::max<int64_t>(0, std::strtoll(v.c_str(), nullptr, 10));
+        else if (k == "update_latest") update_latest = v;
+        else if (k == "update_latest_url") update_latest_url = v.rfind("https://github.com/", 0) == 0 ? v : std::string();
+        else if (k == "update_dismissed") update_dismissed = v;
         else if (k == "ffb_strength") ffb_strength = std::clamp(std::strtof(v.c_str(), nullptr), 0.0f, 1.0f);
         else if (k == "ffb_invert") ffb_invert = v == "1";
         else if (k == "pad_steer_sensitivity") {
@@ -213,6 +218,11 @@ void Config::write(std::ostream &f) const {
     f << "solo_country=" << solo_country << "\n";
     f << "solo_difficulty=" << solo_difficulty << "\n";
     f << "logs=" << (write_logs ? 1 : 0) << "\n";
+    f << "update_check=" << (update_check ? 1 : 0) << "\n";
+    f << "update_checked_at=" << update_checked_at << "\n";
+    f << "update_latest=" << update_latest << "\n";
+    f << "update_latest_url=" << update_latest_url << "\n";
+    f << "update_dismissed=" << update_dismissed << "\n";
     f << "ffb_strength=" << ffb_strength << "\n";
     f << "ffb_invert=" << (ffb_invert ? 1 : 0) << "\n";
     f << "pad_steer_sensitivity=" << controls.pad_steer_sensitivity << "\n";

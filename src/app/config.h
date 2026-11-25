@@ -101,6 +101,15 @@ struct Config {
     // Logs: what the game prints, kept in daytona.log beside the settings (the
     // last 5 sessions too, daytona.1.log...), for when something goes wrong.
     bool write_logs = true;
+    // "A new version is out" (app/update_check.h): GitHub's latest release
+    // asked at most once a day from the PC home. The last check (Unix
+    // seconds), the latest release seen and its page, and the version the
+    // player dismissed the notice for.
+    bool update_check = true;
+    int64_t update_checked_at = 0;
+    std::string update_latest;     // its tag, "v0.19.0"
+    std::string update_latest_url; // https://github.com/... only
+    std::string update_dismissed;  // a tag: no notice for that version
     float ffb_strength = 0.7f; // force feedback (the drive board) on the steering device: 0 off .. 1
     bool ffb_invert = false;   // turn the wheel the other way
     bool ffb_log = false;      // log the force feedback device, failures and the commands (daytona.log on Windows)
