@@ -112,6 +112,10 @@ legal problem, or hours re-deriving something already established.
 
 15. **English everywhere in the repository**: code, comments, identifiers,
     commit messages, documentation, log and server messages, script output.
+    One exception: player-facing documentation may have translations (the
+    README's Brazilian Portuguese, `README.pt-BR.md`), the English one
+    being the original; a change to it updates its translations in the
+    same commit.
 16. **Interface text is written in English and goes through the translation
     files.** `TX("...")` in the app, `TXR("...")` in files that build without
     the translator (`app/i18n.h`, `app/i18n_mark.h`); the English text is the

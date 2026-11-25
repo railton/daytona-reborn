@@ -1,5 +1,7 @@
 # Daytona Reborn
 
+**English** · [Português (Brasil)](README.pt-BR.md)
+
 **Daytona USA (Sega Model 2, 1994) rebuilt as native code for the PC, with
 online play for up to 8 players.**
 
