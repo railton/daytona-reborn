@@ -43,9 +43,12 @@ the game's car.
   per corner, each frame; it now sorts them, the same light to the bit (the
   frames byte-identical with and without a custom body). A face turned
   from the camera is kept only when it faces the sun (it only casts the
-  shadow), and none without car shadows. 3440 x 1440, MSAA 4x, shadows,
+  shadow), and none without car shadows. The custom body's and wheel's
+  smooth corner normals are made once, when they load (they do not change
+  shape), and turned by the car's matrix each frame; their light is the
+  game's light fit at those normals. 3440 x 1440, MSAA 4x, shadows,
   reflections, bloom and CRT, 3,600 frames of a race: game + renderer CPU
-  median 22.4 -> 9.9 ms (p99 36.0 -> 14.7 ms) with the test body, now
+  median 22.4 -> 7.9 ms (p99 36.0 -> 11.4 ms) with the test body, now
   20,869 faces and four 1,679-face wheels (were 27,731 and 3,289); 1.2 ms
   with the game's car.
 - Checked with a 20,869-face body made from a third-party model (kept local,

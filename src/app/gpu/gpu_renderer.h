@@ -212,6 +212,7 @@ private:
     // shade_cars' corners, sorted by (emission, object-space position); kept between frames
     struct ShadeCorner { uint32_t command, x, y, z, poly, k; };
     std::vector<ShadeCorner> corner_scratch_;
+    std::vector<size_t> made_scratch_; // the polygons whose corners the custom body made
     void shade_cars(const std::vector<rt::GeoPoly> &polys);
     // the display passes: shaders, pipelines (the glow's, the target's per format), glow textures
     SDL_GPUShader *post_vs_ = nullptr, *post_ps_ = nullptr;

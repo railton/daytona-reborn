@@ -42,7 +42,7 @@ model follows that model's licence, and none is part of this repository.
   texture that is a plane over x and z (u and v each a linear function of
   x and z), as a top-down projection gives.
 - Cost: every face is work for the processor each frame, about 0.3
-  microseconds (a 20,000-face body with four 1,700-face wheels: about 6 ms
+  microseconds (a 20,000-face body with four 1,700-face wheels: about 5 ms
   a frame, against 0.3 ms with the game's car). Keep the body under about
   20,000 faces and the wheel under about 2,000.
 

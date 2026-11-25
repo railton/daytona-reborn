@@ -51,6 +51,16 @@ public:
     }
     // A null result means the original scene can be used directly.
     const std::vector<rt::GeoPoly> *replace(const std::vector<rt::GeoPoly> &scene);
+    // The player's new faces' corners, per polygon of the last replace()'s
+    // scene: their smooth normal (camera space) and light, made once from the
+    // body's shape (valid false: the renderer finds them, as for any car).
+    struct CornerLight {
+        bool valid = false;
+        float light[4] = {};
+        float normal[4][3] = {};
+    };
+    const std::vector<CornerLight> &corners() const { return corners_; }
+    const std::vector<rt::GeoPoly> &scene() const { return scene_; }
 
     struct Face {
         uint8_t count = 0;
@@ -72,6 +82,10 @@ private:
     }
     uint32_t texture_base_ = 0;
     std::vector<std::array<float, 3>> player_normals_; // body 0's faces, outward, model space
+    std::vector<std::array<float, 3>> wheel_normals_;  // the wheel's, outward
+    // per face, its corners' smooth normals (model space), body 0's and the wheel's
+    std::vector<std::array<std::array<float, 3>, 4>> body_corners_, wheel_corners_;
+    std::vector<CornerLight> corners_; // per scene_ polygon
     // The cockpit view paints the game's own bonnet with the body's surfaces
     // seen from above: per cell of a grid over the body (x, z), the surface
     // of its highest face; per surface its texture as a plane over (x, z).

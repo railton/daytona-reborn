@@ -490,6 +490,10 @@ void GpuRenderer::shade_cars(const std::vector<rt::GeoPoly> &polys) {
     std::vector<Corner> &corners = corner_scratch_;
     corners.clear();
     uint32_t total = 0;
+    // the player's custom body brings its corners, made once from its shape
+    const auto *made = have_player_ && &polys == &player_body_.scene() ? &player_body_.corners() : nullptr;
+    std::vector<size_t> &made_polys = made_scratch_;
+    made_polys.clear();
     for (size_t i = 0; i < polys.size(); ++i) {
         const rt::GeoPoly &p = polys[i];
         // (the opponents' local bodies are not lit; the player's are: their
@@ -517,6 +521,10 @@ void GpuRenderer::shade_cars(const std::vector<rt::GeoPoly> &polys) {
         faces[i] = {{n[0] / len * turn, n[1] / len * turn, n[2] / len * turn}, len * 0.5f, float(p.luma)};
         car_first_[i] = int32_t(total);
         total += p.num_vertices;
+        if (made && i < made->size() && (*made)[i].valid) {
+            made_polys.push_back(i);
+            continue;
+        }
         for (int k = 0; k < p.num_vertices; ++k) {
             Corner e{p.object_command, 0, 0, 0, uint32_t(i), uint32_t(k)};
             std::memcpy(&e.x, &p.v[k].ox, 4);
@@ -526,6 +534,11 @@ void GpuRenderer::shade_cars(const std::vector<rt::GeoPoly> &polys) {
         }
     }
     car_corners_.resize(total);
+    for (size_t i : made_polys) {
+        const auto &m = (*made)[i];
+        for (int k = 0; k < polys[i].num_vertices; ++k)
+            car_corners_[size_t(car_first_[i]) + k] = {m.light[k], {m.normal[k][0], m.normal[k][1], m.normal[k][2]}};
+    }
     std::sort(corners.begin(), corners.end(), [](const Corner &a, const Corner &b) {
         // then in the scene's order, as the faces were summed before: the same light to the bit
         return std::tie(a.command, a.x, a.y, a.z, a.poly, a.k) < std::tie(b.command, b.x, b.y, b.z, b.poly, b.k);

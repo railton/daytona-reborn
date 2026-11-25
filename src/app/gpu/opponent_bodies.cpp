@@ -129,21 +129,21 @@ unsigned clip_near(rt::GeoVertex (&v)[8], unsigned count) {
 
 } // namespace
 
-void OpponentBodies::set_player(uint32_t texture_base) {
-    player_ = true;
-    texture_base_ = texture_base;
-    // body 0's face normals (Newell), turned outward: the winding that points
-    // most faces away from the body's centre is taken for all
-    player_normals_.clear();
-    if (bodies_.empty() || bodies_[0].empty()) return;
+// Faces' normals (Newell), turned outward: the winding that points most
+// faces away from the centre is taken for all; and each face's area.
+static void outward_normals(const std::vector<OpponentBodies::Face> &faces, std::vector<std::array<float, 3>> &normals,
+                            std::vector<float> &areas) {
+    normals.clear();
+    areas.clear();
+    if (faces.empty()) return;
     float centre[3] = {0, 0, 0};
     int corners = 0;
-    for (const auto &f : bodies_[0])
+    for (const auto &f : faces)
         for (unsigned i = 0; i < f.count; ++i, ++corners)
             for (int a = 0; a < 3; ++a) centre[a] += f.vertices[i][a];
     for (float &c : centre) c /= float(corners);
     int out = 0;
-    for (const auto &f : bodies_[0]) {
+    for (const auto &f : faces) {
         float n[3] = {0, 0, 0}, mid[3] = {0, 0, 0};
         for (unsigned i = 0; i < f.count; ++i) {
             const auto &p = f.vertices[i], &q = f.vertices[(i + 1) % f.count];
@@ -156,10 +156,60 @@ void OpponentBodies::set_player(uint32_t texture_base) {
         std::array<float, 3> u{0, 1, 0};
         if (len > 1e-12f) u = {n[0] / len, n[1] / len, n[2] / len};
         out += (u[0] * (mid[0] - centre[0]) + u[1] * (mid[1] - centre[1]) + u[2] * (mid[2] - centre[2])) > 0 ? 1 : -1;
-        player_normals_.push_back(u);
+        normals.push_back(u);
+        areas.push_back(len * 0.5f);
     }
     if (out < 0)
-        for (auto &u : player_normals_) u = {-u[0], -u[1], -u[2]};
+        for (auto &u : normals) u = {-u[0], -u[1], -u[2]};
+}
+
+// Each face's corners' smooth normals, as the renderer's smooth car shading
+// makes them (the faces sharing the corner's position whose normal is
+// within 50 degrees of the face's, weighted by area), once: the body does
+// not change shape, and doing it each frame for 20,000 faces cost 2.5 ms.
+static void smooth_corners(const std::vector<OpponentBodies::Face> &faces, const std::vector<std::array<float, 3>> &normals,
+                           const std::vector<float> &areas, std::vector<std::array<std::array<float, 3>, 4>> &out) {
+    out.assign(faces.size(), {});
+    std::map<std::array<float, 3>, std::vector<uint32_t>> at;
+    for (size_t f = 0; f < faces.size(); ++f)
+        for (unsigned i = 0; i < faces[f].count; ++i)
+            at[{faces[f].vertices[i][0], faces[f].vertices[i][1], faces[f].vertices[i][2]}].push_back(uint32_t(f));
+    constexpr float kCrease = 0.6428f; // cos 50 degrees, as the renderer's
+    for (size_t f = 0; f < faces.size(); ++f) {
+        const auto &self = normals[f];
+        for (unsigned i = 0; i < faces[f].count; ++i) {
+            float n[3] = {0, 0, 0};
+            for (uint32_t g : at[{faces[f].vertices[i][0], faces[f].vertices[i][1], faces[f].vertices[i][2]}]) {
+                const auto &o = normals[g];
+                if (o[0] * self[0] + o[1] * self[1] + o[2] * self[2] < kCrease) continue;
+                for (int a = 0; a < 3; ++a) n[a] += o[a] * areas[g];
+            }
+            const float len = std::sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
+            out[f][i] = len > 1e-12f ? std::array<float, 3>{n[0] / len, n[1] / len, n[2] / len} : self;
+        }
+    }
+}
+
+// A model-space normal through an object matrix (its rotation), unit length.
+static void to_camera(const float *m, const float n[3], float out[3]) {
+    out[0] = n[0] * m[0] + n[1] * m[3] + n[2] * m[6];
+    out[1] = n[0] * m[1] + n[1] * m[4] + n[2] * m[7];
+    out[2] = n[0] * m[2] + n[1] * m[5] + n[2] * m[8];
+    const float len = std::sqrt(out[0] * out[0] + out[1] * out[1] + out[2] * out[2]);
+    if (len > 1e-12f)
+        for (int a = 0; a < 3; ++a) out[a] /= len;
+}
+
+void OpponentBodies::set_player(uint32_t texture_base) {
+    player_ = true;
+    texture_base_ = texture_base;
+    std::vector<float> areas;
+    outward_normals(wheel_, wheel_normals_, areas);
+    smooth_corners(wheel_, wheel_normals_, areas, wheel_corners_);
+    player_normals_.clear();
+    if (bodies_.empty() || bodies_[0].empty()) return;
+    outward_normals(bodies_[0], player_normals_, areas);
+    smooth_corners(bodies_[0], player_normals_, areas, body_corners_);
     build_top_view();
 }
 
@@ -396,6 +446,7 @@ const std::vector<rt::GeoPoly> *OpponentBodies::replace(const std::vector<rt::Ge
     if (candidates.empty() && !cockpit) return nullptr;
 
     scene_.clear();
+    corners_.clear();
     for (const auto &[command, source] : candidates) {
         const auto slot = player_ ? std::optional<unsigned>(0u) : rt::MobileIdentity::slot_index(source->mobile_key.slot);
         if (!slot) continue;
@@ -434,9 +485,11 @@ const std::vector<rt::GeoPoly> *OpponentBodies::replace(const std::vector<rt::Ge
             if (away && (!player_ || !casts_shadow(nx, ny, nz))) continue;
             // A face crossing the near plane (an opponent against the player's
             // car) is cut there rather than dropped, so the body has no holes.
+            const bool whole = std::all_of(vertices, vertices + face.count, [](const auto &v) { return v.p[0] > near_z; });
             const unsigned count = clip_near(vertices, face.count);
             if (count < 3) continue;
             auto &poly = scene_.emplace_back();
+            auto &corner = corners_.emplace_back();
             poly.z = rt::Geo::z_sort_value(depth / face.count, source->object_z_adjust);
             std::copy_n(source->viewport, 4, poly.viewport);
             std::copy_n(source->center, 2, poly.center);
@@ -456,6 +509,20 @@ const std::vector<rt::GeoPoly> *OpponentBodies::replace(const std::vector<rt::Ge
                     const float *w = fit + 1;
                     const float lit = (fit[0] + w[0] * n[0] + w[1] * n[1] + w[2] * n[2]) / bright;
                     poly.luma = uint8_t(std::lround(std::clamp(lit, 0.08f, 1.0f) * 127));
+                }
+                // its corners' smooth normals and the light at them, from the shape
+                if (!away && whole && variant == 0 && f < body_corners_.size()) {
+                    corner.valid = true;
+                    for (unsigned i = 0; i < count; ++i) {
+                        const auto &n = body_corners_[f][i];
+                        to_camera(m, n.data(), corner.normal[i]);
+                        float lit = float(poly.luma) / 127;
+                        if (bright > 1.0f) {
+                            const float *w = fit + 1;
+                            lit = std::clamp((fit[0] + w[0] * n[0] + w[1] * n[1] + w[2] * n[2]) / bright, 0.08f, 1.0f);
+                        }
+                        corner.light[i] = lit * 127;
+                    }
                 }
             }
             for (unsigned i = 0; i < count; ++i) {
@@ -526,9 +593,11 @@ const std::vector<rt::GeoPoly> *OpponentBodies::replace(const std::vector<rt::Ge
                 const float nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
                 const bool away = nx * a.x + ny * a.y + nz * a.p[0] >= 0;
                 if (away && !casts_shadow(nx, ny, nz)) continue;
+                const bool whole = std::all_of(vertices, vertices + face.count, [](const auto &v) { return v.p[0] > near_z; });
                 const unsigned count = clip_near(vertices, face.count);
                 if (count < 3) continue;
                 auto &poly = scene_.emplace_back();
+                auto &corner = corners_.emplace_back();
                 poly.z = rt::Geo::z_sort_value(depth / face.count, source->object_z_adjust);
                 std::copy_n(source->viewport, 4, poly.viewport);
                 std::copy_n(source->center, 2, poly.center);
@@ -536,6 +605,16 @@ const std::vector<rt::GeoPoly> *OpponentBodies::replace(const std::vector<rt::Ge
                 poly.num_vertices = uint8_t(count);
                 poly.local_texture = away ? kShadowOnlyTexture : uint8_t(texture_base_ + 10 + face.surface + 1);
                 poly.luma = uint8_t(std::lround(std::clamp(face.shade * dim, 0.0f, 2.0f) * 127));
+                const size_t wf = size_t(&face - wheel_.data());
+                if (!away && whole && wf < wheel_corners_.size()) { // mirrored: x turned, the corners reversed
+                    corner.valid = true;
+                    for (unsigned i = 0; i < count; ++i) {
+                        const auto &n = wheel_corners_[wf][left ? face.count - 1 - i : i];
+                        const float nm[3] = {left ? -n[0] : n[0], n[1], n[2]};
+                        to_camera(m, nm, corner.normal[i]);
+                        corner.light[i] = poly.luma;
+                    }
+                }
                 poly.mobile_key = source->mobile_key;
                 poly.object_command = source->object_command;
                 poly.object_oba = source->object_oba;
@@ -632,6 +711,7 @@ const std::vector<rt::GeoPoly> *OpponentBodies::replace(const std::vector<rt::Ge
         }
         std::fprintf(trace, "%zu,%u,%u,%u,%u,%u\n", scene.size(), removed, counts[0], counts[1], counts[2], near);
     }
+    corners_.resize(scene_.size()); // the game's own polygons: found by the renderer
     return &scene_;
 }
 
