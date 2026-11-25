@@ -155,6 +155,14 @@ legal problem, or hours re-deriving something already established.
     generated code hold code derived from the ROM (rule 6): every player
     builds from their own ROM set, and only the source and the guide
     (`docs/BUILDING.md`) are passed on.
+23. **A release is done in one go, when it is asked for**: `main` pushed to
+    `origin`, an annotated tag `vMAJOR.MINOR.PATCH` (the version in
+    `VERSION`) created on it and pushed, and the release notes shown in
+    full, ready to paste into GitHub's new-release page: the title
+    `Daytona Reborn X.Y.Z`, the text in English from that version's
+    `CHANGELOG.md` section, in the previous release's format, no files
+    attached (rule 22). The in-game update notice reads the latest
+    release, so it is published as the latest.
 
 ## Standing engineering rules
 
