@@ -1,9 +1,12 @@
 // m2texcap: the textures the game's polygons use, for the high-resolution
 // texture pack (app/gpu/hires_textures.h; scripts/hires_textures.py).
 //
-//   m2texcap IMAGES_DIR OUT_DIR [--nvram DIR] [--attract FRAMES] [--course N FRAMES]...
+//   m2texcap IMAGES_DIR|ROM.zip OUT_DIR [--nvram DIR] [--attract FRAMES] [--course N FRAMES]...
 //            [--inputs FILE FRAMES]...
 //
+// IMAGES_DIR: the build's ROM images (rom_cache/daytona); a .zip or .7z ROM
+// set is imported (and checked) as the game does. Every 1000 frames it
+// prints "m2texcap: progress DONE/TOTAL" (the game's maker reads it).
 // Runs the game headless: the attract loop (FRAMES frames, 9000 by default),
 // then for each --course (1 Beginner, 2 Advanced, 3 Expert) a solo race on
 // it, the throttle held, for FRAMES frames, then for each --inputs a session
@@ -18,6 +21,7 @@
 #include "app/gpu/hires_textures.h"
 #include "runtime/game_loop.h"
 #include "runtime/race_request.h"
+#include "runtime/rom_import.h"
 #include "../common/input_script.h"
 #include "../common/nvram.h"
 
@@ -27,6 +31,7 @@
 #include <cstring>
 #include <filesystem>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -54,7 +59,7 @@ void write_pgm(const std::string &path, const uint32_t *sheet, const app::hires:
 
 int main(int argc, char **argv) {
     if (argc < 3) {
-        std::fprintf(stderr, "usage: m2texcap IMAGES_DIR OUT_DIR [--nvram DIR] [--attract FRAMES] [--course N FRAMES]... "
+        std::fprintf(stderr, "usage: m2texcap IMAGES_DIR|ROM.zip OUT_DIR [--nvram DIR] [--attract FRAMES] [--course N FRAMES]... "
                              "[--inputs FILE FRAMES]...\n");
         return 2;
     }
@@ -75,7 +80,22 @@ int main(int argc, char **argv) {
             i += 2;
         }
     }
+    std::setvbuf(stdout, nullptr, _IOLBF, 0); // progress lines reach a pipe as they are printed
     std::filesystem::create_directories(out);
+    const std::string ext = std::filesystem::path(dir).extension().string();
+    const bool rom_set = ext == ".zip" || ext == ".7z" || ext == ".ZIP" || ext == ".7Z";
+    uint64_t total = attract, done = 0;
+    for (const auto &c : courses) total += c.second;
+    for (const auto &c : scripts) total += c.second;
+    auto make_game = [&]() {
+        auto game = rom_set ? std::make_unique<rt::GameLoop>(rt::import_rom_set(dir)) : std::make_unique<rt::GameLoop>(dir);
+        if (!nvram.empty()) tools::load_nvram(*game, nvram);
+        game->board().video().set_external_3d(true, true);
+        return game;
+    };
+    auto tick = [&]() {
+        if (++done % 1000 == 0 || done == total) std::printf("m2texcap: progress %" PRIu64 "/%" PRIu64 "\n", done, total);
+    };
     std::map<uint64_t, Seen> seen;
     auto collect = [&](rt::GameLoop &game) {
         const rt::VideoMem &m = game.board().video().gpu_mem();
@@ -104,24 +124,24 @@ int main(int argc, char **argv) {
             if (throttle && game.board().read_byte(0x5010a0) == 22) in.accel = 0xe0; // racing: the pedal down
             game.run_frame(in);
             if (game.frames() % 20 == 0) collect(game);
+            tick();
         }
     };
     try {
         {
-            rt::GameLoop game(dir);
-            if (!nvram.empty()) tools::load_nvram(game, nvram);
-            game.board().video().set_external_3d(true, true);
+            auto g = make_game();
+            rt::GameLoop &game = *g;
             run(game, attract, false);
             std::printf("m2texcap: attract, %" PRIu64 " frames: %zu textures\n", attract, seen.size());
         }
         for (const auto &[course, frames] : courses) {
-            rt::GameLoop game(dir);
-            if (!nvram.empty()) tools::load_nvram(game, nvram);
-            game.board().video().set_external_3d(true, true);
+            auto g = make_game();
+            rt::GameLoop &game = *g;
             rt::StartRaceRequest req{};
             req.course = rt::RaceCourse(std::clamp(course, 1, 3) - 1);
             if (game.request_race(req) != rt::RaceStartResult::Accepted) {
                 std::fprintf(stderr, "m2texcap: course %d: the race request was refused\n", course);
+                done += frames;
                 continue;
             }
             run(game, frames, true);
@@ -130,12 +150,12 @@ int main(int argc, char **argv) {
         for (const auto &[path, frames] : scripts) {
             tools::Script script;
             script.load(path);
-            rt::GameLoop game(dir);
-            if (!nvram.empty()) tools::load_nvram(game, nvram);
-            game.board().video().set_external_3d(true, true);
+            auto g = make_game();
+            rt::GameLoop &game = *g;
             for (uint64_t f = 0; f < frames; ++f) {
                 game.run_frame(script.at(game.board().frame()));
                 if (game.frames() % 20 == 0) collect(game);
+                tick();
             }
             std::printf("m2texcap: %s, %" PRIu64 " frames: %zu textures in all\n", path.c_str(), frames, seen.size());
         }

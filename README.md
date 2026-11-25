@@ -57,8 +57,8 @@ From Daytona Reborn beta 0.10, kept in this repository:
 - **High-resolution textures (experimental):** the game's textures upscaled
   4x by AI models on your own computer, from your own ROM set, each by the
   model best at its kind (lettering, natural surfaces, the road); cut-out
-  textures keep crisp outlines. See
-  [docs/HIRES-TEXTURES.md](docs/HIRES-TEXTURES.md).
+  textures keep crisp outlines. Made from Settings > AI textures (Linux with
+  Docker for now); what it needs: [docs/HIRES-TEXTURES.md](docs/HIRES-TEXTURES.md).
 - **Controls** for keyboard, gamepads, wheels and pedals, with analogue axes
   and force feedback (experimental).
 - **Languages:** English, French, Brazilian Portuguese.

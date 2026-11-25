@@ -513,6 +513,136 @@ Launcher::Result Launcher::draw_rom_gate() {
     return result;
 }
 
+#ifndef M2_MOBILE
+// Settings > AI textures (app/hires_maker.h, docs/HIRES-TEXTURES.md): what
+// this computer has, making the pack with its progress, and using it.
+void Launcher::draw_hires_tab(float scale) {
+    const ImVec4 good(0.48f, 0.98f, 0.79f, 1), warn(1, 0.74f, 0.45f, 1), bad(1, 0.45f, 0.4f, 1);
+    using Stage = HiresMaker::Stage;
+    using Problem = HiresMaker::Problem;
+    HiresMaker::State st = hires_.state();
+    if (!st.req.checked && !hires_.busy()) hires_.check(), st = hires_.state();
+    const bool busy = hires_.busy();
+    // a pack just made is used at once
+    static uint64_t enabled_for = 0;
+    if (st.stage == Stage::Done && st.pack_version != enabled_for) {
+        enabled_for = st.pack_version;
+        cfg_.hires_textures = true;
+        cfg_.save();
+    }
+    ImGui::Spacing();
+    ImGui::TextColored(warn, "%s", TX("Experimental: this feature is being tested. It may fail or change; "
+                                      "if it does, the log below helps us fix it."));
+    ImGui::SeparatorText(TX("High-resolution textures"));
+    hint(TX("The race's textures upscaled four times by AI models, on this computer, from your own ROM set. "
+            "The pack stays on this computer: it is made of the game's textures and is never shared."));
+
+    ImGui::Spacing();
+    ImGui::SeparatorText(TX("This computer"));
+    const HiresMaker::Requirements &r = st.req;
+    if (!r.checked) {
+        ImGui::TextDisabled("%s", TX("Checking..."));
+    } else {
+        auto line = [&](bool ok, const char *text) { ImGui::TextColored(ok ? good : warn, "%s %s", ok ? "OK" : "--", text); };
+        if (r.nvidia) {
+            char gpu[256];
+            std::snprintf(gpu, sizeof gpu, TX("Graphics card: %s"), r.gpu.c_str());
+            line(true, gpu);
+        } else {
+            line(false, TX("No NVIDIA graphics card found: the processor can make the pack, slowly."));
+        }
+        if (!r.supported) {
+            line(false, TX("Making the pack works on Linux for now."));
+        } else {
+            line(r.docker, r.docker ? TX("Docker: ready")
+                           : r.docker_installed ? TX("Docker: installed, but this user cannot use it (add it to the docker group)")
+                                                : TX("Docker: not installed"));
+            if (r.docker && r.nvidia)
+                line(r.docker_gpu, r.docker_gpu ? TX("NVIDIA Container Toolkit: ready")
+                                                : TX("NVIDIA Container Toolkit: missing (Docker cannot use the graphics card)"));
+        }
+        if (!r.kit) line(false, TX("The maker's files are missing next to the game: build the game again."));
+        ImGui::BeginDisabled(busy);
+        if (ImGui::Button(TX("Check again"))) hires_.check();
+        ImGui::EndDisabled();
+    }
+    hint(TX("What is needed, and why: docs/HIRES-TEXTURES.md."));
+
+    ImGui::Spacing();
+    ImGui::SeparatorText(TX("Make the pack"));
+    const bool card = r.nvidia && r.docker_gpu;
+    const bool can = r.checked && r.supported && r.kit && r.docker && (card || cfg_.hires_processor) && rom_ok_;
+    ImGui::BeginDisabled(busy);
+    if (ImGui::Checkbox(TX("On the processor (slow: about 30 minutes)"), &cfg_.hires_processor)) cfg_.save();
+    ImGui::EndDisabled();
+    hint(TX("Without a graphics card the tools run on the processor: about 30 minutes on 20 threads (estimated from a sample)."));
+    const bool working = st.stage == Stage::Capturing || st.stage == Stage::Building || st.stage == Stage::Upscaling ||
+                         st.stage == Stage::Installing || st.stage == Stage::Cleaning;
+    if (working) {
+        const char *what = st.stage == Stage::Capturing ? TX("Capturing the game's textures...")
+                           : st.stage == Stage::Building ? TX("Preparing the tools (the first time: a download of several GB)...")
+                           : st.stage == Stage::Upscaling ? TX("Upscaling the textures...")
+                           : st.stage == Stage::Installing ? TX("Installing the pack...")
+                                                           : TX("Removing the tools...");
+        ImGui::TextUnformatted(what);
+        ImGui::ProgressBar(st.progress, {-1, 0});
+        if (ImGui::Button(TX("Cancel"))) hires_.cancel();
+    } else {
+        ImGui::BeginDisabled(!can || busy);
+        if (ImGui::Button(TX("Make the pack"), {260 * scale, 0})) {
+            hires_.start(cfg_.rom_path, cfg_.hires_processor || !card);
+        }
+        ImGui::EndDisabled();
+        hint(TX("About 2 minutes with the graphics card, after the tools' download. The tools are removed once the pack is made."));
+    }
+    if (st.stage == Stage::Done) ImGui::TextColored(good, "%s", TX("The pack is ready."));
+    if (st.stage == Stage::Cancelled) ImGui::TextColored(warn, "%s", TX("Cancelled."));
+    if (st.stage == Stage::Failed) {
+        const char *why = "";
+        switch (st.problem) {
+        case Problem::Unsupported: why = TX("This system cannot make the pack yet."); break;
+        case Problem::Rom: why = TX("The ROM set was not found (Game tab)."); break;
+        case Problem::Kit: why = TX("The maker's files are missing next to the game: build the game again."); break;
+        case Problem::DockerMissing: why = TX("Docker is not installed."); break;
+        case Problem::DockerAccess: why = TX("This user cannot use Docker (add it to the docker group)."); break;
+        case Problem::NoNvidia: why = TX("No NVIDIA graphics card answered."); break;
+        case Problem::NoToolkit: why = TX("Docker cannot use the graphics card: install the NVIDIA Container Toolkit."); break;
+        case Problem::Capture: why = TX("The capture of the game's textures failed."); break;
+        case Problem::Build: why = TX("The upscaling tools could not be prepared."); break;
+        case Problem::Upscale: why = TX("The upscaling failed."); break;
+        case Problem::BadPack: why = TX("The pack made is not valid."); break;
+        case Problem::Save: why = TX("The pack could not be saved."); break;
+        case Problem::None: break;
+        }
+        ImGui::TextColored(bad, "%s", why);
+        char log[1200];
+        std::snprintf(log, sizeof log, TX("Details in %s"), HiresMaker::log_path().c_str());
+        ImGui::TextWrapped("%s", log);
+    }
+
+    ImGui::Spacing();
+    ImGui::SeparatorText(TX("The pack"));
+    std::error_code ec;
+    const auto size = std::filesystem::file_size(HiresMaker::pack_path(), ec);
+    if (ec) {
+        ImGui::TextDisabled("%s", TX("No pack yet."));
+    } else {
+        char info[200];
+        std::snprintf(info, sizeof info, TX("%.0f MB, on this computer"), double(size) / 1e6);
+        ImGui::TextUnformatted(info);
+        if (ImGui::Checkbox(TX("Use the high-resolution textures"), &cfg_.hires_textures)) cfg_.save();
+        hint(TX("Needs the Hardware renderer (Display tab). Textures the pack does not have are drawn as before."));
+        ImGui::BeginDisabled(busy);
+        if (ImGui::Button(TX("Delete the pack"))) {
+            hires_.delete_pack();
+            cfg_.hires_textures = false;
+            cfg_.save();
+        }
+        ImGui::EndDisabled();
+    }
+}
+#endif
+
 Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool from_home) {
     SDL_Gamepad *pad = devices.pad;
     take_dialog_result();
@@ -656,7 +786,7 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
     }
     ImGui::Spacing();
 
-    // diagnostic: M2_CAPTURE_SETTINGS_TAB=N opens tab N (0 Game .. 5 Sound) once, for a --capture-home image
+    // diagnostic: M2_CAPTURE_SETTINGS_TAB=N opens tab N (0 Game .. 5 Sound, 6 AI textures) once, for a --capture-home image
     static int open_tab = [] {
         const char *v = std::getenv("M2_CAPTURE_SETTINGS_TAB");
         return v && *v ? std::atoi(v) : -1;
@@ -1222,6 +1352,12 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
         }
 
         // ---- Sound
+#ifndef M2_MOBILE
+        if (ImGui::BeginTabItem(TX("AI textures"), nullptr, tab_flags(6))) {
+            draw_hires_tab(scale);
+            ImGui::EndTabItem();
+        }
+#endif
         if (ImGui::BeginTabItem(TX("Sound"), nullptr, tab_flags(5))) {
             ImGui::Spacing();
             auto percent = [&](const char *label, const char *id, float &value) { // a 0..1 setting as 0-100%

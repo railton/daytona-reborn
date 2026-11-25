@@ -434,6 +434,141 @@ msgstr ""
 msgid "Done"
 msgstr ""
 
+msgid "Experimental: this feature is being tested. It may fail or change; if it does, the log below helps us fix it."
+msgstr ""
+
+msgid "High-resolution textures"
+msgstr ""
+
+msgid "The race's textures upscaled four times by AI models, on this computer, from your own ROM set. The pack stays on this computer: it is made of the game's textures and is never shared."
+msgstr ""
+
+msgid "This computer"
+msgstr ""
+
+msgid "Checking..."
+msgstr ""
+
+msgid "Graphics card: %s"
+msgstr ""
+
+msgid "No NVIDIA graphics card found: the processor can make the pack, slowly."
+msgstr ""
+
+msgid "Making the pack works on Linux for now."
+msgstr ""
+
+msgid "Docker: ready"
+msgstr ""
+
+msgid "Docker: installed, but this user cannot use it (add it to the docker group)"
+msgstr ""
+
+msgid "Docker: not installed"
+msgstr ""
+
+msgid "NVIDIA Container Toolkit: ready"
+msgstr ""
+
+msgid "NVIDIA Container Toolkit: missing (Docker cannot use the graphics card)"
+msgstr ""
+
+msgid "The maker's files are missing next to the game: build the game again."
+msgstr ""
+
+msgid "Check again"
+msgstr ""
+
+msgid "What is needed, and why: docs/HIRES-TEXTURES.md."
+msgstr ""
+
+msgid "Make the pack"
+msgstr ""
+
+msgid "On the processor (slow: about 30 minutes)"
+msgstr ""
+
+msgid "Without a graphics card the tools run on the processor: about 30 minutes on 20 threads (estimated from a sample)."
+msgstr ""
+
+msgid "Capturing the game's textures..."
+msgstr ""
+
+msgid "Preparing the tools (the first time: a download of several GB)..."
+msgstr ""
+
+msgid "Upscaling the textures..."
+msgstr ""
+
+msgid "Installing the pack..."
+msgstr ""
+
+msgid "Removing the tools..."
+msgstr ""
+
+msgid "About 2 minutes with the graphics card, after the tools' download. The tools are removed once the pack is made."
+msgstr ""
+
+msgid "The pack is ready."
+msgstr ""
+
+msgid "Cancelled."
+msgstr ""
+
+msgid "This system cannot make the pack yet."
+msgstr ""
+
+msgid "The ROM set was not found (Game tab)."
+msgstr ""
+
+msgid "Docker is not installed."
+msgstr ""
+
+msgid "This user cannot use Docker (add it to the docker group)."
+msgstr ""
+
+msgid "No NVIDIA graphics card answered."
+msgstr ""
+
+msgid "Docker cannot use the graphics card: install the NVIDIA Container Toolkit."
+msgstr ""
+
+msgid "The capture of the game's textures failed."
+msgstr ""
+
+msgid "The upscaling tools could not be prepared."
+msgstr ""
+
+msgid "The upscaling failed."
+msgstr ""
+
+msgid "The pack made is not valid."
+msgstr ""
+
+msgid "The pack could not be saved."
+msgstr ""
+
+msgid "Details in %s"
+msgstr ""
+
+msgid "The pack"
+msgstr ""
+
+msgid "No pack yet."
+msgstr ""
+
+msgid "%.0f MB, on this computer"
+msgstr ""
+
+msgid "Use the high-resolution textures"
+msgstr ""
+
+msgid "Needs the Hardware renderer (Display tab). Textures the pack does not have are drawn as before."
+msgstr ""
+
+msgid "Delete the pack"
+msgstr ""
+
 msgid "static recompilation, native engine"
 msgstr ""
 
@@ -1030,6 +1165,9 @@ msgid "Esc cancels an assignment; Backspace clears a key."
 msgstr ""
 
 msgid "Reset the default settings"
+msgstr ""
+
+msgid "AI textures"
 msgstr ""
 
 msgid "Sound"

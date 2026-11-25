@@ -1733,6 +1733,8 @@ bool GpuRenderer::draw_benchmark(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *targ
     return true;
 }
 
+void GpuRenderer::clear_hires_textures() { load_hires_textures(""); }
+
 bool GpuRenderer::load_hires_textures(const std::string &path) {
     for (SDL_GPUBuffer **b : {&hires_index_, &hires_data_})
         if (*b) SDL_ReleaseGPUBuffer(dev_, *b), *b = nullptr;

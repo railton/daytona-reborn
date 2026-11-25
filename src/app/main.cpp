@@ -12,6 +12,7 @@
 //           [--arcade] (Revision A desktop: use the cabinet launcher)
 //           [--start-solo 1|2|3 [--transmission automatic|manual] [--race-mode normal|time-attack]] (Revision A desktop)
 //           [--capture-home FILE.bmp]
+//           [--make-hires-pack] (Settings > AI textures' job, headless)
 //           [--online] (Revision A: open the home menu's Online screen)
 //           [--settings] (Revision A: open the settings)
 //           [--inputs FILE] (bounded PC solo race, after the native start)
@@ -660,6 +661,35 @@ int main(int argc, char **argv) {
         else if (!std::strcmp(argv[i], "--fullscreen")) cfg.fullscreen = true;
         else if (!std::strcmp(argv[i], "--autostart")) autostart = true;
         else if (!std::strcmp(argv[i], "--profile") && i + 1 < argc) ++i; // read above
+#ifndef M2_MOBILE
+        else if (!std::strcmp(argv[i], "--make-hires-pack")) {
+            // Settings > AI textures' job without the window (app/hires_maker.h):
+            // the profile's ROM set, on the graphics card or, with the
+            // setting, the processor; the progress on the terminal
+            app::HiresMaker maker;
+            if (!maker.start(cfg.rom_path, cfg.hires_processor)) return 1;
+            int shown = -1;
+            app::HiresMaker::Stage stage = app::HiresMaker::Stage::Idle;
+            while (maker.busy()) {
+                const auto st = maker.state();
+                if (int(st.progress * 100) != shown || st.stage != stage) {
+                    shown = int(st.progress * 100), stage = st.stage;
+                    std::printf("daytona: hires pack: stage %d, %d%%\n", int(stage), shown);
+                    std::fflush(stdout);
+                }
+                SDL_Delay(200);
+            }
+            const auto st = maker.state();
+            std::printf("daytona: hires pack: %s (stage %d, problem %d, exit %d); log: %s\n",
+                        st.stage == app::HiresMaker::Stage::Done ? "made" : "failed", int(st.stage), int(st.problem),
+                        st.exit_code, app::HiresMaker::log_path().c_str());
+            if (st.stage == app::HiresMaker::Stage::Done) {
+                cfg.hires_textures = true;
+                cfg.save();
+            }
+            return st.stage == app::HiresMaker::Stage::Done ? 0 : 1;
+        }
+#endif
     }
 
 #ifndef M2_MOBILE
@@ -1004,10 +1034,15 @@ int main(int argc, char **argv) {
                         ? (shadows_asked ? " (off with the sun shadows)" : " (the most this graphics card has for it)")
                         : "",
                     cfg.aniso);
-    // High-resolution textures (experimental): M2_HIRES_TEXTURES=PACK, a pack
-    // made on this computer (scripts/hires_textures.py)
-    if (const char *pack = std::getenv("M2_HIRES_TEXTURES"); pack && *pack && gpu.ok() && !gpu.load_hires_textures(pack))
+    // High-resolution textures (experimental): Settings > AI textures makes
+    // and uses the pack (app/hires_maker.h; loaded in the main loop);
+    // M2_HIRES_TEXTURES=PACK uses that one instead
+    const char *hires_env = std::getenv("M2_HIRES_TEXTURES");
+    const bool hires_from_env = hires_env && *hires_env;
+    if (hires_from_env && gpu.ok() && !gpu.load_hires_textures(hires_env))
         std::fprintf(stderr, "daytona: %s\n", gpu.error().c_str());
+    bool hires_applied = false;     // the settings' pack loaded
+    uint64_t hires_applied_version = 0;
     // The experimental ray-tracing options are both off by
     // default. M2_DXR_SCENE=1 builds the frame's acceleration structure after
     // each hardware render (nothing reads it; the image is unchanged).
@@ -1914,6 +1949,18 @@ int main(int argc, char **argv) {
         gpu.set_car_shading(cfg.smooth_cars, cfg.car_reflections);
         gpu.set_car_textures(cfg.sharp_car_textures);
         gpu.set_smooth_2d(cfg.smooth_2d);
+#ifndef M2_MOBILE
+        if (!hires_from_env && gpu.ok()) { // Settings > AI textures: the pack made on this computer
+            const uint64_t version = launcher.hires_pack_version();
+            if (cfg.hires_textures != hires_applied || (cfg.hires_textures && version != hires_applied_version)) {
+                if (!cfg.hires_textures) gpu.clear_hires_textures();
+                else if (!gpu.load_hires_textures(app::HiresMaker::pack_path()))
+                    std::fprintf(stderr, "daytona: %s\n", gpu.error().c_str());
+                hires_applied = cfg.hires_textures;
+                hires_applied_version = version;
+            }
+        }
+#endif
         gpu.set_car_shadows(cfg.car_shadows, cfg.replace_game_shadow);
         if (game) gpu.set_light(game->board().light());
         if (game && hardware != reported_hardware) { // say which renderer is drawing, whenever it changes

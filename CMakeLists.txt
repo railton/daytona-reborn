@@ -253,7 +253,7 @@ if(EXISTS ${CMAKE_SOURCE_DIR}/extern/sdl3/CMakeLists.txt)
         BYPRODUCTS ${APP_VERSION_H} VERBATIM)
     add_library(daytona_app OBJECT src/app/main.cpp src/app/launcher.cpp src/app/i18n.cpp src/app/config.cpp src/app/controls.cpp src/app/ffb.cpp src/app/link_socket.cpp src/app/relay_link.cpp src/app/link_codec.cpp src/app/online.cpp src/app/online_menu.cpp src/app/online_overlay.cpp src/app/pacing.cpp)
     if(NOT M2_MOBILE)
-        target_sources(daytona_app PRIVATE src/app/home_menu.cpp src/app/gpu/home_scene.cpp)
+        target_sources(daytona_app PRIVATE src/app/home_menu.cpp src/app/gpu/home_scene.cpp src/app/hires_maker.cpp)
         target_include_directories(daytona_app PRIVATE tools)
     endif()
     add_dependencies(daytona_app daytona_version)
@@ -338,6 +338,14 @@ if(EXISTS ${GEN_DIR}/gen_table.cpp AND EXISTS ${TGP_GEN} AND EXISTS ${SND_GEN})
         # copied on every build, so a changed translation needs no relink
         add_custom_target(daytona_lang ALL COMMAND ${CMAKE_COMMAND} -E copy_directory
                           ${CMAKE_SOURCE_DIR}/lang $<TARGET_FILE_DIR:daytona>/lang)
+        # The high-resolution texture maker's kit (app/hires_maker.h): the
+        # upscaling script, the textures' kinds, its container (Linux) and the
+        # session the capture plays, next to the game as hires/
+        add_custom_target(daytona_hires_kit ALL
+            COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:daytona>/hires
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/scripts/hires_textures.py
+                    ${CMAKE_SOURCE_DIR}/scripts/hires_classes.csv ${CMAKE_SOURCE_DIR}/docker/hires-textures/Dockerfile
+                    ${CMAKE_SOURCE_DIR}/scripts/inputs/race_to_end.txt $<TARGET_FILE_DIR:daytona>/hires)
         # Headless frames through the hardware renderer, to compare with m2run's.
         add_executable(m2gpushot tools/m2gpushot/main.cpp ${GEN_SOURCES} ${TGP_GEN} ${SND_GEN})
         target_link_libraries(m2gpushot PRIVATE runtime gpurender)
@@ -577,6 +585,12 @@ if(TARGET SDL3::SDL3-static)
     target_include_directories(test_quality PRIVATE src)
     target_link_libraries(test_quality PRIVATE runtime SDL3::SDL3-static)
     add_test(NAME quality COMMAND test_quality)
+    # The high-resolution texture pack's reader and index, and its maker's parsing
+    add_executable(test_hires tests/test_hires.cpp src/app/hires_maker.cpp src/app/config.cpp src/app/controls.cpp)
+    target_include_directories(test_hires PRIVATE src ${CMAKE_CURRENT_BINARY_DIR}/generated)
+    add_dependencies(test_hires daytona_version)
+    target_link_libraries(test_hires PRIVATE runtime SDL3::SDL3-static)
+    add_test(NAME hires COMMAND test_hires)
     add_executable(test_app_controls tests/test_app_controls.cpp src/app/controls.cpp src/app/ffb.cpp)
     target_include_directories(test_app_controls PRIVATE src)
     target_link_libraries(test_app_controls PRIVATE runtime SDL3::SDL3-static)

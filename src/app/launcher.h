@@ -7,6 +7,9 @@
 #pragma once
 
 #include "app/config.h"
+#ifndef M2_MOBILE
+#include "app/hires_maker.h"
+#endif
 #include "runtime/rom_import.h"
 
 #include <SDL3/SDL.h>
@@ -57,6 +60,11 @@ public:
     enum class QualityChoice { None, Apply, Keep };
     QualityChoice draw_quality(const QualityProbe &probe, float shown, bool game_running);
     int quality_pick() const { return quality_pick_; } // app::QualityLevel
+#ifndef M2_MOBILE
+    // Settings > AI textures: raised when the high-resolution texture pack
+    // is made or deleted (the game loads it again, app/hires_maker.h)
+    uint64_t hires_pack_version() const { return hires_.state().pack_version; }
+#endif
     // Settings' "Detect automatically" was pressed since the last call
     bool take_quality_request() { const bool r = quality_request_; quality_request_ = false; return r; }
 
@@ -74,6 +82,10 @@ private:
 
     Config &cfg_;
     SDL_Window *window_;
+#ifndef M2_MOBILE
+    HiresMaker hires_;
+    void draw_hires_tab(float scale);
+#endif
     std::vector<rt::RomCheck> checks_;
     bool rom_ok_ = false;
     std::string rom_message_, error_;

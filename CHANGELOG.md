@@ -4,6 +4,40 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`). The
 fork's version is in `VERSION`, raised with every code change (rules.md
 rule 14); each version has its section here.
 
+## Unreleased (version to be decided)
+
+### High-resolution textures: made from the game (experimental, Linux)
+
+Settings > **AI textures** makes the high-resolution texture pack on this
+computer and uses it, with no command line (docs/HIRES-TEXTURES.md, which
+now lists the tools it needs). Marked as a feature in testing.
+
+- The tab shows what the computer has (an NVIDIA card through `nvidia-smi`,
+  Docker usable by the user, the NVIDIA Container Toolkit), then makes the
+  pack in the background with its progress: the capture (`m2texcap`, which
+  now reads the ROM set's zip and prints its progress), the upscaling
+  container built by Docker from `hires/Dockerfile`, the upscaling, the
+  pack checked and saved as `hires.m2tex` in the data folder. After a
+  success the tools are removed (the captured textures, the models, the
+  container image, and its base image unless it was there before).
+- The processor can do it without a card ("On the processor": about 30
+  minutes on 20 threads, estimated from a 3 % sample).
+- Every command, its output and exit code go to `hires-textures.log` in the
+  data folder; a failure says which step failed and names the log; the
+  tools are kept for the next try.
+- "Use the high-resolution textures" loads or drops the pack at once;
+  `M2_HIRES_TEXTURES` still wins. `daytona --make-hires-pack` runs the job
+  without the window.
+- The build copies the kit next to the game (`hires/`: the script, the
+  textures' kinds, the Dockerfile, the capture's session).
+- Measured on Linux with an RTX 5090, the base image already there: the
+  whole job 1 min 57 s, a pack of 360 textures (84 MB) with the default
+  cabinet settings (the 410 earlier came from another EEPROM's settings).
+- The pack reader also refuses sizes that are not powers of two; new test
+  `hires` (the reader, the index's slots, cut-outs, refused files, the
+  maker's progress lines).
+- Windows and macOS: not yet (the plan: portable tools, as the build's).
+
 ## 0.20.0 (2026-11-25)
 
 ### Smooth menus and HUD

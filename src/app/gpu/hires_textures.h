@@ -94,7 +94,8 @@ struct Pack {
             Entry &e = entries[i];
             ok = rd(&e.sheet, 4) && rd(&e.x, 4) && rd(&e.y, 4) && rd(&e.w, 4) && rd(&e.h, 4) && rd(&e.flags, 4) &&
                  rd(&e.hash, 8) && rd(&e.offset, 8) && e.sheet < 2 && e.w >= 32 && e.w <= 256 && e.h >= 32 &&
-                 e.h <= 256 && e.x % 32 == 0 && e.y % 32 == 0 && e.x + e.w <= 2048 && e.y + e.h <= 1024 &&
+                 e.h <= 256 && (e.w & (e.w - 1)) == 0 && (e.h & (e.h - 1)) == 0 && e.x % 32 == 0 &&
+                 e.y % 32 == 0 && e.x + e.w <= 2048 && e.y + e.h <= 1024 &&
                  e.flags <= kCutout;
             const uint64_t planes = (e.flags & kCutout) ? 2 : 1;
             if (ok) need = std::max<uint64_t>(need, e.offset + planes * e.w * e.h * scale * scale);

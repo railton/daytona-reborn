@@ -60,6 +60,8 @@ public:
     // magnified with smooth curves and diagonals instead of square pixels
     // (m2.hlsl smooth_vote); not the CPU front layers (HUD at the edges).
     void set_smooth_2d(bool on) { smooth_2d_ = on; }
+    // no high-resolution textures any more (load_hires_textures loads a pack)
+    void clear_hires_textures();
     // The cars' shadows on the road and the walls (an enhancement, any GPU):
     // the cars drawn from the game's sun into a depth map, two cascades of
     // 2048 x 2048 (up to 40 camera units, up to 140), which the scenery's

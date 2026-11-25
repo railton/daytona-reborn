@@ -21,6 +21,9 @@ edges, and its opacity upscaled by the graphic model, for crisp outlines.
   hires_textures.py pack CAPTURE_DIR PACK             # CAPTURE_DIR/out -> PACK
   hires_textures.py all CAPTURE_DIR MODELS_DIR PACK
 
+Lines "hires_textures: progress DONE/TOTAL" follow the upscaling (the game's
+maker, src/app/hires_maker.cpp, reads them).
+
 upscale needs Python 3 with PyTorch, spandrel and Pillow (docker/hires-textures
 has them; a CUDA graphics card makes it fast, the CPU works too, slowly).
 models and pack need Python 3 (pack with Pillow).
@@ -133,7 +136,7 @@ def models(directory):
     for name, url, digest in MODELS.values():
         path = os.path.join(directory, name)
         if not os.path.exists(path) or sha256(path) != digest:
-            print(f"hires_textures: downloading {name}")
+            print(f"hires_textures: downloading {name}", flush=True)
             urllib.request.urlretrieve(url, path + ".part")
             if sha256(path + ".part") != digest:
                 os.remove(path + ".part")
@@ -194,6 +197,9 @@ def upscale(capture, directory):
         else:
             kind = table.get(r["hash"]) or kind_of(w, h, tones)
             work[kind].append((r["file"], a / 255.0, False))
+    total = sum(len(items) for items in work.values())
+    done = 0
+    print(f"hires_textures: progress 0/{total}", flush=True)
     for kind, items in work.items():
         if not items:
             continue
@@ -206,6 +212,8 @@ def upscale(capture, directory):
         for file, a, opacity in items:
             suffix = "_a.png" if opacity else ".png"
             Image.fromarray(run_model(model, device, half, a), "L").save(os.path.join(out, file[:-4] + suffix))
+            done += 1
+            print(f"hires_textures: progress {done}/{total}", flush=True)
         print(f"hires_textures: {len(items)} {kind} images with {name} ({device}), {time.time() - start:.0f} s")
         del model
         if device == "cuda":

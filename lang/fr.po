@@ -437,6 +437,141 @@ msgstr "Ou tapez son chemin complet et appuyez sur Entrée :"
 msgid "Done"
 msgstr "Terminé"
 
+msgid "Experimental: this feature is being tested. It may fail or change; if it does, the log below helps us fix it."
+msgstr "Expérimental : cette fonction est en cours de test. Elle peut échouer ou changer ; en cas d'échec, le journal ci-dessous nous aide à la corriger."
+
+msgid "High-resolution textures"
+msgstr "Textures en haute résolution"
+
+msgid "The race's textures upscaled four times by AI models, on this computer, from your own ROM set. The pack stays on this computer: it is made of the game's textures and is never shared."
+msgstr "Les textures de la course agrandies quatre fois par des modèles d'IA, sur cet ordinateur, à partir de votre propre jeu de ROM. Le pack reste sur cet ordinateur : il est fait des textures du jeu et n'est jamais partagé."
+
+msgid "This computer"
+msgstr "Cet ordinateur"
+
+msgid "Checking..."
+msgstr "Vérification..."
+
+msgid "Graphics card: %s"
+msgstr "Carte graphique : %s"
+
+msgid "No NVIDIA graphics card found: the processor can make the pack, slowly."
+msgstr "Aucune carte NVIDIA trouvée : le processeur peut créer le pack, lentement."
+
+msgid "Making the pack works on Linux for now."
+msgstr "Pour l'instant, la création du pack fonctionne sous Linux."
+
+msgid "Docker: ready"
+msgstr "Docker : prêt"
+
+msgid "Docker: installed, but this user cannot use it (add it to the docker group)"
+msgstr "Docker : installé, mais cet utilisateur ne peut pas l'utiliser (ajoutez-le au groupe docker)"
+
+msgid "Docker: not installed"
+msgstr "Docker : non installé"
+
+msgid "NVIDIA Container Toolkit: ready"
+msgstr "NVIDIA Container Toolkit : prêt"
+
+msgid "NVIDIA Container Toolkit: missing (Docker cannot use the graphics card)"
+msgstr "NVIDIA Container Toolkit : absent (Docker ne peut pas utiliser la carte graphique)"
+
+msgid "The maker's files are missing next to the game: build the game again."
+msgstr "Les fichiers du générateur manquent à côté du jeu : recompilez le jeu."
+
+msgid "Check again"
+msgstr "Vérifier à nouveau"
+
+msgid "What is needed, and why: docs/HIRES-TEXTURES.md."
+msgstr "Ce qui est nécessaire, et pourquoi : docs/HIRES-TEXTURES.md."
+
+msgid "Make the pack"
+msgstr "Créer le pack"
+
+msgid "On the processor (slow: about 30 minutes)"
+msgstr "Sur le processeur (lent : environ 30 minutes)"
+
+msgid "Without a graphics card the tools run on the processor: about 30 minutes on 20 threads (estimated from a sample)."
+msgstr "Sans carte graphique, les outils tournent sur le processeur : environ 30 minutes sur 20 threads (estimé sur un échantillon)."
+
+msgid "Capturing the game's textures..."
+msgstr "Capture des textures du jeu..."
+
+msgid "Preparing the tools (the first time: a download of several GB)..."
+msgstr "Préparation des outils (la première fois : un téléchargement de plusieurs Go)..."
+
+msgid "Upscaling the textures..."
+msgstr "Agrandissement des textures..."
+
+msgid "Installing the pack..."
+msgstr "Installation du pack..."
+
+msgid "Removing the tools..."
+msgstr "Suppression des outils..."
+
+msgid "About 2 minutes with the graphics card, after the tools' download. The tools are removed once the pack is made."
+msgstr "Environ 2 minutes avec la carte graphique, après le téléchargement des outils. Les outils sont supprimés une fois le pack créé."
+
+msgid "The pack is ready."
+msgstr "Le pack est prêt."
+
+msgid "Cancelled."
+msgstr "Annulé."
+
+msgid "This system cannot make the pack yet."
+msgstr "Ce système ne peut pas encore créer le pack."
+
+msgid "The ROM set was not found (Game tab)."
+msgstr "Le jeu de ROM est introuvable (onglet Jeu)."
+
+msgid "Docker is not installed."
+msgstr "Docker n'est pas installé."
+
+msgid "This user cannot use Docker (add it to the docker group)."
+msgstr "Cet utilisateur ne peut pas utiliser Docker (ajoutez-le au groupe docker)."
+
+msgid "No NVIDIA graphics card answered."
+msgstr "Aucune carte NVIDIA n'a répondu."
+
+msgid "Docker cannot use the graphics card: install the NVIDIA Container Toolkit."
+msgstr "Docker ne peut pas utiliser la carte graphique : installez le NVIDIA Container Toolkit."
+
+msgid "The capture of the game's textures failed."
+msgstr "La capture des textures du jeu a échoué."
+
+msgid "The upscaling tools could not be prepared."
+msgstr "Les outils d'agrandissement n'ont pas pu être préparés."
+
+msgid "The upscaling failed."
+msgstr "L'agrandissement a échoué."
+
+msgid "The pack made is not valid."
+msgstr "Le pack créé n'est pas valide."
+
+msgid "The pack could not be saved."
+msgstr "Le pack n'a pas pu être enregistré."
+
+msgid "Details in %s"
+msgstr "Détails dans %s"
+
+msgid "The pack"
+msgstr "Le pack"
+
+msgid "No pack yet."
+msgstr "Pas encore de pack."
+
+msgid "%.0f MB, on this computer"
+msgstr "%.0f Mo, sur cet ordinateur"
+
+msgid "Use the high-resolution textures"
+msgstr "Utiliser les textures en haute résolution"
+
+msgid "Needs the Hardware renderer (Display tab). Textures the pack does not have are drawn as before."
+msgstr "Nécessite le rendu matériel (onglet Affichage). Les textures absentes du pack sont dessinées comme avant."
+
+msgid "Delete the pack"
+msgstr "Supprimer le pack"
+
 msgid "static recompilation, native engine"
 msgstr "recompilation statique, moteur natif"
 
@@ -1087,6 +1222,9 @@ msgstr "Échap annule une affectation ; Retour arrière efface une touche."
 msgid "Reset the default settings"
 msgstr "Remettre les réglages par défaut"
 
+msgid "AI textures"
+msgstr "Textures IA"
+
 msgid "Sound"
 msgstr "Son"
 
@@ -1417,3 +1555,6 @@ msgstr "Le jeu ne lit pas les données reçues."
 
 msgid "Invalid data from another player: is everyone on the same version of the game?"
 msgstr "Données invalides d'un autre joueur : tout le monde a-t-il la même version du jeu ?"
+
+# Plus utilisés (no longer used):
+#~ msgid "Without a graphics card the tools run on the processor. Measured: about 30 minutes on 20 threads."
