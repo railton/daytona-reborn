@@ -4,7 +4,7 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`). The
 fork's version is in `VERSION`, raised with every code change (rules.md
 rule 14); each version has its section here.
 
-## Unreleased (version to be decided)
+## 0.21.0 (2026-11-25)
 
 ### Fixes from an external graphics review
 
