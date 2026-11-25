@@ -1004,6 +1004,10 @@ int main(int argc, char **argv) {
                         ? (shadows_asked ? " (off with the sun shadows)" : " (the most this graphics card has for it)")
                         : "",
                     cfg.aniso);
+    // High-resolution textures (experimental): M2_HIRES_TEXTURES=PACK, a pack
+    // made on this computer (scripts/hires_textures.py)
+    if (const char *pack = std::getenv("M2_HIRES_TEXTURES"); pack && *pack && gpu.ok() && !gpu.load_hires_textures(pack))
+        std::fprintf(stderr, "daytona: %s\n", gpu.error().c_str());
     // The experimental ray-tracing options are both off by
     // default. M2_DXR_SCENE=1 builds the frame's acceleration structure after
     // each hardware render (nothing reads it; the image is unchanged).

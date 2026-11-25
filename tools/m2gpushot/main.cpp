@@ -7,6 +7,7 @@
 //             [--draw-distance N] [--draw-budget N] [--scenery-log FILE] [--original-selection]
 //             [--msaa N] [--aniso N] [--smooth-cars] [--car-reflections] [--sharp-car-textures] [--car-shadows]
 //             [--car-shadows-and-game-shadow] [--bloom] [--crt] [--window WxH] [--pixels WxH]
+//             [--hires-textures PACK]
 //   m2gpushot - 0 --quality-probe WxH: the automatic quality's measurement
 //             (app/gpu/quality_probe.h) for a WxH screen; no game is run
 //   m2gpushot IMAGES_DIR FRAMES --bench [--inputs ...] [--aspect ...] [--scale N]
@@ -53,6 +54,7 @@ int main(int argc, char **argv) {
     uint32_t draw_budget = 0;
     uint64_t every = 0, dump_from = 0;
     int scale = 1;
+    std::string hires_path; // --hires-textures: a high-resolution texture pack (app/gpu/hires_textures.h)
     int pixels_w = 0, pixels_h = 0; // --pixels WxH: the 3D drawn at that size, as the native mode does
     int window_w = 1920, window_h = 1080; // --bloom, --crt: the window the frame is shown in
     bool bloom = false, crt = false;
@@ -91,6 +93,7 @@ int main(int argc, char **argv) {
         else if (!std::strcmp(argv[i], "--aniso")) aniso = std::clamp(std::atoi(argv[i + 1]), 1, 16);
         else if (!std::strcmp(argv[i], "--window")) std::sscanf(argv[i + 1], "%dx%d", &window_w, &window_h);
         else if (!std::strcmp(argv[i], "--pixels")) std::sscanf(argv[i + 1], "%dx%d", &pixels_w, &pixels_h);
+        else if (!std::strcmp(argv[i], "--hires-textures")) hires_path = argv[i + 1];
         else if (!std::strcmp(argv[i], "--draw-distance")) rt::GameLoop::set_draw_distance(std::atoi(argv[i + 1]));
         else if (!std::strcmp(argv[i], "--scenery-log")) scenery_log_path = argv[i + 1];
         else if (!std::strcmp(argv[i], "--draw-budget")) {
@@ -154,6 +157,10 @@ int main(int argc, char **argv) {
     }
     const bool post = bloom || crt;
     gpu.set_car_shading(smooth_cars, car_reflections);
+    if (!hires_path.empty() && !gpu.load_hires_textures(hires_path)) {
+        std::fprintf(stderr, "m2gpushot: %s\n", gpu.error().c_str());
+        return 1;
+    }
     if (msaa > 1 || aniso > 1) std::printf("m2gpushot: MSAA %dx, anisotropic %dx\n", gpu.msaa(), aniso);
     constexpr int H = rt::GameLoop::kHeight;
     const int W = rt::GameLoop::kWidth + 2 * rt::GameLoop::wide_margin(aspect);

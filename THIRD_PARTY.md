@@ -62,6 +62,21 @@ is part of the game or linked into it.
 | [DirectXShaderCompiler](https://github.com/microsoft/DirectXShaderCompiler) | v1.9.2609 (`linux_dxc_2026_09_28`) | University of Illinois/NCSA | HLSL to SPIR-V and DXIL |
 | [SPIRV-Cross](https://github.com/KhronosGroup/SPIRV-Cross) | Ubuntu 24.04's package | Apache-2.0 | SPIR-V to MSL |
 
+## AI upscaling models (tools only, downloaded by the player)
+
+`scripts/hires_textures.py` (our own) makes the optional high-resolution
+texture pack (docs/HIRES-TEXTURES.md). It downloads these models, each
+checked against its SHA-256 in the script, onto the player's computer; none
+is in this repository, part of the game, or linked into it.
+
+| Model | Release | Licence | Used for |
+| --- | --- | --- | --- |
+| [4xTextureDAT2_otf](https://github.com/Phhofm/models/releases/tag/4xTextureDAT2_otf), Philip Hofmann | `4xTextureDAT2_otf.safetensors`, SHA-256 `5851f91a…f068b` | CC BY 4.0 | lettering, flat areas, cut-out opacity |
+| [4x-PBRify_UpscalerV4](https://github.com/Kim2091/Kim2091-Models/releases/tag/4x-PBRify_UpscalerV4), Kim2091 | `4x-PBRify_UpscalerV4.pth`, SHA-256 `82db39e3…cb789` | CC0 1.0 | rock, foliage, crowds |
+| [RealESRGAN_x4plus](https://github.com/xinntao/Real-ESRGAN/releases/tag/v0.1.0), Xintao Wang et al. | `RealESRGAN_x4plus.pth`, SHA-256 `4fa0d389…d682f1` | BSD-3-Clause | the road |
+| [spandrel](https://github.com/chaiNNer-org/spandrel) | 0.4.1 (pip, `docker/hires-textures`) | MIT | loads the models |
+| [PyTorch](https://pytorch.org) | `pytorch/pytorch:2.7.1-cuda12.8-cudnn9-runtime` | BSD-3-Clause | runs the models |
+
 Vita GPU display buffering builds MIT libvita2d at
 `a8f15ab09d5233f0a4e4ad0e8f6ade0da888cbed` from
 https://github.com/xerpi/libvita2d. The source hash, small display-ring adapter

@@ -53,6 +53,11 @@ From Daytona Reborn beta 0.10, kept in this repository:
   car shading, paint reflecting the course's sky, car shadows, bloom and an
   arcade monitor (CRT) look. At the first start the game measures the
   graphics card and recommends a level; the player picks.
+- **High-resolution textures (experimental):** the game's textures upscaled
+  4x by AI models on your own computer, from your own ROM set, each by the
+  model best at its kind (lettering, natural surfaces, the road); cut-out
+  textures keep crisp outlines. See
+  [docs/HIRES-TEXTURES.md](docs/HIRES-TEXTURES.md).
 - **Controls** for keyboard, gamepads, wheels and pedals, with analogue axes
   and force feedback (experimental).
 - **Languages:** English, French, Brazilian Portuguese.
@@ -250,7 +255,9 @@ desktop computer from your ROM set, then built for the other platform.
   `python3 scripts/extract_strings.py` and fill `lang/fr.po` and
   `lang/pt.po`.
 - Headless tools: `m2run` (with `--relay` to join an Online room),
-  `m2gpushot`, and `daytona --capture-home FILE.bmp` for the interface.
+  `m2gpushot` (`--hires-textures PACK`), `m2texcap` (the textures a session
+  uses, for a high-resolution pack), and `daytona --capture-home FILE.bmp`
+  for the interface.
 
 ## Licence
 

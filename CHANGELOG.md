@@ -4,6 +4,34 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`). The
 fork's version is in `VERSION`, raised with every code change (rules.md
 rule 14); each version has its section here.
 
+## 0.19.0 (2026-11-25)
+
+### High-resolution textures (experimental)
+
+The race's textures upscaled 4x by AI models, from the player's own ROM
+set, on their computer (docs/HIRES-TEXTURES.md); the game draws them with
+`M2_HIRES_TEXTURES=PACK` (no launcher option yet).
+
+- `m2texcap` captures the textures a session uses (the attract loop, a race
+  on each course, scripted sessions through the select screens and game
+  over): 410 textures, 263 of them cut-outs.
+- `scripts/hires_textures.py` upscales each with the model best at its kind
+  (`scripts/hires_classes.csv`, by hash): 4xTextureDAT2_otf for lettering
+  and flat areas, 4x-PBRify_UpscalerV4 for rock, foliage and crowds,
+  RealESRGAN_x4plus for the road; cut-outs have their holes filled from
+  their neighbours and their opacity upscaled too. `docker/hires-textures`
+  runs it (PyTorch, CUDA 12.8). Under 2 minutes on a GeForce RTX 5090.
+- The shader reads the upscaled tones where a texture is magnified and the
+  texture RAM holds its texels (hash checked when texture RAM changes, 2 to
+  5 ms), through the game's own luma and colour; cut-outs follow the
+  upscaled opacity (alpha to coverage with MSAA). An index cell holds up to
+  4 textures: 36 of the 361 places the race uses start more than one.
+- Measured (3840 x 2160, MSAA 4x, 3600 frames): 294 of 406 textures in use,
+  15 to 24 % of the pixels changed, renderer CPU time 0.16 -> 0.30 ms per
+  frame. Without a pack the frames are unchanged.
+- Known limits: the 2D layers (menus, HUD, results) are not covered; the
+  pack is made per computer and never shared.
+
 ## 0.18.0 (2026-11-25)
 
 ### Online server: the course and the gearbox are the MASTER's

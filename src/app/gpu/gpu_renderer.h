@@ -17,6 +17,7 @@
 // the colour translation from storage buffers.
 #pragma once
 
+#include "app/gpu/hires_textures.h"
 #include "app/gpu/opponent_bodies.h"
 #include "runtime/video.h"
 
@@ -91,6 +92,13 @@ public:
     // RAM and colour translation hold blocks of noise (nothing of the game).
     // Then this renderer is only for measuring: render() would show the noise.
     bool draw_benchmark(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *target, int pixel_w, int pixel_h, int layers);
+    // High-resolution textures (experimental, app/gpu/hires_textures.h): the
+    // pack's upscaled textures replace the game's where they are magnified on
+    // screen and the texture RAM holds the very texels they were made from.
+    // False (with error()) if the pack cannot be read; "" unloads it.
+    bool load_hires_textures(const std::string &path);
+    size_t hires_entries() const { return hires_.entries.size(); }
+    size_t hires_live() const { return hires_live_; } // in use for the last frame's texture RAM
     void shutdown();
     bool ok() const { return poly_pipe_ != nullptr; }
     const std::string &error() const { return error_; }
@@ -201,6 +209,13 @@ private:
     int glow_w_ = 0, glow_h_ = 0;
     bool post_failed_ = false;
     bool init_post();
+    hires::Pack hires_;
+    SDL_GPUBuffer *hires_index_ = nullptr, *hires_data_ = nullptr;
+    bool hires_data_uploaded_ = false;
+    uint64_t hires_generation_ = ~0ull; // the texture RAM generation hires_index_ was checked against
+    size_t hires_live_ = 0;
+    std::vector<uint32_t> hires_words_;
+    void hires_upload(SDL_GPUCommandBuffer *cmd, const rt::VideoMem &mem);
     bool bench_filled_ = false;
     struct QuadVertex {
         float x, y, u, v;

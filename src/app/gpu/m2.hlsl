@@ -91,6 +91,47 @@ PolyOut vs_poly(PolyIn i) {
 [[vk::binding(4, 2)]] StructuredBuffer<uint> xlat : register(t4, space2);
 
 [[vk::binding(5, 2)]] StructuredBuffer<uint> opponent_atlas : register(t5, space2);
+// High-resolution textures (an experimental enhancement, app/gpu/hires_textures.h):
+// per sheet and 32-texel cell, four slots for the upscaled textures starting
+// there (each its first byte in hires_data, and w | h << 16, bit 15 for a
+// cut-out; 0: none), and the tones, four to a word (a cut-out's opacities
+// after its tones).
+[[vk::binding(6, 2)]] StructuredBuffer<uint> hires_index : register(t6, space2);
+[[vk::binding(7, 2)]] StructuredBuffer<uint> hires_data : register(t7, space2);
+static const uint kHiresScale = 4u;
+static const uint kHiresCutout = 1u << 15;
+static const uint kHiresSlots = 4u; // per cell (hires_textures.h kSlots)
+
+uint hires_tone(uint base, uint w4, int x, int y) {
+    const uint a = base + uint(y) * w4 + uint(x);
+    return (hires_data[a >> 2] >> ((a & 3u) * 8u)) & 0xffu;
+}
+
+// The upscaled texel at (u, v) (8 fractional bits, in the game's texels, its
+// mirroring done), bilinear over the upscaled tones; wrapping or clamped at
+// the texture's edges as the game's. In the game's blend's range (texel << 4);
+// a cut-out's with its opacity (0..0x80) in bits 16-23, as lerp8's lanes, its
+// tone kept below the transparent texel's (15).
+uint hires_texel(uint base, uint w, uint h, int u, int v, uint flags, bool cutout) {
+    const uint w4 = w * kHiresScale, h4 = h * kHiresScale;
+    const float hx = float(u) / 256.0 * float(kHiresScale) - 0.5, hy = float(v) / 256.0 * float(kHiresScale) - 0.5;
+    const float fx = floor(hx), fy = floor(hy);
+    const float2 f = float2(hx - fx, hy - fy);
+    // the coordinates repeat (w4, h4 are powers of two: a negative one wraps
+    // too); without wrapping the game only blends nothing across the seam
+    int x0 = int(uint(int(fx)) % w4), y0 = int(uint(int(fy)) % h4);
+    int x1 = int(uint(x0 + 1) % w4), y1 = int(uint(y0 + 1) % h4);
+    float2 g = f;
+    if (!((flags >> 3) & 1u) && x1 == 0) { if (g.x >= 0.5) x0 = 0; else x1 = x0; g.x = 0.0; }
+    if (!((flags >> 4) & 1u) && y1 == 0) { if (g.y >= 0.5) y0 = 0; else y1 = y0; g.y = 0.0; }
+    const float t = lerp(lerp(float(hires_tone(base, w4, x0, y0)), float(hires_tone(base, w4, x1, y0)), g.x),
+                         lerp(float(hires_tone(base, w4, x0, y1)), float(hires_tone(base, w4, x1, y1)), g.x), g.y);
+    if (!cutout) return uint(t * (240.0 / 255.0) + 0.5);
+    const uint a = base + w4 * h4; // the opacities
+    const float o = lerp(lerp(float(hires_tone(a, w4, x0, y0)), float(hires_tone(a, w4, x1, y0)), g.x),
+                         lerp(float(hires_tone(a, w4, x0, y1)), float(hires_tone(a, w4, x1, y1)), g.x), g.y);
+    return min(uint(t * (240.0 / 255.0) + 0.5), 0xe0u) | (uint(o * (128.0 / 255.0) + 0.5) << 16);
+}
 
 float3 opponent_texel(uint offset, uint width, int2 p, int2 limit) {
     const uint c = opponent_atlas[offset + dot(uint2(clamp(p, 0, limit)), uint2(1, width))];
@@ -176,6 +217,16 @@ uint fetch_texel(uint4 info, int level, int u, int v, bool translucent, float2 f
     }
     if (((flags >> 5) & 1u) && (u & int(tex_width << 8)) != 0) u = ~u;
     if (((flags >> 6) & 1u) && (v & int(tex_height << 8)) != 0) v = ~v;
+    // the upscaled texture (info.x bit 11), where this one is magnified on
+    // screen and the texture RAM holds the texels it was made from; a cut-out
+    // one only for a cut-out polygon
+    if (level == 0 && ((flags >> 11) & 1u) != 0u && max(footprint.x, footprint.y) < 1.0) {
+        const uint slots = (sheet * 2048u + (tex_y >> 5) * 64u + (tex_x >> 5)) * kHiresSlots * 2u;
+        const uint key = tex_width | (tex_height << 16) | (translucent ? kHiresCutout : 0u);
+        [unroll] for (uint k = 0u; k < kHiresSlots; ++k)
+            if (hires_index[slots + k * 2u + 1u] == key)
+                return hires_texel(hires_index[slots + k * 2u], tex_width, tex_height, u, v, flags, translucent);
+    }
     u -= 0x80;
     v -= 0x80;
     uint ufrac = uint(u) & 0xffu;

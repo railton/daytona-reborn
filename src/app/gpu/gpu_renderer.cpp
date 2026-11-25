@@ -70,7 +70,7 @@ bool GpuRenderer::init(SDL_GPUDevice *dev, SDL_GPUTextureFormat format, int msaa
     SDL_GPUShader *vs_poly = shader(k_vs_poly_spv, sizeof k_vs_poly_spv, k_vs_poly_dxil, sizeof k_vs_poly_dxil,
                                     k_vs_poly_msl, "vs_poly", SDL_GPU_SHADERSTAGE_VERTEX, 1, 0);
     SDL_GPUShader *ps_poly = shader(k_ps_poly_spv, sizeof k_ps_poly_spv, k_ps_poly_dxil, sizeof k_ps_poly_dxil,
-                                    k_ps_poly_msl, "ps_poly", SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 2, 4);
+                                    k_ps_poly_msl, "ps_poly", SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 2, 6);
     SDL_GPUShader *vs_quad = shader(k_vs_quad_spv, sizeof k_vs_quad_spv, k_vs_quad_dxil, sizeof k_vs_quad_dxil,
                                     k_vs_quad_msl, "vs_quad", SDL_GPU_SHADERSTAGE_VERTEX, 1, 0);
     SDL_GPUShader *ps_quad = shader(k_ps_quad_spv, sizeof k_ps_quad_spv, k_ps_quad_dxil, sizeof k_ps_quad_dxil,
@@ -330,6 +330,10 @@ void GpuRenderer::shutdown() {
     for (SDL_GPUTexture **t : {&msaa_color_, &resolve_})
         if (*t) SDL_ReleaseGPUTexture(dev_, *t), *t = nullptr;
     msaa_w_ = msaa_h_ = 0;
+    for (SDL_GPUBuffer **b : {&hires_index_, &hires_data_})
+        if (*b) SDL_ReleaseGPUBuffer(dev_, *b), *b = nullptr;
+    hires_data_uploaded_ = false;
+    hires_generation_ = ~0ull;
     if (sky_env_pipe_) SDL_ReleaseGPUGraphicsPipeline(dev_, sky_env_pipe_), sky_env_pipe_ = nullptr;
     for (SDL_GPUTexture **t : {&sky_env_, &sky_none_})
         if (*t) SDL_ReleaseGPUTexture(dev_, *t), *t = nullptr;
@@ -752,6 +756,7 @@ void GpuRenderer::build(const rt::Video &video, int w, int h, int scale, bool sh
         if (sharp_textures) material.info[0] |= 1u << 23;
         if (msaa_ > 1) material.info[0] |= 1u << 25; // alpha to coverage for cut-out texels (m2.hlsl)
         material.info[0] |= aniso_bits_ << 26;
+        if (hires_data_uploaded_ && renderer >= 2) material.info[0] |= 1u << 11; // m2.hlsl hires_texel
         if (poly.local_texture) {
             material.info[0] = 1u << 24;
             material.info[1] = poly.local_texture - 1;
@@ -933,6 +938,8 @@ bool GpuRenderer::render(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *target, int 
     const int lod_scale = std::clamp(int(std::lround(double(output_h) / h)), 1, 4);
     const auto &original = pose_polys ? *pose_polys : video.gpu_polys();
     const auto *replacement = opponent_atlas_ ? opponent_bodies_.replace(original) : nullptr;
+    // before build(): its materials ask for the pack only once it is on the GPU
+    if (!hires_.entries.empty()) hires_upload(cmd, video.gpu_mem());
     build(video, w, h, lod_scale, sharp_textures, replacement ? *replacement : original);
     static std::FILE *trace = [] {
         const char *file = std::getenv("M2_OPPONENT_PRESENT_TRACE");
@@ -1207,8 +1214,9 @@ bool GpuRenderer::render(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *target, int 
         SDL_BindGPUGraphicsPipeline(pass, poly_pipe_);
         SDL_GPUBufferBinding vb{vbuf_, 0};
         SDL_BindGPUVertexBuffers(pass, 0, &vb, 1);
-        SDL_GPUBuffer *storage[4] = {texram_, luma_, xlat_, opponent_atlas_ ? opponent_atlas_ : texram_};
-        SDL_BindGPUFragmentStorageBuffers(pass, 0, storage, 4);
+        SDL_GPUBuffer *storage[6] = {texram_, luma_, xlat_, opponent_atlas_ ? opponent_atlas_ : texram_,
+                                     hires_index_ ? hires_index_ : texram_, hires_data_ ? hires_data_ : texram_};
+        SDL_BindGPUFragmentStorageBuffers(pass, 0, storage, 6);
         const SDL_GPUTextureSamplerBinding textures[2] = {
             {shadow_near_ + shadow_far_ && shadow_map_ ? shadow_map_ : shadow_none_, shadow_sampler_},
             {car_light_[26] > 0.0f ? sky_env_ : sky_none_, sky_sampler_}};
@@ -1694,8 +1702,8 @@ bool GpuRenderer::draw_benchmark(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *targ
     SDL_BindGPUGraphicsPipeline(pass, poly_pipe_);
     SDL_GPUBufferBinding vb{vbuf_, 0};
     SDL_BindGPUVertexBuffers(pass, 0, &vb, 1);
-    SDL_GPUBuffer *storage[4] = {texram_, luma_, xlat_, texram_};
-    SDL_BindGPUFragmentStorageBuffers(pass, 0, storage, 4);
+    SDL_GPUBuffer *storage[6] = {texram_, luma_, xlat_, texram_, texram_, texram_};
+    SDL_BindGPUFragmentStorageBuffers(pass, 0, storage, 6);
     const SDL_GPUTextureSamplerBinding textures[2] = {{shadow_none_, shadow_sampler_}, {sky_none_, sky_sampler_}};
     SDL_BindGPUFragmentSamplers(pass, 0, textures, 2);
     SDL_DrawGPUPrimitives(pass, Uint32(verts_.size()), 1, 0, 0);
@@ -1710,6 +1718,79 @@ bool GpuRenderer::draw_benchmark(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *targ
         SDL_EndGPUCopyPass(copy_out);
     }
     return true;
+}
+
+bool GpuRenderer::load_hires_textures(const std::string &path) {
+    for (SDL_GPUBuffer **b : {&hires_index_, &hires_data_})
+        if (*b) SDL_ReleaseGPUBuffer(dev_, *b), *b = nullptr;
+    hires_ = hires::Pack{};
+    hires_data_uploaded_ = false;
+    hires_generation_ = ~0ull;
+    hires_live_ = 0;
+    if (path.empty()) return true;
+    if (!hires_.load(path)) {
+        error_ = hires_.error;
+        hires_ = hires::Pack{};
+        return false;
+    }
+    if (hires_.scale != 4) { // m2.hlsl kHiresScale
+        error_ = "high-resolution texture pack: scale " + std::to_string(hires_.scale) + ", 4 expected";
+        hires_ = hires::Pack{};
+        return false;
+    }
+    std::printf("daytona: high-resolution textures: %zu in the pack (%.1f MB)\n", hires_.entries.size(),
+                double(hires_.data.size()) / 1e6);
+    return true;
+}
+
+// The pack's tones, once; its index whenever texture RAM changed (the
+// entries whose texels are there now). Own transfer buffers: rare uploads.
+void GpuRenderer::hires_upload(SDL_GPUCommandBuffer *cmd, const rt::VideoMem &mem) {
+    if (!mem.tex0 || !mem.tex1) return;
+    auto upload = [&](SDL_GPUBuffer *&buffer, const void *bytes, uint32_t size) {
+        if (!buffer) {
+            SDL_GPUBufferCreateInfo bi{};
+            bi.usage = SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ;
+            bi.size = size;
+            buffer = SDL_CreateGPUBuffer(dev_, &bi);
+            if (!buffer) return false;
+        }
+        SDL_GPUTransferBufferCreateInfo ti{};
+        ti.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
+        ti.size = size;
+        SDL_GPUTransferBuffer *tb = SDL_CreateGPUTransferBuffer(dev_, &ti);
+        if (!tb) return false;
+        if (void *p = SDL_MapGPUTransferBuffer(dev_, tb, false)) {
+            std::memcpy(p, bytes, size);
+            SDL_UnmapGPUTransferBuffer(dev_, tb);
+            SDL_GPUCopyPass *copy = SDL_BeginGPUCopyPass(cmd);
+            SDL_GPUTransferBufferLocation src{tb, 0};
+            SDL_GPUBufferRegion dst{buffer, 0, size};
+            SDL_UploadToGPUBuffer(copy, &src, &dst, false);
+            SDL_EndGPUCopyPass(copy);
+        }
+        SDL_ReleaseGPUTransferBuffer(dev_, tb); // freed once the upload is done
+        return true;
+    };
+    if (!hires_data_uploaded_) {
+        std::vector<uint8_t> padded(hires_.data);
+        padded.resize((padded.size() + 3) & ~size_t(3));
+        hires_data_uploaded_ = upload(hires_data_, padded.data(), uint32_t(padded.size()));
+        if (!hires_data_uploaded_) {
+            std::fprintf(stderr, "daytona: high-resolution textures unavailable: %s\n", SDL_GetError());
+            hires_ = hires::Pack{};
+            return;
+        }
+    }
+    if (mem.tex_generation == hires_generation_ && hires_index_) return;
+    const uint64_t t0 = SDL_GetTicksNS();
+    const size_t live = hires_.index(mem.tex0, mem.tex1, hires_words_);
+    upload(hires_index_, hires_words_.data(), uint32_t(hires_words_.size() * 4));
+    hires_generation_ = mem.tex_generation;
+    if (live != hires_live_)
+        std::printf("daytona: high-resolution textures: %zu of %zu in use (checked in %.1f ms)\n", live,
+                    hires_.entries.size(), double(SDL_GetTicksNS() - t0) / 1e6);
+    hires_live_ = live;
 }
 
 } // namespace app
