@@ -266,7 +266,16 @@ folder. What differed from the Camaro, and what to reuse:
   (found as the bright or glass faces facing ahead on the wings) redrawn
   with a white halo, engine-lid louvres, red bars on the rear bumper, a
   black interior, the wheel 35 % wider with a black centre and its lip kept
-  polished, the body 2.5 cm lower. Wider arches, a ducktail and a diffuser
+  polished, the body 2.5 cm lower. The lamps are drawn in 3D, in the
+  bake's colour lookup: every texel whose point lies inside a lamp's circle
+  (seen along the car) and in front of its lens takes the lamp's design, so
+  the same lamp shows on whichever surfaces see it (drawn on the front
+  texture alone, a lamp seen at an angle showed pieces of everything).
+  Headlamps are found by their lens's grey reflector facing ahead on the
+  wings (the lens is not transparent in this model; a test with all bright
+  faces ahead took in the bumper and missed the lamp); tail lamps by their
+  saturated red and amber faces facing back. The paint mask leaves out
+  saturated texels (the amber lenses had turned yellow). Dark tinted glass. Wider arches, a ducktail and a diffuser
   would need new geometry and were left out.
 - **A straight wheel.** The model's front wheels are steered about 9
   degrees: spun about the game's axle, that one wobbled. The rear wheel is
