@@ -967,6 +967,9 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
                 hint(TX("The cars' bodies reflect the sky and the sun, more at grazing angles."));
                 if (ImGui::Checkbox(TX("Sharp car textures up close"), &cfg_.sharp_car_textures)) cfg_.save();
                 hint(TX("The cars' numbers and logos keep crisp, rounded edges when seen up close, instead of a blur."));
+                if (ImGui::Checkbox(TX("Smooth menus and HUD"), &cfg_.smooth_2d)) cfg_.save();
+                hint(TX("The game's 2D pictures (menus, speedometer, lap times, results) get smooth curves and diagonals "
+                        "at high resolution instead of square pixels. Their colours and dithering stay the game's."));
                 if (ImGui::Checkbox(TX("Car shadows"), &cfg_.car_shadows)) cfg_.save();
                 hint(TX("The cars near the camera cast shadows from the game's sun on the road and the walls. Any graphics card."));
                 ImGui::Indent();

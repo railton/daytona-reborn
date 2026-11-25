@@ -4,6 +4,40 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`). The
 fork's version is in `VERSION`, raised with every code change (rules.md
 rule 14); each version has its section here.
 
+## 0.20.0 (2026-11-25)
+
+### Smooth menus and HUD
+
+Settings > Enhancements > **Smooth menus and HUD** (hardware renderer, off
+by default): the game's 2D layers (menus, the select screens, the
+speedometer and lap times, results) magnified with smooth curves and
+diagonals instead of square pixels.
+
+- Each output pixel takes the four logical pixels around it (a cell); each
+  distinct colour weighs as much as its corners' bilinear weights. Two
+  contrasting colours (a channel 96 apart, or a hole): the heavier wins,
+  blended over about one output pixel; three with the pair diagonal (a thin
+  diagonal line): the same; three with the pair side by side: a straight
+  edge, so T junctions stay square; a checkerboard (the game's dither),
+  shades of a hand-drawn gradient and four colours (photographic art):
+  nearest. No colour is invented. The front layers' edges over the 3D are
+  blended (their pipeline now blends; a pixel of alpha 1 replaces the
+  target as before).
+- A first version voted in every cell: it pinched thin frame lines at
+  their joints (the course select boxes' rivets), beaded one-pixel
+  gradient rows and rounded hand-drawn shading into blobs.
+- Chosen over Scale4x, a two-colour threshold and an AI upscaler, compared
+  on six screens: the AI took 2.5 s a frame on a GeForce RTX 5090 and lost
+  the dither; Scale4x left the curves stepped.
+- Measured (m2gpushot, attract race, 3600 frames, MSAA 4x): GPU wait per
+  frame 0.01 -> 0.04 ms at 3840 x 2160 (the first version: 0.33 -> 1.11 ms
+  at 7680 x 4320).
+  Off, the frames are unchanged (8 captures compared). Checked in the game
+  at 1920 x 1080 in 16:9.
+- Not applied to the CPU front layers ("HUD at the screen edges"), nor to
+  the stretched backdrop's margins.
+- `m2gpushot --smooth-2d`.
+
 ## 0.19.0 (2026-11-25)
 
 ### High-resolution textures (experimental)

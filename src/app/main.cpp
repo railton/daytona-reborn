@@ -1913,6 +1913,7 @@ int main(int argc, char **argv) {
         gpu.set_anisotropy(cfg.aniso); // takes effect at once (MSAA at the next start)
         gpu.set_car_shading(cfg.smooth_cars, cfg.car_reflections);
         gpu.set_car_textures(cfg.sharp_car_textures);
+        gpu.set_smooth_2d(cfg.smooth_2d);
         gpu.set_car_shadows(cfg.car_shadows, cfg.replace_game_shadow);
         if (game) gpu.set_light(game->board().light());
         if (game && hardware != reported_hardware) { // say which renderer is drawing, whenever it changes

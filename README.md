@@ -51,7 +51,8 @@ From Daytona Reborn beta 0.10, kept in this repository:
 - **Image quality on the graphics card:** antialiasing, anisotropic
   filtering, the screen's own resolution (Direct3D 12 and Vulkan), smooth
   car shading, paint reflecting the course's sky, car shadows, bloom and an
-  arcade monitor (CRT) look. At the first start the game measures the
+  arcade monitor (CRT) look, smooth menus and HUD (the 2D pictures with
+  smooth curves at high resolution). At the first start the game measures the
   graphics card and recommends a level; the player picks.
 - **High-resolution textures (experimental):** the game's textures upscaled
   4x by AI models on your own computer, from your own ROM set, each by the

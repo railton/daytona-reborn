@@ -5,7 +5,7 @@
 //   m2gpushot IMAGES_DIR FRAMES --dump DIR --every N [--inputs scripts/inputs/X.txt]
 //             [--aspect W:H [--hud-edges] [--stretch-backdrop]] [--scale N] [--nvram DIR] [--dump-from FRAME]
 //             [--draw-distance N] [--draw-budget N] [--scenery-log FILE] [--original-selection]
-//             [--msaa N] [--aniso N] [--smooth-cars] [--car-reflections] [--sharp-car-textures] [--car-shadows]
+//             [--msaa N] [--aniso N] [--smooth-cars] [--car-reflections] [--sharp-car-textures] [--smooth-2d] [--car-shadows]
 //             [--car-shadows-and-game-shadow] [--bloom] [--crt] [--window WxH] [--pixels WxH]
 //             [--hires-textures PACK]
 //   m2gpushot - 0 --quality-probe WxH: the automatic quality's measurement
@@ -150,6 +150,7 @@ int main(int argc, char **argv) {
         if (!std::strcmp(argv[i], "--smooth-cars")) smooth_cars = true;
         if (!std::strcmp(argv[i], "--car-reflections")) car_reflections = true;
         if (!std::strcmp(argv[i], "--sharp-car-textures")) gpu.set_car_textures(true);
+        if (!std::strcmp(argv[i], "--smooth-2d")) gpu.set_smooth_2d(true);
         if (!std::strcmp(argv[i], "--car-shadows")) gpu.set_car_shadows(true, true);
         if (!std::strcmp(argv[i], "--car-shadows-and-game-shadow")) gpu.set_car_shadows(true, false);
         if (!std::strcmp(argv[i], "--bloom")) bloom = true;

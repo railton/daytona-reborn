@@ -54,6 +54,7 @@ struct Config {
     bool replace_game_shadow = true; // with car_shadows: the game's own checker shadow under the car left out
     bool bloom = false;              // the display: the bright parts glow (GpuRenderer::present)
     bool crt_filter = false;         // the display: an arcade monitor's scanlines, grille and corners
+    bool smooth_2d = false;          // the menus, HUD and text magnified smooth (GpuRenderer::set_smooth_2d)
     int bloom_strength = 35;         // the glow added, percent (10..100)
     int crt_strength = 100;          // the monitor's look, percent (20..100)
     bool quality_checked = false;    // the automatic quality measured once (app/quality.h; offered at the first start)

@@ -485,7 +485,8 @@ float4 ps_quad(QuadOut i) : SV_Target {
 //   tiledata: [0] widescreen margin, [1] its fill (0 each row's edge colours,
 //            1 the sky's plain colour, 2 the backdrop stretched, 3 the sky
 //            panorama, its column at x 0 in [5]), [2] the
-//            integer scale; [3..4] raster viewport width and height; [16..]
+//            integer scale; [3..4] raster viewport width and height; [6] the
+//            2D layers drawn smooth (smooth_vote); [16..]
 //            the pens (0xAARRGGBB, 4096); [16 + 4096..] tile RAM words 0x4000 to
 //            0x6fff (line scroll tables, scroll registers, window masks), two
 //            per word
@@ -584,26 +585,91 @@ int2 tile_position(float2 pixel, int margin) {
     return xy - int2(margin, 0);
 }
 
-// The back layers, behind the 3D layer, filling the target: 496 wide in the
-// centre, the widescreen margins as Video::fill_margins fills them.
-float4 tiles_back(float2 pixel) {
+// Smooth 2D (an enhancement, tiledata[6]): the tilemap layers magnified with
+// smooth curves and diagonals instead of square pixels, without inventing a
+// colour. Each output pixel looks at the four logical pixels around it (a
+// cell); each distinct colour there weighs as much as its corners' bilinear
+// weights. By the cell:
+//   one colour: it; a checkerboard (the game's dither): nearest;
+//   two colours: the heavier wins, blended over about one output pixel, if
+//     they contrast (a channel differs by 96 or more; a hole always does);
+//     shades of a hand-drawn gradient stay nearest;
+//   three colours, the pair diagonal: the same vote (a thin diagonal line
+//     stays a smooth line); the pair side by side: the pair against the
+//     rest at half weight, a straight edge (a T junction stays square),
+//     the other two by nearest;
+//   four colours (photographic art): nearest.
+// k: 0xffRRGGBB, or 0 for a hole (the front layers); f: the position in the
+// cell (0..1); soft: one output pixel in logical pixels.
+float4 key_color(uint k, float4 other) {
+    return k != 0u ? pen_color(k) : float4(other.rgb, 0.0);
+}
+
+// a over b by t, a hole taking the other's colour at no coverage
+float4 key_blend(uint a, uint b, float t) {
+    const float4 ca = a != 0u ? pen_color(a) : float4(0.0, 0.0, 0.0, 0.0);
+    const float4 cb = b != 0u ? pen_color(b) : float4(0.0, 0.0, 0.0, 0.0);
+    return lerp(key_color(b, ca), key_color(a, cb), t);
+}
+
+bool key_contrast(uint a, uint b) {
+    if (a == 0u || b == 0u) return true;
+    const int3 d = abs(int3(a >> 16 & 0xffu, a >> 8 & 0xffu, a & 0xffu) - int3(b >> 16 & 0xffu, b >> 8 & 0xffu, b & 0xffu));
+    return max(d.x, max(d.y, d.z)) >= 96;
+}
+
+float4 smooth_vote(uint k0, uint k1, uint k2, uint k3, float2 f, float soft) {
+    const uint k[4] = {k0, k1, k2, k3};
+    const uint nearest = k[(f.y >= 0.5 ? 2u : 0u) + (f.x >= 0.5 ? 1u : 0u)];
+    const float4 none = float4(0.0, 0.0, 0.0, 0.0);
+    const uint distinct = 1u + (k1 != k0 ? 1u : 0u) + (k2 != k0 && k2 != k1 ? 1u : 0u) +
+                          (k3 != k0 && k3 != k1 && k3 != k2 ? 1u : 0u);
+    if (distinct == 1u || distinct == 4u || (k0 == k3 && k1 == k2)) return key_color(nearest, none);
+    const float w[4] = {(1.0 - f.x) * (1.0 - f.y), f.x * (1.0 - f.y), (1.0 - f.x) * f.y, f.x * f.y};
+    if (distinct == 3u && k0 != k3 && k1 != k2) { // the pair side by side
+        const uint pair = k0 == k1 ? k0 : k2 == k3 ? k2 : k0 == k2 ? k0 : k1;
+        float wp = 0.0, wo = -1.0;
+        uint other = 0u;
+        [unroll] for (uint i = 0u; i < 4u; ++i) {
+            if (k[i] == pair) wp += w[i];
+            else if (w[i] > wo) wo = w[i], other = k[i];
+        }
+        return key_blend(pair, other, saturate(0.5 + (wp - 0.5) / soft));
+    }
+    float weight[4];
+    uint best = 0u;
+    [unroll] for (uint i = 0u; i < 4u; ++i) {
+        weight[i] = 0.0;
+        [unroll] for (uint j = 0u; j < 4u; ++j) weight[i] += k[j] == k[i] ? w[j] : 0.0;
+        if (weight[i] > weight[best]) best = i;
+    }
+    uint second = best;
+    [unroll] for (uint m = 0u; m < 4u; ++m)
+        if (k[m] != k[best] && (second == best || weight[m] > weight[second])) second = m;
+    if (distinct == 2u && !key_contrast(k[best], k[second])) return key_color(nearest, none);
+    return key_blend(k[best], k[second], saturate(0.5 + (weight[best] - weight[second]) / (2.0 * soft)));
+}
+
+// Where the output pixel's centre falls among the logical pixels (margin
+// included in x): the top-left of the four around it, the position between
+// them, and one output pixel in logical pixels; false when not magnified.
+bool smooth_place(float2 pixel, int margin, out int2 at, out float2 f, out float soft) {
+    const float2 viewport = float2(tiledata[3], tiledata[4]);
+    const float2 logical = float2(kTileW + 2 * margin, kTileH);
+    const float2 lp = pixel * logical / viewport - 0.5;
+    const float2 a = floor(lp);
+    at = int2(a) - int2(margin, 0);
+    f = lp - a;
+    soft = max(logical.x / viewport.x, logical.y / viewport.y);
+    return tiledata[6] != 0u && soft < 1.0;
+}
+
+// The back layers' colour (0xAARRGGBB) at logical (x, y): 496 wide in the
+// centre, the widescreen margins as Video::fill_margins fills them (but the
+// stretched backdrop, tiles_back's).
+uint back_at(int x, int y) {
     const int margin = int(tiledata[0]);
     const uint fill = tiledata[1];
-    const int out_w = kTileW + 2 * margin;
-    const int2 xy = tile_position(pixel, margin);
-    const int x = xy.x, y = xy.y;
-    if (margin > 0 && fill == 2u) { // stretched: column (x + 0.5) * W / out - 0.5, blended
-        const float u = clamp((float(x + margin) + 0.5) * float(kTileW) / float(out_w) - 0.5, 0.0, float(kTileW - 1));
-        const int a = int(u), b = min(a + 1, kTileW - 1);
-        const float f = u - float(a);
-        const uint ca = tiledata[kTilePens + tile_back(a, y)], cb = tiledata[kTilePens + tile_back(b, y)];
-        uint p = 0u;
-        for (uint k = 0u; k < 24u; k += 8u) {
-            const float c = float((ca >> k) & 0xffu) * (1.0 - f) + float((cb >> k) & 0xffu) * f;
-            p |= uint(c + 0.5) << k;
-        }
-        return pen_color(p);
-    }
     if (margin > 0 && fill == 3u && (x < 0 || x >= kTileW)) {
         // the sky panorama (Video::fill_margins): layer 2's rows above the
         // split continue it at tiledata[5]; other rows and unknown pixels
@@ -615,23 +681,73 @@ float4 tiles_back(float2 pixel) {
             const uint i = 0x100000u + uint((y + psy) & 511) * 4096u + uint((x + int(tiledata[5])) & 4095);
             const uint d = tilepix[i >> 1];
             const uint pen = (i & 1u) != 0u ? d >> 16 : d & 0xffffu;
-            if (pen != 0xffffu) return pen_color(tiledata[kTilePens + (pen & 0xfffu)]);
+            if (pen != 0xffffu) return tiledata[kTilePens + (pen & 0xfffu)];
         }
-        return pen_color(tiledata[kTilePens + tile_back(0, 0)]);
+        return tiledata[kTilePens + tile_back(0, 0)];
     }
     int sx = x, sy = y;
     if (x < 0 || x >= kTileW) {
         if (fill == 1u) sx = 0, sy = 0; // the sky: the top-left pixel
         else sx = x < 0 ? 0 : kTileW - 1;
     }
-    return pen_color(tiledata[kTilePens + tile_back(sx, sy)]);
+    return tiledata[kTilePens + tile_back(sx, sy)];
+}
+
+// The back layers, behind the 3D layer, filling the target.
+float4 tiles_back(float2 pixel) {
+    const int margin = int(tiledata[0]);
+    const uint fill = tiledata[1];
+    const int out_w = kTileW + 2 * margin;
+    if (margin > 0 && fill == 2u) { // stretched: column (x + 0.5) * W / out - 0.5, blended
+        const int2 xy = tile_position(pixel, margin);
+        const int x = xy.x, y = xy.y;
+        const float u = clamp((float(x + margin) + 0.5) * float(kTileW) / float(out_w) - 0.5, 0.0, float(kTileW - 1));
+        const int a = int(u), b = min(a + 1, kTileW - 1);
+        const float f = u - float(a);
+        const uint ca = tiledata[kTilePens + tile_back(a, y)], cb = tiledata[kTilePens + tile_back(b, y)];
+        uint p = 0u;
+        for (uint k = 0u; k < 24u; k += 8u) {
+            const float c = float((ca >> k) & 0xffu) * (1.0 - f) + float((cb >> k) & 0xffu) * f;
+            p |= uint(c + 0.5) << k;
+        }
+        return pen_color(p);
+    }
+    int2 at;
+    float2 f;
+    float soft;
+    if (smooth_place(pixel, margin, at, f, soft)) {
+        const int x0 = clamp(at.x, -margin, kTileW + margin - 1), x1 = clamp(at.x + 1, -margin, kTileW + margin - 1);
+        const int y0 = clamp(at.y, 0, kTileH - 1), y1 = clamp(at.y + 1, 0, kTileH - 1);
+        return smooth_vote(back_at(x0, y0) | 0xff000000u, back_at(x1, y0) | 0xff000000u,
+                           back_at(x0, y1) | 0xff000000u, back_at(x1, y1) | 0xff000000u, f, soft);
+    }
+    const int2 xy = tile_position(pixel, margin);
+    return pen_color(back_at(xy.x, xy.y));
 }
 
 float4 ps_tiles_back(QuadOut i) : SV_Target { return tiles_back(i.pos.xy); }
 
 // The front layers, over the 3D layer: 3 to 0, the last drawn winning; holes
 // where none draws.
+// The front layers' colour at logical (x, y), 0xffRRGGBB, or 0 for a hole.
+uint front_at(int x, int y) {
+    if (x < 0 || x >= kTileW || y < 0 || y >= kTileH) return 0u;
+    uint pen;
+    for (uint l = 1u; l < 8u; l += 2u)
+        if (tile_layer(l, false, x, y, pen)) return tiledata[kTilePens + pen] | 0xff000000u;
+    return 0u;
+}
+
 float4 ps_tiles_front(QuadOut i) : SV_Target {
+    int2 at;
+    float2 f;
+    float soft;
+    if (smooth_place(i.pos.xy, int(tiledata[0]), at, f, soft)) {
+        const float4 c = smooth_vote(front_at(at.x, at.y), front_at(at.x + 1, at.y), front_at(at.x, at.y + 1),
+                                     front_at(at.x + 1, at.y + 1), f, soft);
+        if (c.a <= 0.0) discard;
+        return c;
+    }
     const int2 xy = tile_position(i.pos.xy, int(tiledata[0]));
     const int x = xy.x, y = xy.y;
     if (x < 0 || x >= kTileW) discard;

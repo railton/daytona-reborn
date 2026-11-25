@@ -808,6 +808,12 @@ msgstr "Textures des voitures nettes de près"
 msgid "The cars' numbers and logos keep crisp, rounded edges when seen up close, instead of a blur."
 msgstr "Les numéros et logos des voitures gardent des bords nets et arrondis vus de près, au lieu d'un flou."
 
+msgid "Smooth menus and HUD"
+msgstr "Menus et HUD lissés"
+
+msgid "The game's 2D pictures (menus, speedometer, lap times, results) get smooth curves and diagonals at high resolution instead of square pixels. Their colours and dithering stay the game's."
+msgstr "Les images 2D du jeu (menus, compteur, temps au tour, résultats) gagnent des courbes et des diagonales lisses en haute résolution, au lieu de pixels carrés. Leurs couleurs et leur tramage restent ceux du jeu."
+
 msgid "Car shadows"
 msgstr "Ombres des voitures"
 

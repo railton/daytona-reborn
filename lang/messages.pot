@@ -768,6 +768,12 @@ msgstr ""
 msgid "The cars' numbers and logos keep crisp, rounded edges when seen up close, instead of a blur."
 msgstr ""
 
+msgid "Smooth menus and HUD"
+msgstr ""
+
+msgid "The game's 2D pictures (menus, speedometer, lap times, results) get smooth curves and diagonals at high resolution instead of square pixels. Their colours and dithering stay the game's."
+msgstr ""
+
 msgid "Car shadows"
 msgstr ""
 

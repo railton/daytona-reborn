@@ -56,6 +56,10 @@ public:
     // sharp: up close, the cars' numbers and logos keep crisp, rounded edges
     // instead of the bilinear blur (m2.hlsl fetch_texel, bit 31)
     void set_car_textures(bool sharp) { sharp_car_textures_ = sharp; }
+    // Smooth 2D (an enhancement): the tilemap layers (menus, HUD, text)
+    // magnified with smooth curves and diagonals instead of square pixels
+    // (m2.hlsl smooth_vote); not the CPU front layers (HUD at the edges).
+    void set_smooth_2d(bool on) { smooth_2d_ = on; }
     // The cars' shadows on the road and the walls (an enhancement, any GPU):
     // the cars drawn from the game's sun into a depth map, two cascades of
     // 2048 x 2048 (up to 40 camera units, up to 140), which the scenery's
@@ -175,7 +179,7 @@ private:
         float light_oz = 0, normal_oz[3] = {0, 0, 0}, position_oz[3] = {0, 0, 0};
     };
     bool smooth_cars_ = false, car_reflect_ = false, sharp_car_textures_ = false, car_shadows_ = false,
-         hide_game_shadow_ = false;
+         hide_game_shadow_ = false, smooth_2d_ = false;
     // the shadow map: its pipeline, texture (and a 1 x 1 stand-in), sampler,
     // the casters' vertices after the polygons' in verts_, the fragment uniform
     SDL_GPUGraphicsPipeline *shadow_pipe_ = nullptr;

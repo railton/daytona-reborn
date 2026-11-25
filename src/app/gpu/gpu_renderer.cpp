@@ -174,8 +174,20 @@ bool GpuRenderer::init(SDL_GPUDevice *dev, SDL_GPUTextureFormat format, int msaa
     // Tilemap layers: the same quad, composed per pixel.
     qi.fragment_shader = ps_back;
     back_pipe_ = SDL_CreateGPUGraphicsPipeline(dev_, &qi);
+    // the front layers blend (smooth 2D: partly covered edge pixels); a pixel
+    // of alpha 1 replaces the target's as before
+    SDL_GPUColorTargetDescription front_color = color;
+    front_color.blend_state.enable_blend = true;
+    front_color.blend_state.src_color_blendfactor = SDL_GPU_BLENDFACTOR_SRC_ALPHA;
+    front_color.blend_state.dst_color_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+    front_color.blend_state.color_blend_op = SDL_GPU_BLENDOP_ADD;
+    front_color.blend_state.src_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE;
+    front_color.blend_state.dst_alpha_blendfactor = SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA;
+    front_color.blend_state.alpha_blend_op = SDL_GPU_BLENDOP_ADD;
+    qi.target_info.color_target_descriptions = &front_color;
     qi.fragment_shader = ps_front;
     front_pipe_ = SDL_CreateGPUGraphicsPipeline(dev_, &qi);
+    qi.target_info.color_target_descriptions = &color;
 
     for (SDL_GPUShader *s : {vs_poly, ps_poly, vs_quad, ps_quad, ps_back, ps_front}) SDL_ReleaseGPUShader(dev_, s);
     if (!poly_pipe_ || !quad_pipe_ || !back_pipe_ || !front_pipe_) {
@@ -1039,6 +1051,7 @@ bool GpuRenderer::render(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *target, int 
     tiledata_words_[3] = uint32_t(pixel_w);
     tiledata_words_[4] = uint32_t(pixel_h);
     tiledata_words_[5] = uint32_t(video.sky_origin());
+    tiledata_words_[6] = smooth_2d_ ? 1u : 0u; // m2.hlsl smooth_vote
     std::memcpy(&tiledata_words_[kTileHeader], video.gpu_pens(), rt::Video::kGpuPens * 4);
     std::memcpy(&tiledata_words_[kTileHeader + rt::Video::kGpuPens], video.gpu_tile_words(), rt::Video::kGpuTileWords * 2);
     const uint32_t tiledata_at = at;
