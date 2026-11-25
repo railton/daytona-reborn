@@ -275,7 +275,15 @@ folder. What differed from the Camaro, and what to reuse:
   wings (the lens is not transparent in this model; a test with all bright
   faces ahead took in the bumper and missed the lamp); tail lamps by their
   saturated red and amber faces facing back. The paint mask leaves out
-  saturated texels (the amber lenses had turned yellow). Dark tinted glass. Wider arches, a ducktail and a diffuser
+  saturated texels (the amber lenses had turned yellow). Dark tinted glass.
+  Baked into the front and back textures a lamp got about 20 texels
+  across and looked blurred: the lamps' faces are now kept whole and take
+  their own surface (8; the interior palette moved into surface 7, beside
+  the wheel wells' dark), a 128 x 128 cell per kind, each face mapped by
+  its position on the lamp (mirrored on the left). Front and back lamps sit
+  at nearly the same x and y: the kind is chosen by the end of the car
+  first. A lamp found from every saturated face around it took in the
+  bumper and paint (an ellipse of 0.3 m): only the lens's own depth counts. Wider arches, a ducktail and a diffuser
   would need new geometry and were left out.
 - **A straight wheel.** The model's front wheels are steered about 9
   degrees: spun about the game's axle, that one wobbled. The rear wheel is
