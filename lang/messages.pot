@@ -344,6 +344,78 @@ msgstr ""
 msgid "Language"
 msgstr ""
 
+msgid "Image quality"
+msgstr ""
+
+msgid "Graphics card"
+msgstr ""
+
+msgid "Original"
+msgstr ""
+
+msgid "Medium"
+msgstr ""
+
+msgid "High"
+msgstr ""
+
+msgid "Maximum"
+msgstr ""
+
+msgid "The graphics card could not be measured. Your settings stay as they are."
+msgstr ""
+
+msgid "Measuring what your graphics card can draw, to recommend the best image for it."
+msgstr ""
+
+msgid "Preparing the test..."
+msgstr ""
+
+msgid "Testing the maximum quality..."
+msgstr ""
+
+msgid "Testing the high quality..."
+msgstr ""
+
+msgid "Testing the medium quality..."
+msgstr ""
+
+msgid "Recommended: %s"
+msgstr ""
+
+msgid "Pick a level, or keep your settings. Settings > Enhancements change each option later."
+msgstr ""
+
+msgid "The game's original image, without the enhancements."
+msgstr ""
+
+msgid "Twice the arcade's resolution, antialiasing 2x, anisotropic filtering 4x, smooth car shading and paint reflections."
+msgstr ""
+
+msgid "4 times the arcade's resolution, antialiasing 4x, anisotropic filtering 16x and every car option."
+msgstr ""
+
+msgid "The screen's own resolution, antialiasing 4x, anisotropic filtering 16x and every car option."
+msgstr ""
+
+msgid " (recommended)"
+msgstr ""
+
+msgid "Measured: %.1f ms a frame at %d x %d"
+msgstr ""
+
+msgid "A level is recommended when it takes under %.0f ms. Bloom and the CRT filter are not changed."
+msgstr ""
+
+msgid "Antialiasing applies the next time the game starts."
+msgstr ""
+
+msgid "Apply"
+msgstr ""
+
+msgid "Keep my settings"
+msgstr ""
+
 msgid "Your ROM set"
 msgstr ""
 
@@ -468,7 +540,7 @@ msgid "Render resolution"
 msgstr ""
 
 msgid ""
-"The native modes follow the window under Direct3D 12.\n"
+"The native modes follow the window under Direct3D 12 and Vulkan.\n"
 "2x to 4x enlarge the original resolution."
 msgstr ""
 
@@ -634,6 +706,92 @@ msgstr ""
 msgid "Shows more of the scene at the sides. The gauges stay in 4:3 in the centre, or else lap times, position and maps move to the edges. In the race, the sky at the sides is plain blue, or else the game's sky picture stretched across the screen."
 msgstr ""
 
+msgid "Maximum quality (graphics card)"
+msgstr ""
+
+msgid "The Hardware renderer at the screen's resolution and every option below, for a recent graphics card. Some apply the next time the game starts."
+msgstr ""
+
+msgid "Detect automatically"
+msgstr ""
+
+msgid "Measures what the graphics card can draw, in a few seconds, and recommends a level."
+msgstr ""
+
+msgid "Off"
+msgstr ""
+
+msgid "Antialiasing (MSAA)"
+msgstr ""
+
+msgid ""
+"Smooths the edges of the polygons and of the cut-out textures (trees, tyre marks).\n"
+"Not with the ray-traced sun shadows. Applies the next time the game starts."
+msgstr ""
+
+msgid "The game's own"
+msgstr ""
+
+msgid "Anisotropic 2x"
+msgstr ""
+
+msgid "Anisotropic 4x"
+msgstr ""
+
+msgid "Anisotropic 8x"
+msgstr ""
+
+msgid "Anisotropic 16x"
+msgstr ""
+
+msgid "Texture filtering"
+msgstr ""
+
+msgid "Anisotropic: the road and the walls stay sharp into the distance, without shimmering."
+msgstr ""
+
+msgid "Smooth car shading"
+msgstr ""
+
+msgid "The light on the cars blends across their faces instead of one shade a face: rounder bodies."
+msgstr ""
+
+msgid "Paint reflections"
+msgstr ""
+
+msgid "The cars' bodies reflect the sky and the sun, more at grazing angles."
+msgstr ""
+
+msgid "Sharp car textures up close"
+msgstr ""
+
+msgid "The cars' numbers and logos keep crisp, rounded edges when seen up close, instead of a blur."
+msgstr ""
+
+msgid "Car shadows"
+msgstr ""
+
+msgid "The cars near the camera cast shadows from the game's sun on the road and the walls. Any graphics card."
+msgstr ""
+
+msgid "These need the Hardware renderer (Display tab)."
+msgstr ""
+
+msgid "Screen effects"
+msgstr ""
+
+msgid "Bloom"
+msgstr ""
+
+msgid "The bright parts of the picture (the sky, the lights, white lines) glow softly."
+msgstr ""
+
+msgid "Arcade monitor (CRT)"
+msgstr ""
+
+msgid "The look of the cabinet's tube: the game's scanlines, the colour grille and darker corners. Best on a large or high-resolution screen."
+msgstr ""
+
 msgid "Colours"
 msgstr ""
 
@@ -787,9 +945,6 @@ msgid "Force feedback"
 msgstr ""
 
 msgid "Force feedback (experimental)"
-msgstr ""
-
-msgid "Off"
 msgstr ""
 
 msgid "Invert the force"

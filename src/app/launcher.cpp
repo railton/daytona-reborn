@@ -1,6 +1,7 @@
 #include "app/launcher.h"
 #include "app_version.h" // generated: cmake/app_version.cmake
 #include "app/i18n.h"
+#include "app/gpu/quality_probe.h"
 #include "app/neon_ui.h"
 #include "app/rom_file.h"
 #ifdef SDL_PLATFORM_IOS
@@ -326,6 +327,103 @@ bool Launcher::capture_gate() {
 
 // The PC home's first screen until a ROM set is verified: choose it (the file
 // window, or its path typed), its files checked as it is chosen.
+Launcher::QualityChoice Launcher::draw_quality(const QualityProbe &probe, float shown, bool game_running) {
+    using Stage = QualityProbe::Stage;
+    QualityChoice choice = QualityChoice::None;
+    const auto *view = ImGui::GetMainViewport();
+    const float scale = std::max(0.7f, std::min(view->Size.y / 900.f, view->Size.x / 980.f));
+    const float width = std::min(view->Size.x - 32.f, 800.f * scale);
+    if (!ImGui::IsPopupOpen("##quality")) ImGui::OpenPopup("##quality");
+    ImGui::SetNextWindowSizeConstraints({width, 0}, {width, view->Size.y - 32.f});
+    ImGui::SetNextWindowPos({view->Pos.x + view->Size.x * 0.5f, view->Pos.y + view->Size.y * 0.5f}, ImGuiCond_Always,
+                            {0.5f, 0.5f});
+    ImGui::PushFont(nullptr, 19.f * scale);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, {24.f * scale, 18.f * scale});
+    ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, {10.f * scale, 7.f * scale});
+    ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, {12.f * scale, 7.f * scale});
+    ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 5.f * scale);
+    if (ImGui::BeginPopupModal("##quality", nullptr, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_AlwaysAutoResize |
+                               ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoSavedSettings)) {
+        const float full = ImGui::GetContentRegionAvail().x, button_h = 44.f * scale;
+        ImGui::PushFont(nullptr, 30.f * scale);
+        ImGui::TextUnformatted(TX("Image quality"));
+        ImGui::PopFont();
+        ImGui::TextDisabled("%s", probe.gpu_name().empty() ? TX("Graphics card") : probe.gpu_name().c_str());
+        ImGui::Spacing();
+        ImGui::PushTextWrapPos(0);
+        const char *levels[] = {TX("Original"), TX("Medium"), TX("High"), TX("Maximum")};
+        if (probe.stage() == Stage::Failed) {
+            ImGui::TextUnformatted(TX("The graphics card could not be measured. Your settings stay as they are."));
+            ImGui::TextDisabled("%s", probe.error().c_str());
+            ImGui::PopTextWrapPos();
+            ImGui::Spacing();
+            if (ImGui::Button(TX("OK"), {full, button_h})) choice = QualityChoice::Keep;
+        } else if (probe.running() || shown < 1.f) {
+            quality_pick_ = -1;
+            ImGui::TextUnformatted(TX("Measuring what your graphics card can draw, to recommend the best image for it."));
+            ImGui::PopTextWrapPos();
+            ImGui::Spacing();
+            ImGui::ProgressBar(shown, {full, 0}, "");
+            // the levels are measured in this order; the bar is paced to be read
+            ImGui::TextDisabled("%s", shown < 0.1f ? TX("Preparing the test...")
+                                    : shown < 0.4f ? TX("Testing the maximum quality...")
+                                    : shown < 0.7f ? TX("Testing the high quality...")
+                                                   : TX("Testing the medium quality..."));
+        } else {
+            const QualityLevel recommended = probe.level();
+            if (quality_pick_ < 0) quality_pick_ = int(recommended);
+            char line[256];
+            std::snprintf(line, sizeof line, TX("Recommended: %s"), levels[int(recommended)]);
+            ImGui::PushFont(nullptr, 25.f * scale);
+            ImGui::TextColored({0.48f, 0.98f, 0.79f, 1}, "%s", line);
+            ImGui::PopFont();
+            ImGui::TextUnformatted(TX("Pick a level, or keep your settings. Settings > Enhancements change each option later."));
+            ImGui::PopTextWrapPos();
+            ImGui::Spacing();
+            const QualityTimes &t = probe.times();
+            const char *what[] = {
+                TX("The game's original image, without the enhancements."),
+                TX("Twice the arcade's resolution, antialiasing 2x, anisotropic filtering 4x, smooth car shading and paint reflections."),
+                TX("4 times the arcade's resolution, antialiasing 4x, anisotropic filtering 16x and every car option."),
+                TX("The screen's own resolution, antialiasing 4x, anisotropic filtering 16x and every car option.")};
+            const double ms[] = {-1, t.medium, t.high, t.maximum};
+            const Stage stages[] = {Stage::Idle, Stage::Medium, Stage::High, Stage::Maximum};
+            for (int k = 3; k >= 0; --k) {
+                std::snprintf(line, sizeof line, "%s%s", levels[k], k == int(recommended) ? TX(" (recommended)") : "");
+                if (ImGui::RadioButton(line, quality_pick_ == k)) quality_pick_ = k;
+                if (ms[k] >= 0) {
+                    const auto size = probe.size_of(stages[k]);
+                    std::snprintf(line, sizeof line, TX("Measured: %.1f ms a frame at %d x %d"), ms[k], size.w, size.h);
+                    ImGui::SameLine();
+                    ImGui::TextColored(ms[k] <= kQualityBudgetMs ? ImVec4(0.48f, 0.98f, 0.79f, 1) : ImVec4(1, 0.74f, 0.45f, 1),
+                                       "%s", line);
+                }
+                ImGui::Indent(32.f * scale);
+                ImGui::PushTextWrapPos(0);
+                ImGui::TextDisabled("%s", what[k]);
+                ImGui::PopTextWrapPos();
+                ImGui::Unindent(32.f * scale);
+            }
+            ImGui::PushTextWrapPos(0);
+            std::snprintf(line, sizeof line, TX("A level is recommended when it takes under %.0f ms. Bloom and the CRT filter are not changed."),
+                          kQualityBudgetMs);
+            ImGui::TextDisabled("%s", line);
+            if (game_running) ImGui::TextDisabled("%s", TX("Antialiasing applies the next time the game starts."));
+            ImGui::PopTextWrapPos();
+            ImGui::Spacing();
+            const float half = (full - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
+            if (ImGui::Button(TX("Apply"), {half, button_h})) choice = QualityChoice::Apply;
+            ImGui::SameLine();
+            if (ImGui::Button(TX("Keep my settings"), {half, button_h})) choice = QualityChoice::Keep;
+        }
+        if (choice != QualityChoice::None) ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
+    ImGui::PopStyleVar(4);
+    ImGui::PopFont();
+    return choice;
+}
+
 Launcher::Result Launcher::draw_rom_gate() {
     take_dialog_result();
     if (capture_gate() && !gate_open_) {
@@ -706,7 +804,7 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
                     cfg_.save();
                 }
                 ImGui::EndDisabled();
-                hint(TX("The native modes follow the window under Direct3D 12.\n"
+                hint(TX("The native modes follow the window under Direct3D 12 and Vulkan.\n"
                         "2x to 4x enlarge the original resolution."));
                 const char *draw_modes[] = {TX("Double buffer"), TX("Single buffer"), TX("One frame in three")};
                 int dm = std::clamp(cfg_.draw_mode, 0, 2);
@@ -827,6 +925,60 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
                 if (ImGui::Checkbox(TX("Stretch the sky backdrop (experimental)"), &cfg_.stretch_backdrop)) cfg_.save();
                 ImGui::EndDisabled();
                 hint(TX("Shows more of the scene at the sides. The gauges stay in 4:3 in the centre, or else lap times, position and maps move to the edges. In the race, the sky at the sides is plain blue, or else the game's sky picture stretched across the screen."));
+
+                ImGui::Spacing();
+                ImGui::SeparatorText(TX("Image quality"));
+                if (ImGui::Button(TX("Maximum quality (graphics card)"), ImVec2(-FLT_MIN, 0))) {
+                    cfg_.renderer = "hardware";
+#ifdef __APPLE__
+                    cfg_.supersampling = 4; // the native modes: Direct3D 12 and Vulkan
+#else
+                    cfg_.supersampling = app::Config::kNativeResolution;
+#endif
+                    cfg_.msaa = 4;
+                    cfg_.aniso = 16;
+                    cfg_.smooth_cars = cfg_.car_reflections = cfg_.sharp_car_textures = cfg_.car_shadows = true;
+                    cfg_.save();
+                }
+                hint(TX("The Hardware renderer at the screen's resolution and every option below, for a recent graphics card. "
+                        "Some apply the next time the game starts."));
+                if (ImGui::Button(TX("Detect automatically"), ImVec2(-FLT_MIN, 0))) quality_request_ = true;
+                hint(TX("Measures what the graphics card can draw, in a few seconds, and recommends a level."));
+                ImGui::BeginDisabled(cfg_.renderer != "hardware");
+                const char *msaa_modes[] = {TX("Off"), "2x", "4x", "8x"};
+                int msaa = cfg_.msaa >= 8 ? 3 : cfg_.msaa >= 4 ? 2 : cfg_.msaa >= 2 ? 1 : 0;
+                if (combo(TX("Antialiasing (MSAA)"), "##msaa", &msaa, msaa_modes, 4)) {
+                    cfg_.msaa = 1 << msaa;
+                    cfg_.save();
+                }
+                hint(TX("Smooths the edges of the polygons and of the cut-out textures (trees, tyre marks).\n"
+                        "Not with the ray-traced sun shadows. Applies the next time the game starts."));
+                const char *filters[] = {TX("The game's own"), TX("Anisotropic 2x"), TX("Anisotropic 4x"),
+                                         TX("Anisotropic 8x"), TX("Anisotropic 16x")};
+                int filter = cfg_.aniso >= 16 ? 4 : cfg_.aniso >= 8 ? 3 : cfg_.aniso >= 4 ? 2 : cfg_.aniso >= 2 ? 1 : 0;
+                if (combo(TX("Texture filtering"), "##aniso", &filter, filters, 5)) {
+                    cfg_.aniso = filter ? 1 << filter : 1;
+                    cfg_.save();
+                }
+                hint(TX("Anisotropic: the road and the walls stay sharp into the distance, without shimmering."));
+                if (ImGui::Checkbox(TX("Smooth car shading"), &cfg_.smooth_cars)) cfg_.save();
+                hint(TX("The light on the cars blends across their faces instead of one shade a face: rounder bodies."));
+                if (ImGui::Checkbox(TX("Paint reflections"), &cfg_.car_reflections)) cfg_.save();
+                hint(TX("The cars' bodies reflect the sky and the sun, more at grazing angles."));
+                if (ImGui::Checkbox(TX("Sharp car textures up close"), &cfg_.sharp_car_textures)) cfg_.save();
+                hint(TX("The cars' numbers and logos keep crisp, rounded edges when seen up close, instead of a blur."));
+                if (ImGui::Checkbox(TX("Car shadows"), &cfg_.car_shadows)) cfg_.save();
+                hint(TX("The cars near the camera cast shadows from the game's sun on the road and the walls. Any graphics card."));
+                ImGui::EndDisabled();
+                hint(TX("These need the Hardware renderer (Display tab)."));
+
+                ImGui::Spacing();
+                ImGui::SeparatorText(TX("Screen effects"));
+                if (ImGui::Checkbox(TX("Bloom"), &cfg_.bloom)) cfg_.save();
+                hint(TX("The bright parts of the picture (the sky, the lights, white lines) glow softly."));
+                if (ImGui::Checkbox(TX("Arcade monitor (CRT)"), &cfg_.crt_filter)) cfg_.save();
+                hint(TX("The look of the cabinet's tube: the game's scanlines, the colour grille and darker corners. "
+                        "Best on a large or high-resolution screen."));
 
                 ImGui::Spacing();
                 ImGui::SeparatorText(TX("Colours"));

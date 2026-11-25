@@ -347,6 +347,78 @@ msgstr "Todos os arquivos"
 msgid "Language"
 msgstr "Idioma"
 
+msgid "Image quality"
+msgstr "Qualidade da imagem"
+
+msgid "Graphics card"
+msgstr "Placa de vídeo"
+
+msgid "Original"
+msgstr "Original"
+
+msgid "Medium"
+msgstr "Média"
+
+msgid "High"
+msgstr "Alta"
+
+msgid "Maximum"
+msgstr "Máxima"
+
+msgid "The graphics card could not be measured. Your settings stay as they are."
+msgstr "Não foi possível medir a placa de vídeo. Suas configurações continuam como estão."
+
+msgid "Measuring what your graphics card can draw, to recommend the best image for it."
+msgstr "Medindo o que a sua placa de vídeo consegue desenhar, para recomendar a melhor imagem para ela."
+
+msgid "Preparing the test..."
+msgstr "Preparando o teste..."
+
+msgid "Testing the maximum quality..."
+msgstr "Testando a qualidade máxima..."
+
+msgid "Testing the high quality..."
+msgstr "Testando a qualidade alta..."
+
+msgid "Testing the medium quality..."
+msgstr "Testando a qualidade média..."
+
+msgid "Recommended: %s"
+msgstr "Recomendado: %s"
+
+msgid "Pick a level, or keep your settings. Settings > Enhancements change each option later."
+msgstr "Escolha um nível ou mantenha suas configurações. Depois, cada opção pode ser mudada em Configurações > Melhorias."
+
+msgid "The game's original image, without the enhancements."
+msgstr "A imagem original do jogo, sem as melhorias."
+
+msgid "Twice the arcade's resolution, antialiasing 2x, anisotropic filtering 4x, smooth car shading and paint reflections."
+msgstr "O dobro da resolução do fliperama, antisserrilhamento 2x, filtragem anisotrópica 4x, sombreamento suave e reflexos na pintura dos carros."
+
+msgid "4 times the arcade's resolution, antialiasing 4x, anisotropic filtering 16x and every car option."
+msgstr "4 vezes a resolução do fliperama, antisserrilhamento 4x, filtragem anisotrópica 16x e todas as opções dos carros."
+
+msgid "The screen's own resolution, antialiasing 4x, anisotropic filtering 16x and every car option."
+msgstr "A própria resolução da tela, antisserrilhamento 4x, filtragem anisotrópica 16x e todas as opções dos carros."
+
+msgid " (recommended)"
+msgstr " (recomendado)"
+
+msgid "Measured: %.1f ms a frame at %d x %d"
+msgstr "Medido: %.1f ms por quadro em %d x %d"
+
+msgid "A level is recommended when it takes under %.0f ms. Bloom and the CRT filter are not changed."
+msgstr "Um nível é recomendado quando leva menos de %.0f ms. O bloom e o filtro CRT não são alterados."
+
+msgid "Antialiasing applies the next time the game starts."
+msgstr "O antisserrilhamento vale a partir do próximo início do jogo."
+
+msgid "Apply"
+msgstr "Aplicar"
+
+msgid "Keep my settings"
+msgstr "Manter minhas configurações"
+
 msgid "Your ROM set"
 msgstr "Sua ROM"
 
@@ -477,10 +549,10 @@ msgid "Render resolution"
 msgstr "Resolução de renderização"
 
 msgid ""
-"The native modes follow the window under Direct3D 12.\n"
+"The native modes follow the window under Direct3D 12 and Vulkan.\n"
 "2x to 4x enlarge the original resolution."
 msgstr ""
-"Os modos nativos acompanham a janela no Direct3D 12.\n"
+"Os modos nativos acompanham a janela no Direct3D 12 e no Vulkan.\n"
 "2x a 4x ampliam a resolução original."
 
 msgid "Double buffer"
@@ -672,6 +744,94 @@ msgstr "Esticar o fundo do céu (experimental)"
 msgid "Shows more of the scene at the sides. The gauges stay in 4:3 in the centre, or else lap times, position and maps move to the edges. In the race, the sky at the sides is plain blue, or else the game's sky picture stretched across the screen."
 msgstr "Mostra mais da cena nas laterais. O HUD fica em 4:3 no centro, ou então os tempos de volta, a posição e os mapas vão para as bordas. Na corrida, o céu das laterais fica azul liso, ou então a imagem do céu do jogo esticada na tela toda."
 
+msgid "Maximum quality (graphics card)"
+msgstr "Qualidade máxima (placa de vídeo)"
+
+msgid "The Hardware renderer at the screen's resolution and every option below, for a recent graphics card. Some apply the next time the game starts."
+msgstr "O renderizador Hardware na resolução da tela e todas as opções abaixo, para uma placa de vídeo recente. Algumas valem a partir do próximo início do jogo."
+
+msgid "Detect automatically"
+msgstr "Detectar automaticamente"
+
+msgid "Measures what the graphics card can draw, in a few seconds, and recommends a level."
+msgstr "Mede em poucos segundos o que a placa de vídeo consegue desenhar e recomenda um nível."
+
+msgid "Off"
+msgstr "Desligado"
+
+msgid "Antialiasing (MSAA)"
+msgstr "Antisserrilhado (MSAA)"
+
+msgid ""
+"Smooths the edges of the polygons and of the cut-out textures (trees, tyre marks).\n"
+"Not with the ray-traced sun shadows. Applies the next time the game starts."
+msgstr ""
+"Suaviza as bordas dos polígonos e das texturas recortadas (árvores, marcas de pneu).\n"
+"Não funciona com as sombras do sol por ray tracing. Vale a partir do próximo início do jogo."
+
+msgid "The game's own"
+msgstr "A do jogo"
+
+msgid "Anisotropic 2x"
+msgstr "Anisotrópico 2x"
+
+msgid "Anisotropic 4x"
+msgstr "Anisotrópico 4x"
+
+msgid "Anisotropic 8x"
+msgstr "Anisotrópico 8x"
+
+msgid "Anisotropic 16x"
+msgstr "Anisotrópico 16x"
+
+msgid "Texture filtering"
+msgstr "Filtragem de texturas"
+
+msgid "Anisotropic: the road and the walls stay sharp into the distance, without shimmering."
+msgstr "Anisotrópico: o asfalto e os muros ficam nítidos ao longe, sem tremer."
+
+msgid "Smooth car shading"
+msgstr "Sombreamento suave dos carros"
+
+msgid "The light on the cars blends across their faces instead of one shade a face: rounder bodies."
+msgstr "A luz nos carros se mistura entre as faces, em vez de um tom por face: carrocerias mais arredondadas."
+
+msgid "Paint reflections"
+msgstr "Reflexo na pintura"
+
+msgid "The cars' bodies reflect the sky and the sun, more at grazing angles."
+msgstr "As carrocerias refletem o céu e o sol, mais em ângulos rasantes."
+
+msgid "Sharp car textures up close"
+msgstr "Texturas dos carros nítidas de perto"
+
+msgid "The cars' numbers and logos keep crisp, rounded edges when seen up close, instead of a blur."
+msgstr "Os números e logotipos dos carros mantêm bordas nítidas e arredondadas de perto, em vez de borrados."
+
+msgid "Car shadows"
+msgstr "Sombra dos carros"
+
+msgid "The cars near the camera cast shadows from the game's sun on the road and the walls. Any graphics card."
+msgstr "Os carros perto da câmera projetam sombras do sol do jogo no asfalto e nos muros. Em qualquer placa de vídeo."
+
+msgid "These need the Hardware renderer (Display tab)."
+msgstr "Estas opções precisam do renderizador Hardware (aba Tela)."
+
+msgid "Screen effects"
+msgstr "Efeitos de tela"
+
+msgid "Bloom"
+msgstr "Bloom (brilho)"
+
+msgid "The bright parts of the picture (the sky, the lights, white lines) glow softly."
+msgstr "As partes claras da imagem (o céu, as luzes, as faixas brancas) brilham suavemente."
+
+msgid "Arcade monitor (CRT)"
+msgstr "Monitor de fliperama (CRT)"
+
+msgid "The look of the cabinet's tube: the game's scanlines, the colour grille and darker corners. Best on a large or high-resolution screen."
+msgstr "O visual do tubo do fliperama: as linhas de varredura do jogo, a grade de cores e os cantos mais escuros. Melhor em tela grande ou de alta resolução."
+
 msgid "Colours"
 msgstr "Cores"
 
@@ -834,9 +994,6 @@ msgstr "Force feedback"
 
 msgid "Force feedback (experimental)"
 msgstr "Force feedback (experimental)"
-
-msgid "Off"
-msgstr "Desligado"
 
 msgid "Invert the force"
 msgstr "Inverter a força"

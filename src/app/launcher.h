@@ -19,6 +19,8 @@
 
 struct ImFont;
 
+namespace app { class QualityProbe; }
+
 namespace app {
 
 // Fullscreen in Config::fullscreen_mode ("WxH@Hz", "*density" when not 1):
@@ -48,6 +50,15 @@ public:
     void set_ffb_device(const char *kind) { ffb_device_ = kind; } // what force feedback is playing on
     void set_link_status(const std::string &s) { link_status_ = s; } // link play, for the Game tab
     void set_pacing_status(const std::string &s) { pacing_status_ = s; } // frame pacing now, for the Game tab
+    // Automatic quality (app/quality.h): the measurement's window, over
+    // everything else (modal): the graphics card, the progress (`shown`,
+    // 0..1, paced by the caller), then the four levels with their times, the
+    // recommended one picked; the player may pick another. Apply: quality_pick().
+    enum class QualityChoice { None, Apply, Keep };
+    QualityChoice draw_quality(const QualityProbe &probe, float shown, bool game_running);
+    int quality_pick() const { return quality_pick_; } // app::QualityLevel
+    // Settings' "Detect automatically" was pressed since the last call
+    bool take_quality_request() { const bool r = quality_request_; quality_request_ = false; return r; }
 
 private:
     ImFont *display_font_ = nullptr, *body_font_ = nullptr;
@@ -56,6 +67,8 @@ private:
     void take_dialog_result(); // the file window's choice, from its thread
     bool language_combo(float width);
     bool gate_open_ = false;
+    bool quality_request_ = false;
+    int quality_pick_ = -1; // the level picked in draw_quality, -1 before its result
     static bool capture_gate(); // diagnostic: M2_CAPTURE_ROM_GATE=1
     static void SDLCALL dialog_done(void *self, const char *const *files, int filter);
 

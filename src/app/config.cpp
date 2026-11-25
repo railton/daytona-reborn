@@ -48,6 +48,15 @@ void Config::read(std::istream &f) {
         else if (k == "scenery_3d") scenery_3d = v == "1";
         else if (k == "interpolate") interpolate = v == "1";
         else if (k == "cars_near_model") cars_near_model = v == "1";
+        else if (k == "msaa") msaa = std::clamp(std::atoi(v.c_str()), 1, 8);
+        else if (k == "aniso") aniso = std::clamp(std::atoi(v.c_str()), 1, 16);
+        else if (k == "smooth_cars") smooth_cars = v == "1";
+        else if (k == "car_reflections") car_reflections = v == "1";
+        else if (k == "sharp_car_textures") sharp_car_textures = v == "1";
+        else if (k == "car_shadows") car_shadows = v == "1";
+        else if (k == "bloom") bloom = v == "1";
+        else if (k == "crt_filter") crt_filter = v == "1";
+        else if (k == "quality_checked") quality_checked = v == "1";
         else if (k == "sun_shadows") sun_shadows = v == "1";
         else if (k == "sky_light") sky_light = v == "1";
         else if (k == "sun_height") {
@@ -146,6 +155,15 @@ void Config::write(std::ostream &f) const {
     f << "scenery_3d=" << (scenery_3d ? 1 : 0) << "\n";
     f << "interpolate=" << (interpolate ? 1 : 0) << "\n";
     f << "cars_near_model=" << (cars_near_model ? 1 : 0) << "\n";
+    f << "msaa=" << msaa << "\n";
+    f << "aniso=" << aniso << "\n";
+    f << "smooth_cars=" << (smooth_cars ? 1 : 0) << "\n";
+    f << "car_reflections=" << (car_reflections ? 1 : 0) << "\n";
+    f << "sharp_car_textures=" << (sharp_car_textures ? 1 : 0) << "\n";
+    f << "car_shadows=" << (car_shadows ? 1 : 0) << "\n";
+    f << "bloom=" << (bloom ? 1 : 0) << "\n";
+    f << "crt_filter=" << (crt_filter ? 1 : 0) << "\n";
+    f << "quality_checked=" << (quality_checked ? 1 : 0) << "\n";
     f << "sun_shadows=" << (sun_shadows ? 1 : 0) << "\n";
     f << "sun_height=" << sun_height << "\n";
     f << "sky_light=" << (sky_light ? 1 : 0) << "\n";

@@ -45,6 +45,15 @@ struct Config {
     bool scenery_3d = false;   // fir trees in volume, filled stands, Dinosaur Canyon piers (next start)
     bool interpolate = false;  // pose smoothing between game frames, as --interpolate-poses (next start)
     bool cars_near_model = false; // every opponent drawn with its near model (next start)
+    int msaa = 1;  // the hardware renderer's antialiasing: 1 (off), 2, 4, 8 samples (next start)
+    int aniso = 1; // its texture filtering: 1 the game's own, 2..16 anisotropic
+    bool smooth_cars = false;     // its cars' light blended across their faces (GpuRenderer::set_car_shading)
+    bool car_reflections = false; // its cars' paint reflecting the sky and the sun
+    bool sharp_car_textures = false; // its cars' numbers and logos crisp up close
+    bool car_shadows = false;        // its cars' shadows from the game's sun (shadow map)
+    bool bloom = false;              // the display: the bright parts glow (GpuRenderer::present)
+    bool crt_filter = false;         // the display: an arcade monitor's scanlines, grille and corners
+    bool quality_checked = false;    // the automatic quality measured once (app/quality.h; offered at the first start)
     bool sun_shadows = false;  // ray-traced sun shadows (Direct3D 12, ray tracing tier 1.1; next start)
     bool sky_light = false;    // with the shadows: the sky's light, hidden under and between things (next start)
     int sun_height = 0;        // the shadows' sun above the horizon, degrees (10..80); 0 = the game's own

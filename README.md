@@ -48,6 +48,11 @@ From Daytona Reborn beta 0.10, kept in this repository:
 - **Enhancements, off by default:** widescreen 16:10, 16:9 or 21:9, a longer
   draw distance, 3D scenery, always-detailed opponents, arcade screen
   colours, 120 frames/s smoothing (experimental).
+- **Image quality on the graphics card:** antialiasing, anisotropic
+  filtering, the screen's own resolution (Direct3D 12 and Vulkan), smooth
+  car shading, paint reflecting the course's sky, car shadows, bloom and an
+  arcade monitor (CRT) look. At the first start the game measures the
+  graphics card and recommends a level; the player picks.
 - **Controls** for keyboard, gamepads, wheels and pedals, with analogue axes
   and force feedback (experimental).
 - **Languages:** English, French, Brazilian Portuguese.
@@ -121,7 +126,7 @@ The Revision A game opens on its home menu. **Settings** has six tabs:
 | --- | --- |
 | Game | the ROM set (Browse, Check); logs (Generate logs, on by default; Open the logs folder) |
 | Display | picture format, graphics API, renderer, render resolution, draw mode, fullscreen, display pacing |
-| Enhancements | draw distance, 3D scenery, opponents' detail, polygon budget, widescreen options, screen colours, smoothing |
+| Enhancements | draw distance, 3D scenery, opponents' detail, polygon budget, widescreen options, image quality (automatic or each option), screen effects, screen colours, smoothing |
 | Link play | linking cabinets on a local network |
 | Controls | devices, steering, force feedback, every control's key, gamepad and wheel assignment |
 | Sound | volume, music and effects balance, native sound |

@@ -5,12 +5,19 @@
 //   m2gpushot IMAGES_DIR FRAMES --dump DIR --every N [--inputs scripts/inputs/X.txt]
 //             [--aspect W:H [--hud-edges] [--stretch-backdrop]] [--scale N] [--nvram DIR] [--dump-from FRAME]
 //             [--draw-distance N] [--draw-budget N] [--scenery-log FILE] [--original-selection]
+//             [--msaa N] [--aniso N] [--smooth-cars] [--car-reflections] [--sharp-car-textures] [--car-shadows]
+//             [--bloom] [--crt] [--window WxH] [--pixels WxH]
+//   m2gpushot - 0 --quality-probe WxH: the automatic quality's measurement
+//             (app/gpu/quality_probe.h) for a WxH screen; no game is run
 //   m2gpushot IMAGES_DIR FRAMES --bench [--inputs ...] [--aspect ...] [--scale N]
 //
 // --scale N: the internal resolution enhancement (1-4); dumps are N times
 // wider and taller. --nvram DIR: start from the game's saved settings EEPROM
 // and backup RAM (ioboard_eeprom.bin, backup_ram.bin, as the app saves them
 // in its data folder), e.g. a cabinet type set in test mode.
+//
+// --bloom, --crt: the display passes (GpuRenderer::present); the dumps are
+// then the window, --window WxH (1920x1080), the frame letterboxed in it.
 //
 // --bench draws every frame through the GPU, with no readback, and reports
 // the time in the game (logic, geometrizer, CPU tilemap layers), in the
@@ -19,6 +26,7 @@
 // SDL_GPU without a window: an offscreen texture is drawn and read back.
 
 #include "app/gpu/gpu_renderer.h"
+#include "app/gpu/quality_probe.h"
 #include "runtime/game_loop.h"
 #include "../common/input_script.h"
 #include "../common/nvram.h"
@@ -45,6 +53,11 @@ int main(int argc, char **argv) {
     uint32_t draw_budget = 0;
     uint64_t every = 0, dump_from = 0;
     int scale = 1;
+    int pixels_w = 0, pixels_h = 0; // --pixels WxH: the 3D drawn at that size, as the native mode does
+    int window_w = 1920, window_h = 1080; // --bloom, --crt: the window the frame is shown in
+    bool bloom = false, crt = false;
+    int msaa = 1, aniso = 1; // the MSAA and texture filtering enhancements (GpuRenderer::init, set_anisotropy)
+    bool smooth_cars = false, car_reflections = false; // GpuRenderer::set_car_shading
     double aspect = 0;
     bool hud_edges = false, stretch = false, bench = false, original_selection = false;
     for (int i = 3; i < argc; i++) {
@@ -59,7 +72,10 @@ int main(int argc, char **argv) {
     }
     for (int i = 3; i + 1 < argc; i += 2) {
         if (!std::strcmp(argv[i], "--hud-edges") || !std::strcmp(argv[i], "--stretch-backdrop") ||
-            !std::strcmp(argv[i], "--bench") || !std::strcmp(argv[i], "--original-selection")) { i--; continue; }
+            !std::strcmp(argv[i], "--bench") || !std::strcmp(argv[i], "--original-selection") ||
+            !std::strcmp(argv[i], "--smooth-cars") || !std::strcmp(argv[i], "--car-reflections") ||
+            !std::strcmp(argv[i], "--sharp-car-textures") || !std::strcmp(argv[i], "--car-shadows") ||
+            !std::strcmp(argv[i], "--bloom") || !std::strcmp(argv[i], "--crt")) { i--; continue; }
         if (!std::strcmp(argv[i], "--aspect")) {
             double a = 0, b = 0;
             if (std::sscanf(argv[i + 1], "%lf:%lf", &a, &b) == 2 && b > 0) aspect = a / b;
@@ -70,6 +86,10 @@ int main(int argc, char **argv) {
         else if (!std::strcmp(argv[i], "--inputs")) inputs_path = argv[i + 1];
         else if (!std::strcmp(argv[i], "--nvram")) nvram_dir = argv[i + 1];
         else if (!std::strcmp(argv[i], "--scale")) scale = std::clamp(std::atoi(argv[i + 1]), 1, 4);
+        else if (!std::strcmp(argv[i], "--msaa")) msaa = std::clamp(std::atoi(argv[i + 1]), 1, 8);
+        else if (!std::strcmp(argv[i], "--aniso")) aniso = std::clamp(std::atoi(argv[i + 1]), 1, 16);
+        else if (!std::strcmp(argv[i], "--window")) std::sscanf(argv[i + 1], "%dx%d", &window_w, &window_h);
+        else if (!std::strcmp(argv[i], "--pixels")) std::sscanf(argv[i + 1], "%dx%d", &pixels_w, &pixels_h);
         else if (!std::strcmp(argv[i], "--draw-distance")) rt::GameLoop::set_draw_distance(std::atoi(argv[i + 1]));
         else if (!std::strcmp(argv[i], "--scenery-log")) scenery_log_path = argv[i + 1];
         else if (!std::strcmp(argv[i], "--draw-budget")) {
@@ -79,7 +99,9 @@ int main(int argc, char **argv) {
             }
         }
     }
-    if (!bench && (dump_dir.empty() || !every)) {
+    bool probe_only = false;
+    for (int i = 3; i < argc; ++i) probe_only |= !std::strcmp(argv[i], "--quality-probe");
+    if (!bench && !probe_only && (dump_dir.empty() || !every)) {
         std::fprintf(stderr, "m2gpushot: --dump DIR and --every N (or --bench) are needed\n");
         return 2;
     }
@@ -94,14 +116,46 @@ int main(int argc, char **argv) {
         return 1;
     }
     std::printf("m2gpushot: GPU driver %s\n", SDL_GetGPUDeviceDriver(dev));
+    for (int i = 3; i + 1 < argc; ++i)
+        if (!std::strcmp(argv[i], "--quality-probe")) {
+            int pw = 1920, ph = 1080;
+            std::sscanf(argv[i + 1], "%dx%d", &pw, &ph);
+            app::QualityProbe probe;
+            const char *driver = SDL_GetGPUDeviceDriver(dev);
+            probe.start(dev, pw, ph, !std::strcmp(driver, "vulkan") || !std::strcmp(driver, "direct3d12"));
+            const auto t0 = SDL_GetTicks();
+            while (probe.running()) probe.step();
+            const auto &t = probe.times();
+            static const char *names[] = {"original", "medium", "high", "maximum"};
+            const auto mx = probe.size_of(app::QualityProbe::Stage::Maximum);
+            std::printf("m2gpushot: %s; maximum (%dx%d) %.2f ms, high %.2f ms, medium %.2f ms a frame; level %s; "
+                        "%llu ms%s%s\n",
+                        probe.gpu_name().c_str(), mx.w, mx.h, t.maximum, t.high, t.medium, names[int(probe.level())],
+                        static_cast<unsigned long long>(SDL_GetTicks() - t0),
+                        probe.stage() == app::QualityProbe::Stage::Failed ? "; failed: " : "", probe.error().c_str());
+            SDL_DestroyGPUDevice(dev);
+            return probe.stage() == app::QualityProbe::Stage::Failed;
+        }
     app::GpuRenderer gpu;
-    if (!gpu.init(dev, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM)) {
+    if (!gpu.init(dev, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM, msaa)) {
         std::fprintf(stderr, "m2gpushot: %s\n", gpu.error().c_str());
         return 1;
     }
+    gpu.set_anisotropy(aniso);
+    for (int i = 3; i < argc; ++i) {
+        if (!std::strcmp(argv[i], "--smooth-cars")) smooth_cars = true;
+        if (!std::strcmp(argv[i], "--car-reflections")) car_reflections = true;
+        if (!std::strcmp(argv[i], "--sharp-car-textures")) gpu.set_car_textures(true);
+        if (!std::strcmp(argv[i], "--car-shadows")) gpu.set_car_shadows(true);
+        if (!std::strcmp(argv[i], "--bloom")) bloom = true;
+        if (!std::strcmp(argv[i], "--crt")) crt = true;
+    }
+    const bool post = bloom || crt;
+    gpu.set_car_shading(smooth_cars, car_reflections);
+    if (msaa > 1 || aniso > 1) std::printf("m2gpushot: MSAA %dx, anisotropic %dx\n", gpu.msaa(), aniso);
     constexpr int H = rt::GameLoop::kHeight;
     const int W = rt::GameLoop::kWidth + 2 * rt::GameLoop::wide_margin(aspect);
-    const int SW = W * scale, SH = H * scale; // the target
+    const int SW = pixels_w > 0 ? pixels_w : W * scale, SH = pixels_w > 0 ? pixels_h : H * scale; // the target
     SDL_GPUTextureCreateInfo ti{};
     ti.type = SDL_GPU_TEXTURETYPE_2D;
     ti.format = SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM;
@@ -111,9 +165,15 @@ int main(int argc, char **argv) {
     ti.layer_count_or_depth = 1;
     ti.num_levels = 1;
     SDL_GPUTexture *target = SDL_CreateGPUTexture(dev, &ti);
+    const int OW = post ? window_w : SW, OH = post ? window_h : SH; // the dumps
+    SDL_GPUTexture *window = nullptr;
+    if (post) {
+        ti.width = Uint32(OW), ti.height = Uint32(OH);
+        window = SDL_CreateGPUTexture(dev, &ti);
+    }
     SDL_GPUTransferBufferCreateInfo tbi{};
     tbi.usage = SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD;
-    tbi.size = Uint32(SW) * Uint32(SH) * 4;
+    tbi.size = Uint32(OW) * Uint32(OH) * 4;
     SDL_GPUTransferBuffer *download = SDL_CreateGPUTransferBuffer(dev, &tbi);
     if (!target || !download) {
         std::fprintf(stderr, "m2gpushot: %s\n", SDL_GetError());
@@ -160,7 +220,8 @@ int main(int argc, char **argv) {
                 }
                 const auto c = clk::now();
                 SDL_GPUCommandBuffer *cmd = SDL_AcquireGPUCommandBuffer(dev);
-                gpu.render(cmd, target, W, H, game.board().video(), scale);
+                gpu.set_light(game.board().light());
+                gpu.render(cmd, target, W, H, game.board().video(), scale, pixels_w > 0 ? SW : 0, pixels_w > 0 ? SH : 0);
                 last = SDL_SubmitGPUCommandBufferAndAcquireFence(cmd);
                 const auto d = clk::now();
                 t_game += std::chrono::duration<double>(b - a).count();
@@ -186,16 +247,29 @@ int main(int argc, char **argv) {
             if (game.board().frame() >= dump_from) scenery_log.write(game);
             if (game.board().frame() < dump_from || game.board().frame() % every) continue;
             SDL_GPUCommandBuffer *cmd = SDL_AcquireGPUCommandBuffer(dev);
-            gpu.render(cmd, target, W, H, game.board().video(), scale);
+            gpu.set_light(game.board().light());
+            gpu.render(cmd, target, W, H, game.board().video(), scale, pixels_w > 0 ? SW : 0, pixels_w > 0 ? SH : 0);
+            if (post) {
+                app::GpuRenderer::PostFrame pf;
+                pf.source = target;
+                pf.target = window;
+                const double fit = std::min(double(OW) / W, double(OH) / H);
+                const int dw = int(W * fit), dh = int(H * fit);
+                pf.dest = SDL_Rect{(OW - dw) / 2, (OH - dh) / 2, dw, dh};
+                pf.lines = H;
+                pf.bloom = bloom ? 0.35f : 0.0f;
+                pf.crt = crt ? 1.0f : 0.0f;
+                if (!gpu.present(cmd, pf)) std::fprintf(stderr, "m2gpushot: present failed\n");
+            }
             SDL_GPUCopyPass *copy = SDL_BeginGPUCopyPass(cmd);
             SDL_GPUTextureRegion src{};
-            src.texture = target;
-            src.w = Uint32(SW);
-            src.h = Uint32(SH);
+            src.texture = post ? window : target;
+            src.w = Uint32(OW);
+            src.h = Uint32(OH);
             src.d = 1;
             SDL_GPUTextureTransferInfo dst{};
             dst.transfer_buffer = download;
-            dst.pixels_per_row = Uint32(SW);
+            dst.pixels_per_row = Uint32(OW);
             SDL_DownloadFromGPUTexture(copy, &src, &dst);
             SDL_EndGPUCopyPass(copy);
             SDL_GPUFence *fence = SDL_SubmitGPUCommandBufferAndAcquireFence(cmd);
@@ -205,7 +279,7 @@ int main(int argc, char **argv) {
             std::snprintf(path, sizeof path, "%s/run_%05" PRIu64 ".rgb", dump_dir.c_str(), game.board().frame());
             if (FILE *d = std::fopen(path, "wb")) {
                 const void *p = SDL_MapGPUTransferBuffer(dev, download, false);
-                std::fwrite(p, 4, size_t(SW) * size_t(SH), d);
+                std::fwrite(p, 4, size_t(OW) * size_t(OH), d);
                 SDL_UnmapGPUTransferBuffer(dev, download);
                 std::fclose(d);
             }
@@ -218,6 +292,7 @@ int main(int argc, char **argv) {
     gpu.shutdown();
     SDL_ReleaseGPUTransferBuffer(dev, download);
     SDL_ReleaseGPUTexture(dev, target);
+    if (window) SDL_ReleaseGPUTexture(dev, window);
     SDL_DestroyGPUDevice(dev);
     SDL_Quit();
     return 0;

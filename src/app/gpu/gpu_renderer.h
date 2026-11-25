@@ -32,7 +32,60 @@ class GpuRenderer {
 public:
     // Creates the pipelines for drawing into textures of `format`. False (with
     // error()) if the GPU or its shader format is not usable.
-    bool init(SDL_GPUDevice *dev, SDL_GPUTextureFormat format);
+    // msaa (an enhancement): samples a pixel, 1 (off, the exact path), 2, 4
+    // or 8; the polygons' edges and the cut-out textures' (alpha to coverage)
+    // are smoothed, the frame resolved into the target. Fewer if the GPU
+    // cannot (msaa()). Not with the ray-traced shadows (their passes read
+    // the depth of single-sample pixels).
+    bool init(SDL_GPUDevice *dev, SDL_GPUTextureFormat format, int msaa = 1);
+    int msaa() const { return msaa_; }
+    // Texture filtering (an enhancement): 1 the game's own (the exact path),
+    // 2 to 16 anisotropic: on surfaces seen at a grazing angle (the road, the
+    // walls) the mip level follows the footprint's narrow side and up to n
+    // samples are averaged along its long side, so the far road stays sharp
+    // without shimmering. Opaque textures only.
+    void set_anisotropy(int n);
+    // The cars (enhancements, both off: the exact path). smooth: each corner
+    // of a car's face takes the light the game gave the faces around it
+    // (those within 50 degrees: creases stay sharp), blended across the face,
+    // instead of one light per face. reflect: the paint reflects the course's
+    // own sky (the back tilemap layers this frame, blurred) and the ground,
+    // more at grazing angles, and the game's sun as a highlight.
+    void set_car_shading(bool smooth, bool reflect) { smooth_cars_ = smooth, car_reflect_ = reflect; }
+    // sharp: up close, the cars' numbers and logos keep crisp, rounded edges
+    // instead of the bilinear blur (m2.hlsl fetch_texel, bit 31)
+    void set_car_textures(bool sharp) { sharp_car_textures_ = sharp; }
+    // The cars' shadows on the road and the walls (an enhancement, any GPU):
+    // the cars near the camera drawn from the game's sun into a depth map
+    // (2048 x 2048), which the scenery's pixels look up (m2.hlsl car_shadow_light).
+    void set_car_shadows(bool on) { car_shadows_ = on; }
+    // The game's light vector (Geo::light, camera space), each frame, for the reflections.
+    void set_light(const std::array<float, 3> &light) { game_light_ = light; }
+    // The display passes (enhancements, both 0 = off: a plain blit). The
+    // frame `source` (its part uv_w x uv_h, mip level `lod`) is drawn into
+    // `dest` of `target` (cleared to black around it): bloom > 0 adds the glow
+    // of its bright parts (light above `threshold`, blurred at a quarter of
+    // the window), crt > 0 the look of an arcade monitor (a beam per game
+    // line, `lines` of them, an aperture grille, darker corners), faded out
+    // where the window has too few pixels a line. False if it cannot.
+    struct PostFrame {
+        SDL_GPUTexture *source = nullptr;
+        float uv_w = 1, uv_h = 1, lod = 0;
+        SDL_GPUTexture *target = nullptr;
+        SDL_GPUTextureFormat format = SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM;
+        SDL_Rect dest{};
+        int lines = 384;
+        float bloom = 0, crt = 0, threshold = 0.55f;
+    };
+    bool present(SDL_GPUCommandBuffer *cmd, const PostFrame &frame);
+    // The quality measurement (app/gpu/quality_probe.h): a stand-in for a
+    // race frame at pixel_w x pixel_h through the polygon shader, with this
+    // renderer's MSAA and texture filtering. `layers` tilted textured planes
+    // (a road seen from the driver's seat) cover the whole frame back to
+    // front, so that each pixel is shaded `layers` times; texture RAM, luma
+    // RAM and colour translation hold blocks of noise (nothing of the game).
+    // Then this renderer is only for measuring: render() would show the noise.
+    bool draw_benchmark(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *target, int pixel_w, int pixel_h, int layers);
     void shutdown();
     bool ok() const { return poly_pipe_ != nullptr; }
     const std::string &error() const { return error_; }
@@ -103,7 +156,46 @@ private:
         float ooz, uoz, voz; // render_one's p[0..2]: 1/z, u/z, v/z
         float r, g, b, a;
         uint32_t info[4], more[2]; // texture state (m2.hlsl PolyIn)
+        // the cars' shading (set_car_shading), each divided by z for a
+        // perspective-correct blend: the corner's light (0..255), normal and
+        // camera-space position
+        float light_oz = 0, normal_oz[3] = {0, 0, 0}, position_oz[3] = {0, 0, 0};
     };
+    bool smooth_cars_ = false, car_reflect_ = false, sharp_car_textures_ = false, car_shadows_ = false;
+    // the shadow map: its pipeline, texture (and a 1 x 1 stand-in), sampler,
+    // the casters' vertices after the polygons' in verts_, the fragment uniform
+    SDL_GPUGraphicsPipeline *shadow_pipe_ = nullptr;
+    SDL_GPUTexture *shadow_map_ = nullptr, *shadow_none_ = nullptr;
+    SDL_GPUSampler *shadow_sampler_ = nullptr;
+    SDL_GPUTextureFormat shadow_format_ = SDL_GPU_TEXTUREFORMAT_D16_UNORM;
+    static constexpr uint32_t kShadowMapSize = 2048;
+    uint32_t shadow_first_ = 0, shadow_count_ = 0;
+    std::vector<size_t> casters_now_; // this frame's casting polygons (indices into the scene)
+    float car_light_[28] = {};        // m2.hlsl CarLight
+    // the real sky the paint reflects (m2.hlsl ps_sky_env): the back layers in
+    // a small texture with mip levels (a 1 x 1 stand-in), and the cars' camera
+    // in it: axis u, v, focal length / size u, v (0: no car this frame)
+    SDL_GPUGraphicsPipeline *sky_env_pipe_ = nullptr;
+    SDL_GPUTexture *sky_env_ = nullptr, *sky_none_ = nullptr;
+    SDL_GPUSampler *sky_sampler_ = nullptr;
+    static constexpr uint32_t kSkyEnvW = 512, kSkyEnvH = 256, kSkyEnvLevels = 6;
+    float sky_camera_[4] = {};
+    void shadow_casters(const std::vector<rt::GeoPoly> &polys);
+    std::array<float, 3> game_light_{0, 0, 1};
+    struct CarCorner { float light, normal[3]; };
+    std::vector<int32_t> car_first_;    // per polygon: its first corner in car_corners_, -1 if not a car's
+    std::vector<CarCorner> car_corners_;
+    void shade_cars(const std::vector<rt::GeoPoly> &polys);
+    // the display passes: shaders, pipelines (the glow's, the target's per format), glow textures
+    SDL_GPUShader *post_vs_ = nullptr, *post_ps_ = nullptr;
+    SDL_GPUGraphicsPipeline *post_bright_pipe_ = nullptr, *post_blur_pipe_ = nullptr;
+    std::vector<std::pair<SDL_GPUTextureFormat, SDL_GPUGraphicsPipeline *>> post_pipes_;
+    SDL_GPUSampler *post_sampler_ = nullptr;
+    SDL_GPUTexture *glow_[2] = {nullptr, nullptr};
+    int glow_w_ = 0, glow_h_ = 0;
+    bool post_failed_ = false;
+    bool init_post();
+    bool bench_filled_ = false;
     struct QuadVertex {
         float x, y, u, v;
     };
@@ -118,6 +210,12 @@ private:
     SDL_GPUTexture *front_ = nullptr; // the front layers from the CPU (HUD at the edges)
     SDL_GPUTexture *depth_ = nullptr;
     int depth_w_ = 0, depth_h_ = 0, front_w_ = 0, front_h_ = 0;
+    int msaa_ = 1;          // samples a pixel (init)
+    SDL_GPUSampleCount samples_ = SDL_GPU_SAMPLECOUNT_1;
+    uint32_t aniso_bits_ = 0; // log2 of the anisotropy, in the material's info.x bits 26-28
+    // msaa > 1: the frame drawn here, resolved into resolve_, copied into the target
+    SDL_GPUTexture *msaa_color_ = nullptr, *resolve_ = nullptr;
+    int msaa_w_ = 0, msaa_h_ = 0;
     SDL_GPUBuffer *vbuf_ = nullptr, *qbuf_ = nullptr;
     // storage buffers: texture RAM (both sheets), luma RAM, colour translation with gamma
     SDL_GPUBuffer *texram_ = nullptr, *luma_ = nullptr, *xlat_ = nullptr;

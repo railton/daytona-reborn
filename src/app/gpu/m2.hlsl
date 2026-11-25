@@ -15,7 +15,11 @@ struct Screen { float2 size; float2 pad; }; // the render target, in pixels
 // polygon's texture state, decoded on the CPU as render_one does:
 //   info.x: renderer (bits 0-1), checker 2, wrap x 3, wrap y 4, mirror x 5,
 //           mirror y 6, microtexture 7, its min LOD 8-9, sheets swapped 10,
-//           max mip level 12-16, log2(width / 32) 17-19, log2(height / 32) 20-22
+//           max mip level 12-16, log2(width / 32) 17-19, log2(height / 32) 20-22,
+//           native resolution 23, opponent paint 24; enhancements: alpha to
+//           coverage (MSAA) 25, log2 of the anisotropic filtering 26-28, a
+//           car's smooth light 29, a car's paint reflections 30, a car's
+//           sharp magnified texels 31
 //   info.y: texx | texy << 16      info.z: utexx | utexy << 16
 //   info.w: lumabase | luma << 16  more.x: texlod (int)  more.y: palette colour (RGB555)
 struct PolyIn {
@@ -25,14 +29,37 @@ struct PolyIn {
     float4 color : TEXCOORD3;
     uint4 info : TEXCOORD4;
     uint2 more : TEXCOORD5;
+    // the cars' shading (GpuRenderer::shade_cars), each times 1/z: the
+    // corner's light (0..255), normal and camera-space position
+    float light_oz : TEXCOORD6;
+    float3 normal_oz : TEXCOORD7;
+    float3 position_oz : TEXCOORD8;
 };
 struct PolyOut {
     float4 pos : SV_Position;
-    noperspective float3 oz : TEXCOORD0;
+    // centroid: with MSAA a pixel on a polygon's edge reads its texture inside
+    // the polygon, not past it (without MSAA the centroid is the centre)
+    noperspective centroid float3 oz : TEXCOORD0;
     nointerpolation float4 color : TEXCOORD1;
     nointerpolation uint4 info : TEXCOORD2;
     nointerpolation uint2 more : TEXCOORD3;
+    noperspective centroid float light_oz : TEXCOORD4;
+    noperspective centroid float3 normal_oz : TEXCOORD5;
+    noperspective centroid float3 position_oz : TEXCOORD6;
 };
+
+// The cars' reflections and shadows (GpuRenderer::render): the direction
+// towards the game's sun, camera space (y up); the sun's view of the cars
+// (shadow map): its axes, the map's corner and scale in them, its depth
+// range, the light left in shadow (0: no shadows) and a texel.
+struct CarLight {
+    float4 sun;
+    float4 right, up, dir;     // the sun's view: x, y across, z along the light
+    float4 map;                // x0, y0, 1 / width, 1 / height (in the sun's x, y)
+    float4 depth;              // z0, 1 / depth range, shadow strength, 1 / map size
+    float4 sky;                // the game's sky in sky_env: the camera axis (u, v), focal length / size (u, v); 0: none
+};
+[[vk::binding(0, 3)]] cbuffer CarLightUBO : register(b0, space3) { CarLight car_light; };
 
 PolyOut vs_poly(PolyIn i) {
     PolyOut o;
@@ -41,6 +68,9 @@ PolyOut vs_poly(PolyIn i) {
     o.color = i.color;
     o.info = i.info;
     o.more = i.more;
+    o.light_oz = i.light_oz;
+    o.normal_oz = i.normal_oz;
+    o.position_oz = i.position_oz;
     return o;
 }
 
@@ -48,11 +78,17 @@ PolyOut vs_poly(PolyIn i) {
 // texture RAM (sheet 0 then sheet 1, 0x80000 dwords each, as the rasterizer
 // reads them), the luma RAM (one entry per dword, low byte), and the colour
 // translation table with the rasterizer's gamma already applied.
-[[vk::binding(0, 2)]] StructuredBuffer<uint> texram : register(t0, space2);
-[[vk::binding(1, 2)]] StructuredBuffer<uint> lumaram : register(t1, space2);
-[[vk::binding(2, 2)]] StructuredBuffer<uint> xlat : register(t2, space2);
+// ps_poly also samples the cars' shadow map and the sky the paint reflects
+// (first: SDL_GPU puts the sampled textures before the storage buffers)
+[[vk::combinedImageSampler]] [[vk::binding(0, 2)]] Texture2D<float> car_shadow : register(t0, space2);
+[[vk::combinedImageSampler]] [[vk::binding(0, 2)]] SamplerState car_shadow_smp : register(s0, space2);
+[[vk::combinedImageSampler]] [[vk::binding(1, 2)]] Texture2D<float4> sky_env : register(t1, space2);
+[[vk::combinedImageSampler]] [[vk::binding(1, 2)]] SamplerState sky_env_smp : register(s1, space2);
+[[vk::binding(2, 2)]] StructuredBuffer<uint> texram : register(t2, space2);
+[[vk::binding(3, 2)]] StructuredBuffer<uint> lumaram : register(t3, space2);
+[[vk::binding(4, 2)]] StructuredBuffer<uint> xlat : register(t4, space2);
 
-[[vk::binding(3, 2)]] StructuredBuffer<uint> opponent_atlas : register(t3, space2);
+[[vk::binding(5, 2)]] StructuredBuffer<uint> opponent_atlas : register(t5, space2);
 
 float3 opponent_texel(uint offset, uint width, int2 p, int2 limit) {
     const uint c = opponent_atlas[offset + dot(uint2(clamp(p, 0, limit)), uint2(1, width))];
@@ -166,6 +202,24 @@ uint fetch_texel(uint4 info, int level, int u, int v, bool translucent, float2 f
     uint t01 = get_texel(tex_x, tex_y, u1, v0, sheet) << 4;
     uint t10 = get_texel(tex_x, tex_y, u0, v1, sheet) << 4;
     uint t11 = get_texel(tex_x, tex_y, u1, v1, sheet) << 4;
+    // Sharp magnified texels (an enhancement, info.x bit 31, opaque): where
+    // the four texels hold only two values (a number's or a logo's edge on
+    // its background) and the texture is magnified, the bilinear blend is
+    // thresholded at its middle, softened over about one output pixel: the
+    // edge follows the bilinear contour, crisp and rounded, instead of a
+    // blur. Elsewhere the game's blend.
+    if ((flags >> 31) != 0u && !translucent && max(footprint.x, footprint.y) < 1.0) {
+        const uint lo = min(min(t00, t01), min(t10, t11)), hi = max(max(t00, t01), max(t10, t11));
+        const bool two = (t00 == lo || t00 == hi) && (t01 == lo || t01 == hi) && (t10 == lo || t10 == hi) &&
+                         (t11 == lo || t11 == hi);
+        if (two && hi > lo) {
+            const float2 f = float2(ufrac, vfrac) / 256.0;
+            const float b = lerp(lerp(float(t00), float(t01), f.x), lerp(float(t10), float(t11), f.x), f.y);
+            const float k = clamp(max(footprint.x, footprint.y) * 0.25, 0.02, 0.5);
+            const float w = smoothstep(0.5 - k, 0.5 + k, (b - float(lo)) / float(hi - lo));
+            return uint(float(lo) + float(hi - lo) * w + 0.5) & 0xffu;
+        }
+    }
     if (translucent) {
         if (t00 != 0xf0u) t00 |= 0x00800000u;
         if (t01 != 0xf0u) t01 |= 0x00800000u;
@@ -185,6 +239,75 @@ uint fetch_texel(uint4 info, int level, int u, int v, bool translucent, float2 f
     return lerp8(t0x, t1x, vfrac);
 }
 
+// raster.cpp draw_tex_span's texel at (u, v) (8 fractional bits) for the
+// level of detail mml (7 fractional bits): the mip levels' blend, or the
+// microtexture's; lerp8's two lanes (index, opacity)
+uint sample_tex(uint4 info, int mml, int u, int v, bool translucent, float2 footprint) {
+    const int max_level = int((info.x >> 12) & 31u);
+    const int level = clamp(mml >> 7, 0, max_level);
+    uint t = fetch_texel(info, level, u, v, translucent, footprint);
+    if (mml > 0 && level < max_level) {
+        const uint t2 = fetch_texel(info, level + 1, u, v, translucent, footprint);
+        t = lerp8(t, t2, uint((mml & 127) << 1));
+    } else if (((info.x >> 7) & 1u) && mml < 0) {
+        const uint t2 = fetch_texel(info, -1, u, v, translucent, footprint);
+        t = lerp8(t, t2, uint(min(-mml >> ((info.x >> 8) & 3u), 127)));
+    }
+    return t;
+}
+
+// A car's paint (an enhancement, info.x bit 30): the sky and the ground
+// reflected, more at grazing angles (Schlick's Fresnel), and the sun as a
+// highlight, from the corners' normals blended across the face.
+float3 car_paint(float3 base, PolyOut i) {
+    const float3 q = i.position_oz / i.oz.x;
+    const float3 p = float3(q.xy, abs(q.z)); // z is negative on a car (no shadows on it)
+    const float3 n = normalize(i.normal_oz);
+    const float3 view = normalize(p); // from the eye to the point
+    const float3 r = reflect(view, n);
+    const float fresnel = 0.04 + 0.96 * pow(1.0 - saturate(dot(n, -view)), 5.0);
+    float3 zenith = float3(0.30, 0.50, 0.92), horizon = float3(0.82, 0.87, 0.95);
+    const float3 ground = float3(0.30, 0.30, 0.32);
+    float3 env;
+    if (car_light.sky.z > 0.0) {
+        // the course's own sky, as the camera sees it this frame (the back
+        // tilemap layers): the reflected ray projected by the camera, rays
+        // going back mirrored forward, never below the horizon row; blurred
+        // (a finer mip head on, where the paint is a sharper mirror)
+        const float3 d = float3(r.x, max(r.y, 0.0), max(abs(r.z), 0.35));
+        float2 uv = car_light.sky.xy + float2(d.x, -d.y) / d.z * car_light.sky.zw;
+        uv = float2(saturate(uv.x), clamp(uv.y, 0.0, car_light.sky.y));
+        const float blur = lerp(3.5, 2.0, fresnel);
+        const float3 sky = sky_env.SampleLevel(sky_env_smp, uv, blur).rgb;
+        horizon = sky_env.SampleLevel(sky_env_smp, float2(uv.x, car_light.sky.y), 4.0).rgb;
+        env = r.y >= 0.0 ? sky : lerp(horizon * 0.8, ground, saturate(-r.y * 4.0));
+    } else {
+        env = r.y >= 0.0 ? lerp(horizon, zenith, sqrt(saturate(r.y)))
+                         : lerp(horizon * 0.8, ground, saturate(-r.y * 4.0));
+    }
+    float3 c = lerp(base, env, 0.02 + 0.6 * fresnel); // little head on, more at grazing angles
+    c += pow(saturate(dot(r, car_light.sun.xyz)), 96.0) * float3(1.0, 0.96, 0.88) * 0.9;
+    return saturate(c);
+}
+
+// The cars' shadows (an enhancement): a polygon that receives them (its
+// position's z positive) looks its point up in the sun's view of the cars;
+// 3 x 3 samples soften the edge. 1: lit.
+float car_shadow_light(PolyOut i) {
+    if (car_light.depth.z <= 0.0 || i.position_oz.z <= 0.0) return 1.0;
+    const float3 p = i.position_oz / i.oz.x;
+    const float3 l = float3(dot(p, car_light.right.xyz), dot(p, car_light.up.xyz), dot(p, car_light.dir.xyz));
+    const float2 uv = (l.xy - car_light.map.xy) * car_light.map.zw;
+    if (any(uv < 0.0) || any(uv > 1.0)) return 1.0;
+    const float d = saturate((l.z - car_light.depth.x) * car_light.depth.y) - 0.004;
+    const float2 texel = float2(car_light.depth.w, car_light.depth.w);
+    float lit = 0.0;
+    [unroll] for (int y = -1; y <= 1; ++y)
+        [unroll] for (int x = -1; x <= 1; ++x)
+            lit += d <= car_shadow.SampleLevel(car_shadow_smp, float2(uv.x, 1.0 - uv.y) + float2(x, y) * texel, 0.0) ? 1.0 : 0.0;
+    return lerp(1.0 - car_light.depth.z, 1.0, lit / 9.0);
+}
+
 float4 ps_poly(PolyOut i) : SV_Target {
     const uint flags = i.info.x;
     const float z = 1.0 / i.oz.x;
@@ -197,33 +320,66 @@ float4 ps_poly(PolyOut i) : SV_Target {
         if (((p.x ^ p.y) & 1u) == 0u) discard;
     }
     const uint renderer = flags & 3u;
-    if (renderer < 2u) return i.color; // solid: its palette colour, from the CPU
+    const bool smooth = ((flags >> 29) & 1u) != 0u, reflective = ((flags >> 30) & 1u) != 0u;
+    // a car's corner light, blended across the face (bit 29)
+    const uint corner_light = uint(clamp(i.light_oz / i.oz.x + 0.5, 0.0, 255.0));
+    if (renderer < 2u) { // solid: its palette colour, from the CPU
+        if (!smooth && !reflective && i.position_oz.z <= 0.0) return i.color;
+        float3 rgb = i.color.rgb;
+        if (smooth) { // the CPU's colour (luma >> 2 through the translation), at this pixel's light
+            const uint c = i.more.y, l = corner_light >> 2;
+            rgb = float3(xlat[(((c >> 0) & 0x1fu) << 8) + l], xlat[0x2000u + (((c >> 5) & 0x1fu) << 8) + l],
+                         xlat[0x4000u + (((c >> 10) & 0x1fu) << 8) + l]) / 255.0;
+        }
+        return float4((reflective ? car_paint(rgb, i) : rgb) * car_shadow_light(i), 1.0);
+    }
 
     // raster.cpp draw_tex_span, one pixel
     const bool translucent = renderer == 3u;
-    const int max_level = int((flags >> 12) & 31u);
     const int mml = -int(i.more.x) + fast_log2(z);
-    const int level = clamp(mml >> 7, 0, max_level);
     const int u = to_s32(i.oz.y * z * 256.0);
     const int v = to_s32(i.oz.z * z * 256.0);
-    uint t = fetch_texel(i.info, level, u, v, translucent, footprint);
-    if (mml > 0 && level < max_level) {
-        const uint t2 = fetch_texel(i.info, level + 1, u, v, translucent, footprint);
-        t = lerp8(t, t2, uint((mml & 127) << 1));
-    } else if (((flags >> 7) & 1u) && mml < 0) {
-        const uint t2 = fetch_texel(i.info, -1, u, v, translucent, footprint);
-        t = lerp8(t, t2, uint(min(-mml >> ((flags >> 8) & 3u), 127)));
+    uint t;
+    const uint aniso = (flags >> 26) & 7u;
+    if (aniso != 0u && !translucent) {
+        // Anisotropic filtering (an enhancement): the pixel's footprint on the
+        // texture, in texels; the level is made as many levels finer as the
+        // samples taken along its long side cover (log2 n), from the game's own
+        const float2 ax = ddx(uv), ay = ddy(uv);
+        const float lx = length(ax), ly = length(ay);
+        const float major = max(lx, ly), minor = max(min(lx, ly), 1e-6);
+        const float2 along = lx > ly ? ax : ay;
+        const uint n = uint(clamp(ceil(major / minor), 1.0, float(1u << aniso)));
+        const int mml_n = mml - int(log2(float(n)) * 128.0);
+        uint index = 0u, opacity = 0u;
+        [loop] for (uint k = 0u; k < n; ++k) {
+            const float2 o = along * ((float(k) + 0.5) / float(n) - 0.5);
+            const uint s = sample_tex(i.info, mml_n, u + int(o.x * 256.0), v + int(o.y * 256.0), false,
+                                      footprint / float(n));
+            index += s & 0xffu;
+            opacity += s >> 16;
+        }
+        t = (index / n) | ((opacity / n) << 16);
+    } else {
+        t = sample_tex(i.info, mml, u, v, translucent, footprint);
     }
+    float alpha = 1.0;
     if (translucent) {
-        if (t < 0x00400000u) discard;
+        if ((flags >> 25) & 1u) {
+            // MSAA: the texels' opacity (0..0x80) covers as many samples
+            // (alpha to coverage); half covers half, where the game cuts
+            if (t < 0x00010000u) discard;
+            alpha = saturate(float(t >> 16) / 128.0);
+        } else if (t < 0x00400000u) discard;
         t &= 0xffu;
     }
-    const uint lumabase = i.info.w & 0xffffu, pluma = i.info.w >> 16;
+    const uint lumabase = i.info.w & 0xffffu, pluma = smooth ? corner_light : i.info.w >> 16;
     uint luma = ((lumaram[lumabase + (t >> 1)] & 0xffu) * pluma / 256u) & 0xffu;
     luma = min(luma, 0x3fu);
     const uint c = i.more.y;
     const uint cr = ((c >> 0) & 0x1fu) << 8, cg = 0x2000u + (((c >> 5) & 0x1fu) << 8), cb = 0x4000u + (((c >> 10) & 0x1fu) << 8);
-    return float4(float(xlat[cr + luma]) / 255.0, float(xlat[cg + luma]) / 255.0, float(xlat[cb + luma]) / 255.0, 1.0);
+    const float3 rgb = float3(float(xlat[cr + luma]) / 255.0, float(xlat[cg + luma]) / 255.0, float(xlat[cb + luma]) / 255.0);
+    return float4((reflective ? car_paint(rgb, i) : rgb) * car_shadow_light(i), alpha);
 }
 
 // A CPU-made layer (tilemaps) as a textured quad; pixels that are 0 are holes.
@@ -366,11 +522,11 @@ int2 tile_position(float2 pixel, int margin) {
 
 // The back layers, behind the 3D layer, filling the target: 496 wide in the
 // centre, the widescreen margins as Video::fill_margins fills them.
-float4 ps_tiles_back(QuadOut i) : SV_Target {
+float4 tiles_back(float2 pixel) {
     const int margin = int(tiledata[0]);
     const uint fill = tiledata[1];
     const int out_w = kTileW + 2 * margin;
-    const int2 xy = tile_position(i.pos.xy, margin);
+    const int2 xy = tile_position(pixel, margin);
     const int x = xy.x, y = xy.y;
     if (margin > 0 && fill == 2u) { // stretched: column (x + 0.5) * W / out - 0.5, blended
         const float u = clamp((float(x + margin) + 0.5) * float(kTileW) / float(out_w) - 0.5, 0.0, float(kTileW - 1));
@@ -407,6 +563,8 @@ float4 ps_tiles_back(QuadOut i) : SV_Target {
     return pen_color(tiledata[kTilePens + tile_back(sx, sy)]);
 }
 
+float4 ps_tiles_back(QuadOut i) : SV_Target { return tiles_back(i.pos.xy); }
+
 // The front layers, over the 3D layer: 3 to 0, the last drawn winning; holes
 // where none draws.
 float4 ps_tiles_front(QuadOut i) : SV_Target {
@@ -419,3 +577,106 @@ float4 ps_tiles_front(QuadOut i) : SV_Target {
     discard;
     return float4(0.0, 0.0, 0.0, 0.0);
 }
+
+// The cars' shadow map: the cars seen from the sun, depth only. The CPU gives
+// each corner already in the map's clip space (x, y) and depth (0..1).
+struct ShadowIn {
+    float2 pos : TEXCOORD0;
+    float depth : TEXCOORD1;
+};
+float4 vs_shadow(ShadowIn i) : SV_Position { return float4(i.pos, i.depth, 1.0); }
+void ps_shadow() {}
+
+// The display passes (enhancements, GpuRenderer::present): the frame shown
+// in the window through a bloom (the bright parts glow) and an arcade
+// monitor's look (CRT: the game's 384 scanlines, an aperture grille, the
+// corners darker). Levels are taken as gamma 2.2 for the light added.
+// A full-screen triangle; uv 0..1 across the viewport.
+struct PostOut {
+    float4 pos : SV_Position;
+    float2 uv : TEXCOORD0;
+};
+PostOut vs_post(uint vertex : SV_VertexID) {
+    PostOut o;
+    o.uv = float2((vertex << 1) & 2, vertex & 2);
+    o.pos = float4(o.uv * float2(2, -2) + float2(-1, 1), 0, 1);
+    return o;
+}
+
+struct Post {
+    float2 src_uv;    // the frame's part of the source texture
+    float src_lod;    // the source's mip level shown
+    float lines;      // the game's lines (the scanlines)
+    float2 step;      // the pass's input texel, in its uv (the blur: along its direction)
+    float2 dst_size;  // the viewport, in pixels
+    float bloom;      // the glow added (0: none)
+    float crt;        // the monitor's look (0: none)
+    float threshold;  // the light from which things glow
+    float pad;
+};
+[[vk::binding(0, 3)]] cbuffer PostUBO : register(b0, space3) { Post post; };
+[[vk::combinedImageSampler]] [[vk::binding(0, 2)]] Texture2D<float4> post_src : register(t0, space2);
+[[vk::combinedImageSampler]] [[vk::binding(0, 2)]] SamplerState post_src_smp : register(s0, space2);
+[[vk::combinedImageSampler]] [[vk::binding(1, 2)]] Texture2D<float4> post_glow : register(t1, space2);
+[[vk::combinedImageSampler]] [[vk::binding(1, 2)]] SamplerState post_glow_smp : register(s1, space2);
+
+float3 post_light(float3 level) { return pow(max(level, 0.0), 2.2); }
+
+// The bright parts, at a quarter of the window: 4 x 4 samples per pixel (the
+// source is up to 8 times finer), only the light above the threshold kept,
+// with a soft knee.
+float4 ps_post_bright(PostOut i) : SV_Target {
+    float3 sum = 0.0;
+    for (int y = 0; y < 4; y++)
+        for (int x = 0; x < 4; x++) {
+            const float2 uv = (i.uv + (float2(x, y) - 1.5) * 0.25 * post.step) * post.src_uv;
+            sum += post_light(post_src.SampleLevel(post_src_smp, uv, post.src_lod).rgb);
+        }
+    const float3 c = sum / 16.0;
+    const float peak = max(c.r, max(c.g, c.b));
+    const float knee = 0.25;
+    float soft = clamp(peak - post.threshold + knee, 0.0, 2.0 * knee);
+    soft = soft * soft / (4.0 * knee + 1e-5);
+    return float4(c * (max(soft, peak - post.threshold) / max(peak, 1e-5)), 1.0);
+}
+
+// A 9-tap Gaussian along post.step, in 5 bilinear samples.
+float4 ps_post_blur(PostOut i) : SV_Target {
+    float3 c = post_src.SampleLevel(post_src_smp, i.uv, 0.0).rgb * 0.2270270270;
+    c += post_src.SampleLevel(post_src_smp, i.uv + post.step * 1.3846153846, 0.0).rgb * 0.3162162162;
+    c += post_src.SampleLevel(post_src_smp, i.uv - post.step * 1.3846153846, 0.0).rgb * 0.3162162162;
+    c += post_src.SampleLevel(post_src_smp, i.uv + post.step * 3.2307692308, 0.0).rgb * 0.0702702703;
+    c += post_src.SampleLevel(post_src_smp, i.uv - post.step * 3.2307692308, 0.0).rgb * 0.0702702703;
+    return float4(c, 1.0);
+}
+
+// The frame into the window's viewport, with the glow and the monitor.
+float4 ps_post(PostOut i) : SV_Target {
+    float3 c = post_light(post_src.SampleLevel(post_src_smp, i.uv * post.src_uv, post.src_lod).rgb);
+    if (post.bloom > 0.0) c += post_glow.SampleLevel(post_glow_smp, i.uv, 0.0).rgb * post.bloom;
+    if (post.crt > 0.0) {
+        // the scanlines: a beam per game line, wider where brighter, its
+        // light kept on average; faded out where a line is under 3 pixels
+        const float per_line = post.dst_size.y / post.lines;
+        const float lines_on = post.crt * saturate((per_line - 1.5) / 1.5);
+        const float d = frac(i.uv.y * post.lines) - 0.5;
+        const float luma = dot(min(c, 1.0), float3(0.299, 0.587, 0.114));
+        const float sigma = lerp(0.20, 0.36, luma);
+        const float beam = exp(-0.5 * d * d / (sigma * sigma)) / min(sigma * 2.5066, 1.0);
+        c *= lerp(1.0, beam, lines_on);
+        // the aperture grille: red, green and blue columns, from 4 pixels a line
+        const float mask_on = post.crt * saturate((per_line - 2.5) / 1.5) * 0.3;
+        const uint column = uint(i.pos.x) % 3u;
+        const float3 mask = column == 0u ? float3(1.0, 0.0, 0.0) : column == 1u ? float3(0.0, 1.0, 0.0) : float3(0.0, 0.0, 1.0);
+        c *= 1.0 - mask_on + 3.0 * mask_on * mask; // the same light on average
+        // the corners a little darker
+        const float2 e = i.uv * (1.0 - i.uv);
+        c *= lerp(1.0, pow(saturate(e.x * e.y * 16.0), 0.12), post.crt);
+    }
+    return float4(pow(saturate(c), 1.0 / 2.2), 1.0);
+}
+
+// The sky the cars' paint reflects (GpuRenderer::render, with the
+// reflections): the back layers drawn whole into a small texture (uv across
+// the target's viewport); its mip levels blur it.
+float4 ps_sky_env(PostOut i) : SV_Target { return tiles_back(i.uv * float2(tiledata[3], tiledata[4])); }

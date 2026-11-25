@@ -4,6 +4,71 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`). The
 fork's version is in `VERSION`, raised with every code change (rules.md
 rule 14); each version has its section here.
 
+## 0.17.0 (2026-11-25)
+
+### Image enhancements (hardware renderer, all off by default)
+
+Settings > Enhancements > **Image quality**. With every one off the frame is
+the one before, pixel for pixel (13 race and attract captures compared).
+
+- **Antialiasing (MSAA 2x, 4x, 8x)**: the polygons' edges, and the cut-out
+  textures' (trees, tyre marks) through alpha to coverage. Applies the next
+  time the game starts; not with the ray-traced sun shadows.
+- **Texture filtering**: anisotropic 2x to 16x, in the polygon shader: the
+  road and the walls stay sharp into the distance without shimmering.
+- **Smooth car shading**: each corner of a car's face takes the light the
+  game gave the faces around it (creases over 50 degrees stay sharp), blended
+  across the face.
+- **Paint reflections**: the cars' bodies reflect the course's own sky (the
+  back tilemap layers, drawn each frame into a small texture whose mip
+  levels blur it) and the ground, more at grazing angles, and the game's sun
+  as a highlight.
+- **Sharp car textures up close**: numbers and logos keep crisp, rounded
+  edges instead of the bilinear blur.
+- **Car shadows**: the cars near the camera drawn from the game's sun into a
+  2048 x 2048 depth map; the road and the walls look it up (3 x 3 samples).
+  Any graphics card. The game's own shadow under the car is still drawn.
+- **Native resolution on Vulkan** (Linux): it fell back to the arcade's
+  resolution outside Direct3D 12.
+- **Maximum quality (graphics card)**: one button for all of the above.
+
+### Screen effects
+
+Settings > Enhancements > **Screen effects**, both renderers, applied as the
+frame is shown (any resolution, widescreen or 4:3):
+
+- **Bloom**: the bright parts glow, from a quarter-size blurred copy.
+- **Arcade monitor (CRT)**: a beam per game line (384), wider where
+  brighter, an aperture grille and darker corners; faded out where the
+  window has fewer than about 3 pixels a line.
+
+### Automatic quality
+
+At the first start from the PC home, and from Settings' **Detect
+automatically**, a window measures the graphics card and recommends a level
+(Original, Medium, High, Maximum); the player picks one or keeps the
+settings. Each level's stand-in (a tilted textured plane through the game's
+own polygon shader, with the level's MSAA and filtering, nothing from the
+ROM) is drawn at its resolution; a level fits under 8 ms a frame. Calibrated
+against the game: at 7680 x 4320 with every option the stand-in takes
+3.5 ms, a race frame at most 2.1 ms (RTX 5090). Measured: RTX 5090 Maximum at
+1080p, 1440p and 4K (0.9, 1.6, 3.6 ms); Vulkan in software (llvmpipe) Medium.
+Bloom and the CRT are never changed.
+
+### Fixed
+
+- A solo started from the home menu was silent on the cabinet's course and
+  gearbox screens: the sound stayed off until the race started. It is off
+  now only while the game boots behind the home menu (measured: silent from
+  0 to 35 s before, heard from the course screen on, 5 s after Play).
+
+### Tools
+
+- `m2gpushot`: `--msaa`, `--aniso`, `--smooth-cars`, `--car-reflections`,
+  `--sharp-car-textures`, `--car-shadows`, `--bloom`, `--crt`, `--window`,
+  `--pixels WxH` (the 3D at that size, as the native mode) and
+  `--quality-probe WxH` (the automatic quality's measurement).
+
 ## 0.16.0 (2026-11-24)
 
 ### Online server: abuse limits

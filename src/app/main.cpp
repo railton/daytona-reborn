@@ -66,6 +66,8 @@
 #include "app/touch_overlay.h"
 #else
 #include "app/gpu/home_scene.h"
+#include "app/gpu/quality_probe.h"
+#include "app/quality.h"
 #include "app/gpu/hardware_present_trace.h"
 #include "app/home_menu.h"
 #include "app/neon_ui.h"
@@ -988,9 +990,17 @@ int main(int argc, char **argv) {
 
     // Hardware renderer (launcher > Renderer): the 3D on the GPU. If it cannot
     // start here, the software renderer is used and the launcher says why.
+    // MSAA and texture filtering (launcher > Enhancements): the hardware
+    // renderer's; MSAA not with the ray-traced sun shadows (GpuRenderer::init)
     app::GpuRenderer gpu;
-    if (!gpu.init(dev, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM))
+    const char *shadows_env = std::getenv("M2_DXR_SHADOWS");
+    const bool shadows_asked = shadows_env ? shadows_env[0] == '1' : cfg.sun_shadows;
+    if (!gpu.init(dev, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM, shadows_asked ? 1 : cfg.msaa))
         std::fprintf(stderr, "daytona: hardware renderer unavailable: %s\n", gpu.error().c_str());
+    else if (cfg.renderer == "hardware" && (cfg.msaa > 1 || cfg.aniso > 1))
+        std::printf("daytona: MSAA %dx%s, anisotropic filtering %dx\n", gpu.msaa(),
+                    cfg.msaa > 1 && gpu.msaa() == 1 ? (shadows_asked ? " (off with the sun shadows)" : " (unsupported here)") : "",
+                    cfg.aniso);
     // The experimental ray-tracing options are both off by
     // default. M2_DXR_SCENE=1 builds the frame's acceleration structure after
     // each hardware render (nothing reads it; the image is unchanged).
@@ -1087,6 +1097,23 @@ int main(int argc, char **argv) {
     int shown_scale = 1;
 
     app::Launcher launcher(cfg, window);
+#ifndef M2_MOBILE
+    // Automatic quality (app/quality.h): the graphics card measured once, at
+    // the first start from the PC home, and again from Settings' "Detect
+    // automatically"; a window shows the progress, then the levels to pick.
+    app::QualityProbe quality_probe;
+    bool quality_open = false;
+    uint64_t quality_since = 0;
+    const bool native_modes = gpu_driver && (!std::strcmp(gpu_driver, "direct3d12") || !std::strcmp(gpu_driver, "vulkan"));
+    auto start_quality = [&] {
+        int dw = window_width, dh = window_height; // the screen's pixels, or else the window's
+        if (const SDL_DisplayMode *mode = SDL_GetDesktopDisplayMode(SDL_GetDisplayForWindow(window)))
+            dw = int(std::lround(mode->w * mode->pixel_density)), dh = int(std::lround(mode->h * mode->pixel_density));
+        quality_probe.start(dev, dw, dh, native_modes);
+        quality_open = true;
+        quality_since = SDL_GetTicksNS();
+    };
+#endif
     app::ForceFeedback ffb; // the drive board on the steering device
     std::unique_ptr<app::TcpLink> link; // link play (declared first: outlives the game, which holds it)
     std::unique_ptr<app::RelayLink> online_link; // online play, the same (app/relay_link.h)
@@ -1241,6 +1268,7 @@ int main(int argc, char **argv) {
 #endif
         if ((autostart || cfg.skip_launcher) && launcher.rom_ok() && start_game()) in_launcher = false;
 #ifndef M2_MOBILE
+    if (pc_home && !cfg.quality_checked && !capture_home && in_launcher && gpu.ok()) start_quality();
     // Leave the online room: its race ends here, the others see the link lost.
     auto leave_online = [&] {
 #ifndef M2_MOBILE
@@ -1594,8 +1622,10 @@ int main(int argc, char **argv) {
         }
         int pixel_width = 0, pixel_height = 0;
         // Native mode uses the DXIL viewport-aware tile shaders.
+        // the native modes: Direct3D 12 and Vulkan (Linux; before, only Direct3D 12,
+        // and a native mode chosen under Vulkan fell back to the original resolution)
         const bool native_resolution = !capture_image && cfg.renderer == "hardware" && gpu.ok() && gpu_driver &&
-            std::strcmp(gpu_driver, "direct3d12") == 0 &&
+            (std::strcmp(gpu_driver, "direct3d12") == 0 || std::strcmp(gpu_driver, "vulkan") == 0) &&
             cfg.uses_native_resolution() &&
             SDL_GetWindowSizeInPixels(window, &pixel_width, &pixel_height) &&
             pixel_width > 0 && pixel_height > 0;
@@ -1838,7 +1868,9 @@ int main(int argc, char **argv) {
                 game->sound()->set_volumes(cfg.music_volume, cfg.effects_volume);
                 if (have_audio) audio.push(*game->sound(),
 #ifndef M2_MOBILE
-                    solo || in_launcher ? 0.f :
+                    // silent while a solo boots hidden behind the home; heard
+                    // from the cabinet's course and gearbox screens on
+                    (solo && !solo_choosing) || in_launcher ? 0.f :
 #endif
                     cfg.mute ? 0.f : cfg.volume, pacer.pacing().game_hz / kArcadeHz);
                 else game->sound()->take_fm(), game->sound()->take_pcm(); // nowhere to play it
@@ -1870,6 +1902,11 @@ int main(int argc, char **argv) {
         }
 #endif
         const bool hardware = game && game->board().video().external_3d();
+        gpu.set_anisotropy(cfg.aniso); // takes effect at once (MSAA at the next start)
+        gpu.set_car_shading(cfg.smooth_cars, cfg.car_reflections);
+        gpu.set_car_textures(cfg.sharp_car_textures);
+        gpu.set_car_shadows(cfg.car_shadows);
+        if (game) gpu.set_light(game->board().light());
         if (game && hardware != reported_hardware) { // say which renderer is drawing, whenever it changes
             std::printf("daytona: renderer %s\n", hardware ? "hardware (GPU)" : "software (CPU)");
             reported_hardware = hardware;
@@ -2126,6 +2163,8 @@ int main(int argc, char **argv) {
 #endif
         ImDrawData *draw = nullptr;
 #ifndef M2_MOBILE
+        if (launcher.take_quality_request()) start_quality();
+        if (quality_probe.running()) quality_probe.step(); // one batch: the window stays live
         if (pc_home && solo && native_fault) {
             home_message = launcher.error();
             cancel_start();
@@ -2137,7 +2176,7 @@ int main(int argc, char **argv) {
 #ifdef M2_MOBILE
             || game != nullptr
 #else
-            || draw_home || reveal < 1.f || online_names > 0.f || !online_tags.empty() || online_waiting
+            || draw_home || reveal < 1.f || online_names > 0.f || !online_tags.empty() || online_waiting || quality_open
 #endif
         ) {
             ImGui_ImplSDLGPU3_NewFrame();
@@ -2431,6 +2470,32 @@ int main(int argc, char **argv) {
                                                                   : std::array<int, 9>{-1, -1, -1, -1, -1, -1, -1, -1, -1});
                 }
             }
+            if (quality_open) {
+                // the bar follows the measurement, paced to be read (2.5 s at least)
+                const float paced = std::min(quality_probe.progress(), float(double(SDL_GetTicksNS() - quality_since) / 2.5e9));
+                switch (launcher.draw_quality(quality_probe, quality_probe.running() ? std::min(paced, 0.99f) : paced,
+                                              game != nullptr)) {
+                case app::Launcher::QualityChoice::Apply:
+                    app::apply_quality(cfg, app::QualityLevel(launcher.quality_pick()), native_modes);
+                    [[fallthrough]];
+                case app::Launcher::QualityChoice::Keep:
+                    cfg.quality_checked = true;
+                    cfg.save();
+                    quality_open = false;
+                    quality_probe.stop();
+                    if (!game && gpu.msaa() != (shadows_asked ? 1 : std::max(cfg.msaa, 1))) {
+                        // nothing drawn by it yet: the renderer again, with the new antialiasing
+                        SDL_WaitForGPUIdle(dev);
+                        gpu.shutdown();
+                        if (!gpu.init(dev, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM, shadows_asked ? 1 : cfg.msaa))
+                            std::fprintf(stderr, "daytona: hardware renderer unavailable: %s\n", gpu.error().c_str());
+                        else
+                            std::printf("daytona: MSAA %dx, anisotropic filtering %dx\n", gpu.msaa(), cfg.aniso);
+                    }
+                    break;
+                default: break;
+                }
+            }
 #endif
             sync_native_audio();
             ImGui::Render();
@@ -2530,7 +2595,34 @@ int main(int argc, char **argv) {
                 blit.load_op = SDL_GPU_LOADOP_CLEAR;
                 blit.clear_color = SDL_FColor{0, 0, 0, 1};
                 blit.filter = SDL_GPU_FILTER_LINEAR;
-                SDL_BlitGPUTexture(cmd, &blit);
+                // the display passes (Settings > Enhancements > Screen effects), else the plain blit
+                bool post_drawn = false;
+                if ((cfg.bloom || cfg.crt_filter) && gpu.ok()) {
+                    Uint32 tex_w = Uint32(kMaxW), tex_h = Uint32(H); // the source's level 0
+                    if (shown == hires) tex_w *= Uint32(hires_scale), tex_h *= Uint32(hires_scale);
+#ifndef M2_MOBILE
+                    if (raster_target && shown == raster_target)
+                        tex_w = raster_width * raster_scale, tex_h = raster_height * raster_scale;
+                    const SDL_GPUTextureFormat swap_format =
+                        capture_image ? ii.ColorTargetFormat : SDL_GetGPUSwapchainTextureFormat(dev, window);
+#else
+                    const SDL_GPUTextureFormat swap_format = SDL_GetGPUSwapchainTextureFormat(dev, window);
+#endif
+                    app::GpuRenderer::PostFrame pf;
+                    pf.source = shown;
+                    pf.uv_w = float(blit.source.w << blit.source.mip_level) / float(tex_w);
+                    pf.uv_h = float(blit.source.h << blit.source.mip_level) / float(tex_h);
+                    pf.lod = float(blit.source.mip_level);
+                    pf.target = target;
+                    pf.format = target == swap ? swap_format : SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM;
+                    pf.dest = SDL_Rect{int(blit.destination.x), int(blit.destination.y), int(blit.destination.w),
+                                       int(blit.destination.h)};
+                    pf.lines = H;
+                    pf.bloom = cfg.bloom ? 0.35f : 0.0f;
+                    pf.crt = cfg.crt_filter ? 1.0f : 0.0f;
+                    post_drawn = gpu.present(cmd, pf);
+                }
+                if (!post_drawn) SDL_BlitGPUTexture(cmd, &blit);
                 painted = true;
             }
             if (draw || !painted) { // the launcher on top (or a clear screen)

@@ -5,6 +5,8 @@
 #include "app/gpu/dxr_shaders_gen.h"
 
 #include <algorithm>
+#include <unordered_map>
+#include <utility>
 #include <cmath>
 #include <cstring>
 #include <cstdlib>
@@ -53,7 +55,13 @@ SDL_GPUShader *GpuRenderer::shader(const unsigned char *spv, size_t spv_len, con
     return s;
 }
 
-bool GpuRenderer::init(SDL_GPUDevice *dev, SDL_GPUTextureFormat format) {
+void GpuRenderer::set_anisotropy(int n) {
+    uint32_t bits = 0;
+    while (bits < 4 && (2 << bits) <= n) ++bits;
+    aniso_bits_ = bits;
+}
+
+bool GpuRenderer::init(SDL_GPUDevice *dev, SDL_GPUTextureFormat format, int msaa) {
     dev_ = dev;
     frame_format_ = format;
     for (int i = 0; i < 256; i++) // the rasterizer's gamma (MAME video_start)
@@ -62,7 +70,7 @@ bool GpuRenderer::init(SDL_GPUDevice *dev, SDL_GPUTextureFormat format) {
     SDL_GPUShader *vs_poly = shader(k_vs_poly_spv, sizeof k_vs_poly_spv, k_vs_poly_dxil, sizeof k_vs_poly_dxil,
                                     k_vs_poly_msl, "vs_poly", SDL_GPU_SHADERSTAGE_VERTEX, 1, 0);
     SDL_GPUShader *ps_poly = shader(k_ps_poly_spv, sizeof k_ps_poly_spv, k_ps_poly_dxil, sizeof k_ps_poly_dxil,
-                                    k_ps_poly_msl, "ps_poly", SDL_GPU_SHADERSTAGE_FRAGMENT, 0, 0, 4);
+                                    k_ps_poly_msl, "ps_poly", SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 2, 4);
     SDL_GPUShader *vs_quad = shader(k_vs_quad_spv, sizeof k_vs_quad_spv, k_vs_quad_dxil, sizeof k_vs_quad_dxil,
                                     k_vs_quad_msl, "vs_quad", SDL_GPU_SHADERSTAGE_VERTEX, 1, 0);
     SDL_GPUShader *ps_quad = shader(k_ps_quad_spv, sizeof k_ps_quad_spv, k_ps_quad_dxil, sizeof k_ps_quad_dxil,
@@ -81,19 +89,41 @@ bool GpuRenderer::init(SDL_GPUDevice *dev, SDL_GPUTextureFormat format) {
 
     SDL_GPUColorTargetDescription color{};
     color.format = format;
+    // MSAA: the most samples up to the request that the colour and depth formats take
+    SDL_GPUSampleCount samples = SDL_GPU_SAMPLECOUNT_1;
+    msaa_ = 1;
+    for (const auto &[n, count] : {std::pair{8, SDL_GPU_SAMPLECOUNT_8}, std::pair{4, SDL_GPU_SAMPLECOUNT_4},
+                                   std::pair{2, SDL_GPU_SAMPLECOUNT_2}})
+        if (msaa >= n && SDL_GPUTextureSupportsSampleCount(dev, format, count) &&
+            SDL_GPUTextureSupportsSampleCount(dev, SDL_GPU_TEXTUREFORMAT_D16_UNORM, count)) {
+            samples = count;
+            msaa_ = n;
+            break;
+        }
+    samples_ = samples;
+    // with MSAA the polygons leave the target's alpha alone (alpha to coverage writes its own)
+    SDL_GPUColorTargetDescription poly_color = color;
+    if (msaa_ > 1) {
+        poly_color.blend_state.enable_color_write_mask = true;
+        poly_color.blend_state.color_write_mask =
+            SDL_GPU_COLORCOMPONENT_R | SDL_GPU_COLORCOMPONENT_G | SDL_GPU_COLORCOMPONENT_B;
+    }
 
     // Polygons: position, depth (draw order), 1/z u/z v/z, colour, texture state.
     SDL_GPUVertexBufferDescription pvb{};
     pvb.slot = 0;
     pvb.pitch = sizeof(PolyVertex);
     pvb.input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX;
-    SDL_GPUVertexAttribute pattr[6] = {
+    SDL_GPUVertexAttribute pattr[9] = {
         {0, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2, Uint32(offsetof(PolyVertex, x))},
         {1, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT, Uint32(offsetof(PolyVertex, depth))},
         {2, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3, Uint32(offsetof(PolyVertex, ooz))},
         {3, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4, Uint32(offsetof(PolyVertex, r))},
         {4, 0, SDL_GPU_VERTEXELEMENTFORMAT_UINT4, Uint32(offsetof(PolyVertex, info))},
         {5, 0, SDL_GPU_VERTEXELEMENTFORMAT_UINT2, Uint32(offsetof(PolyVertex, more))},
+        {6, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT, Uint32(offsetof(PolyVertex, light_oz))},
+        {7, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3, Uint32(offsetof(PolyVertex, normal_oz))},
+        {8, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3, Uint32(offsetof(PolyVertex, position_oz))},
     };
     SDL_GPUGraphicsPipelineCreateInfo pi{};
     pi.vertex_shader = vs_poly;
@@ -101,17 +131,21 @@ bool GpuRenderer::init(SDL_GPUDevice *dev, SDL_GPUTextureFormat format) {
     pi.vertex_input_state.vertex_buffer_descriptions = &pvb;
     pi.vertex_input_state.num_vertex_buffers = 1;
     pi.vertex_input_state.vertex_attributes = pattr;
-    pi.vertex_input_state.num_vertex_attributes = 6;
+    pi.vertex_input_state.num_vertex_attributes = 9;
     pi.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
     pi.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_NONE;
     pi.depth_stencil_state.enable_depth_test = true;
     pi.depth_stencil_state.enable_depth_write = true;
     pi.depth_stencil_state.compare_op = SDL_GPU_COMPAREOP_LESS; // earlier in the order wins
-    pi.target_info.color_target_descriptions = &color;
+    pi.target_info.color_target_descriptions = &poly_color;
     pi.target_info.num_color_targets = 1;
     pi.target_info.depth_stencil_format = SDL_GPU_TEXTUREFORMAT_D16_UNORM;
     pi.target_info.has_depth_stencil_target = true;
+    pi.multisample_state.sample_count = samples;
+    pi.multisample_state.enable_alpha_to_coverage = msaa_ > 1; // cut-out textures' edges (m2.hlsl)
     poly_pipe_ = SDL_CreateGPUGraphicsPipeline(dev_, &pi);
+    pi.target_info.color_target_descriptions = &color; // the shadow pipelines below
+    pi.multisample_state = SDL_GPUMultisampleState{};
 
     // Layers: a textured quad; no depth test.
     SDL_GPUVertexBufferDescription qvb{};
@@ -135,6 +169,7 @@ bool GpuRenderer::init(SDL_GPUDevice *dev, SDL_GPUTextureFormat format) {
     qi.target_info.num_color_targets = 1;
     qi.target_info.depth_stencil_format = SDL_GPU_TEXTUREFORMAT_D16_UNORM;
     qi.target_info.has_depth_stencil_target = true; // same pass as the polygons
+    qi.multisample_state.sample_count = samples;
     quad_pipe_ = SDL_CreateGPUGraphicsPipeline(dev_, &qi);
     // Tilemap layers: the same quad, composed per pixel.
     qi.fragment_shader = ps_back;
@@ -154,6 +189,93 @@ bool GpuRenderer::init(SDL_GPUDevice *dev, SDL_GPUTextureFormat format) {
     smp.mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_NEAREST;
     smp.address_mode_u = smp.address_mode_v = smp.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
     sampler_ = SDL_CreateGPUSampler(dev_, &smp);
+    shadow_sampler_ = SDL_CreateGPUSampler(dev_, &smp); // the shadow map: nearest, read as depth
+
+    // The cars' shadow map: depth only, from the sun (set_car_shadows)
+    constexpr SDL_GPUTextureUsageFlags kShadowUsage = SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER;
+    shadow_format_ = SDL_GPUTextureSupportsFormat(dev_, SDL_GPU_TEXTUREFORMAT_D32_FLOAT, SDL_GPU_TEXTURETYPE_2D, kShadowUsage)
+                         ? SDL_GPU_TEXTUREFORMAT_D32_FLOAT
+                         : SDL_GPU_TEXTUREFORMAT_D16_UNORM;
+    {
+        SDL_GPUTextureCreateInfo st{};
+        st.type = SDL_GPU_TEXTURETYPE_2D;
+        st.format = shadow_format_;
+        st.usage = kShadowUsage;
+        st.width = st.height = 1;
+        st.layer_count_or_depth = st.num_levels = 1;
+        shadow_none_ = SDL_CreateGPUTexture(dev_, &st);
+        SDL_GPUShader *vs_shadow = shader(k_vs_shadow_spv, sizeof k_vs_shadow_spv, k_vs_shadow_dxil, sizeof k_vs_shadow_dxil,
+                                          k_vs_shadow_msl, "vs_shadow", SDL_GPU_SHADERSTAGE_VERTEX, 0, 0);
+        SDL_GPUShader *ps_shadow = shader(k_ps_shadow_spv, sizeof k_ps_shadow_spv, k_ps_shadow_dxil, sizeof k_ps_shadow_dxil,
+                                          k_ps_shadow_msl, "ps_shadow", SDL_GPU_SHADERSTAGE_FRAGMENT, 0, 0);
+        if (vs_shadow && ps_shadow) {
+            SDL_GPUVertexAttribute sattr[2] = {
+                {0, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2, Uint32(offsetof(PolyVertex, x))},
+                {1, 0, SDL_GPU_VERTEXELEMENTFORMAT_FLOAT, Uint32(offsetof(PolyVertex, depth))},
+            };
+            SDL_GPUGraphicsPipelineCreateInfo si{};
+            si.vertex_shader = vs_shadow;
+            si.fragment_shader = ps_shadow;
+            si.vertex_input_state.vertex_buffer_descriptions = &pvb;
+            si.vertex_input_state.num_vertex_buffers = 1;
+            si.vertex_input_state.vertex_attributes = sattr;
+            si.vertex_input_state.num_vertex_attributes = 2;
+            si.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
+            si.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_NONE;
+            si.depth_stencil_state.enable_depth_test = true;
+            si.depth_stencil_state.enable_depth_write = true;
+            si.depth_stencil_state.compare_op = SDL_GPU_COMPAREOP_LESS;
+            si.target_info.depth_stencil_format = shadow_format_;
+            si.target_info.has_depth_stencil_target = true;
+            shadow_pipe_ = SDL_CreateGPUGraphicsPipeline(dev_, &si);
+        }
+        for (SDL_GPUShader *s : {vs_shadow, ps_shadow})
+            if (s) SDL_ReleaseGPUShader(dev_, s);
+        if (!shadow_pipe_) std::fprintf(stderr, "daytona: the cars' shadows unavailable: %s\n", SDL_GetError());
+    }
+
+    // The real sky the paint reflects (set_car_shading): the back layers
+    // into a small texture, blurred by its mip levels
+    {
+        SDL_GPUShader *vs_post = shader(k_vs_post_spv, sizeof k_vs_post_spv, k_vs_post_dxil, sizeof k_vs_post_dxil,
+                                        k_vs_post_msl, "vs_post", SDL_GPU_SHADERSTAGE_VERTEX, 0, 0);
+        SDL_GPUShader *ps_sky = shader(k_ps_sky_env_spv, sizeof k_ps_sky_env_spv, k_ps_sky_env_dxil,
+                                       sizeof k_ps_sky_env_dxil, k_ps_sky_env_msl, "ps_sky_env",
+                                       SDL_GPU_SHADERSTAGE_FRAGMENT, 0, 0, 2);
+        if (vs_post && ps_sky) {
+            SDL_GPUColorTargetDescription sky_color{};
+            sky_color.format = SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM;
+            SDL_GPUGraphicsPipelineCreateInfo ki{};
+            ki.vertex_shader = vs_post;
+            ki.fragment_shader = ps_sky;
+            ki.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
+            ki.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_NONE;
+            ki.target_info.color_target_descriptions = &sky_color;
+            ki.target_info.num_color_targets = 1;
+            sky_env_pipe_ = SDL_CreateGPUGraphicsPipeline(dev_, &ki);
+        }
+        for (SDL_GPUShader *sh : {vs_post, ps_sky})
+            if (sh) SDL_ReleaseGPUShader(dev_, sh);
+        SDL_GPUTextureCreateInfo ni{};
+        ni.type = SDL_GPU_TEXTURETYPE_2D;
+        ni.format = SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM;
+        ni.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
+        ni.width = ni.height = 1;
+        ni.layer_count_or_depth = ni.num_levels = 1;
+        sky_none_ = SDL_CreateGPUTexture(dev_, &ni);
+        SDL_GPUSamplerCreateInfo ks{};
+        ks.min_filter = ks.mag_filter = SDL_GPU_FILTER_LINEAR;
+        ks.mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_LINEAR;
+        ks.address_mode_u = ks.address_mode_v = ks.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
+        ks.max_lod = float(kSkyEnvLevels);
+        sky_sampler_ = SDL_CreateGPUSampler(dev_, &ks);
+        if (!sky_env_pipe_) std::fprintf(stderr, "daytona: the real sky in the reflections unavailable: %s\n", SDL_GetError());
+    }
+    if (!sky_none_ || !sky_sampler_) {
+        error_ = std::string("SDL_GPU setup: ") + SDL_GetError();
+        shutdown();
+        return false;
+    }
 
     SDL_GPUBufferCreateInfo qb{};
     qb.usage = SDL_GPU_BUFFERUSAGE_VERTEX;
@@ -193,6 +315,10 @@ void GpuRenderer::shutdown() {
     for (SDL_GPUGraphicsPipeline **p : {&quad_pipe_, &back_pipe_, &front_pipe_})
         if (*p) SDL_ReleaseGPUGraphicsPipeline(dev_, *p), *p = nullptr;
     if (sampler_) SDL_ReleaseGPUSampler(dev_, sampler_), sampler_ = nullptr;
+    if (shadow_sampler_) SDL_ReleaseGPUSampler(dev_, shadow_sampler_), shadow_sampler_ = nullptr;
+    if (shadow_pipe_) SDL_ReleaseGPUGraphicsPipeline(dev_, shadow_pipe_), shadow_pipe_ = nullptr;
+    for (SDL_GPUTexture **t : {&shadow_map_, &shadow_none_})
+        if (*t) SDL_ReleaseGPUTexture(dev_, *t), *t = nullptr;
     for (SDL_GPUGraphicsPipeline **p : {&z_pipe_, &z_front_pipe_, &z_quad_pipe_, &shade_pipe_})
         if (*p) SDL_ReleaseGPUGraphicsPipeline(dev_, *p), *p = nullptr;
     if (view_z_) SDL_ReleaseGPUTexture(dev_, view_z_), view_z_ = nullptr;
@@ -201,6 +327,24 @@ void GpuRenderer::shutdown() {
     shadow_frame_ = ShadowFrame{};
     if (front_) SDL_ReleaseGPUTexture(dev_, front_), front_ = nullptr;
     if (depth_) SDL_ReleaseGPUTexture(dev_, depth_), depth_ = nullptr;
+    for (SDL_GPUTexture **t : {&msaa_color_, &resolve_})
+        if (*t) SDL_ReleaseGPUTexture(dev_, *t), *t = nullptr;
+    msaa_w_ = msaa_h_ = 0;
+    if (sky_env_pipe_) SDL_ReleaseGPUGraphicsPipeline(dev_, sky_env_pipe_), sky_env_pipe_ = nullptr;
+    for (SDL_GPUTexture **t : {&sky_env_, &sky_none_})
+        if (*t) SDL_ReleaseGPUTexture(dev_, *t), *t = nullptr;
+    if (sky_sampler_) SDL_ReleaseGPUSampler(dev_, sky_sampler_), sky_sampler_ = nullptr;
+    for (SDL_GPUShader **sh : {&post_vs_, &post_ps_})
+        if (*sh) SDL_ReleaseGPUShader(dev_, *sh), *sh = nullptr;
+    for (SDL_GPUGraphicsPipeline **p : {&post_bright_pipe_, &post_blur_pipe_})
+        if (*p) SDL_ReleaseGPUGraphicsPipeline(dev_, *p), *p = nullptr;
+    for (auto &fp : post_pipes_) SDL_ReleaseGPUGraphicsPipeline(dev_, fp.second);
+    post_pipes_.clear();
+    if (post_sampler_) SDL_ReleaseGPUSampler(dev_, post_sampler_), post_sampler_ = nullptr;
+    for (SDL_GPUTexture *&t : glow_)
+        if (t) SDL_ReleaseGPUTexture(dev_, t), t = nullptr;
+    glow_w_ = glow_h_ = 0;
+    post_failed_ = false;
     if (vbuf_) SDL_ReleaseGPUBuffer(dev_, vbuf_), vbuf_ = nullptr;
     if (qbuf_) SDL_ReleaseGPUBuffer(dev_, qbuf_), qbuf_ = nullptr;
     for (SDL_GPUBuffer **b : {&texram_, &luma_, &xlat_, &tilepix_, &tiledata_, &opponent_atlas_})
@@ -235,9 +379,25 @@ bool GpuRenderer::ensure(int w, int h, int pixel_w, int pixel_h, uint32_t vert_b
         ti.height = Uint32(pixel_h);
         ti.format = SDL_GPU_TEXTUREFORMAT_D16_UNORM;
         ti.usage = SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET;
+        ti.sample_count = samples_;
         depth_ = SDL_CreateGPUTexture(dev_, &ti);
+        ti.sample_count = SDL_GPU_SAMPLECOUNT_1;
         if (!depth_) return false;
         depth_w_ = pixel_w, depth_h_ = pixel_h;
+    }
+    if (msaa_ > 1 && (pixel_w != msaa_w_ || pixel_h != msaa_h_)) {
+        for (SDL_GPUTexture **t : {&msaa_color_, &resolve_})
+            if (*t) SDL_ReleaseGPUTexture(dev_, *t), *t = nullptr;
+        ti.width = Uint32(pixel_w);
+        ti.height = Uint32(pixel_h);
+        ti.format = frame_format_;
+        ti.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET;
+        ti.sample_count = samples_;
+        msaa_color_ = SDL_CreateGPUTexture(dev_, &ti);
+        ti.sample_count = SDL_GPU_SAMPLECOUNT_1;
+        resolve_ = SDL_CreateGPUTexture(dev_, &ti);
+        if (!msaa_color_ || !resolve_) return false;
+        msaa_w_ = pixel_w, msaa_h_ = pixel_h;
     }
     if (vert_bytes > vbuf_size_) {
         if (vbuf_) SDL_ReleaseGPUBuffer(dev_, vbuf_);
@@ -263,6 +423,163 @@ bool GpuRenderer::ensure(int w, int h, int pixel_w, int pixel_h, uint32_t vert_b
 }
 
 // The polygons as triangles, in the rasterizer's order, batched by clip rectangle.
+// The cars' shading (set_car_shading). Each face of a car (a keyed mobile:
+// rt::MobileIdentity) gets its normal in camera space (Newell's, turned to
+// the camera) from its corners (x and y divided by the focal length, z);
+// its corners are matched by their object-space position within the same
+// object emission. Each corner then takes, over the faces sharing it whose
+// normal is within 50 degrees of its own face's (a crease stays sharp), the
+// area-weighted mean of their normals and of the light the game gave them
+// (GeoPoly::luma: the game's own lighting, only spread across the faces).
+void GpuRenderer::shade_cars(const std::vector<rt::GeoPoly> &polys) {
+    car_first_.clear();
+    car_corners_.clear();
+    if (!smooth_cars_ && !car_reflect_ && !sharp_car_textures_ && !car_shadows_) return;
+    car_first_.assign(polys.size(), -1);
+    struct Face { float n[3], area, light; };
+    std::vector<Face> faces(polys.size());
+    std::vector<uint8_t> is_car(polys.size(), 0);
+    struct Key {
+        uint32_t command, x, y, z;
+        bool operator==(const Key &) const = default;
+    };
+    struct KeyHash {
+        size_t operator()(const Key &k) const {
+            uint64_t h = 1469598103934665603ull;
+            for (uint32_t w : {k.command, k.x, k.y, k.z}) h = (h ^ w) * 1099511628211ull;
+            return size_t(h);
+        }
+    };
+    auto key = [](const rt::GeoPoly &p, int k) {
+        Key out{p.object_command, 0, 0, 0};
+        std::memcpy(&out.x, &p.v[k].ox, 4);
+        std::memcpy(&out.y, &p.v[k].oy, 4);
+        std::memcpy(&out.z, &p.v[k].oz, 4);
+        return out;
+    };
+    std::unordered_map<Key, std::vector<uint32_t>, KeyHash> shared;
+    for (size_t i = 0; i < polys.size(); ++i) {
+        const rt::GeoPoly &p = polys[i];
+        if (!p.mobile_key.part || p.num_vertices < 3 || p.local_texture || rt::Geo::hud_overlay_address(p.object_oba))
+            continue;
+        float pos[8][3], c[3] = {0, 0, 0}, n[3] = {0, 0, 0};
+        for (int k = 0; k < p.num_vertices; ++k) {
+            pos[k][0] = p.v[k].x / p.object_focus_x;
+            pos[k][1] = p.v[k].y / p.object_focus_y;
+            pos[k][2] = p.v[k].p[0];
+            for (int a = 0; a < 3; ++a) c[a] += pos[k][a];
+        }
+        for (int k = 0; k < p.num_vertices; ++k) { // Newell
+            const float *a = pos[k], *b = pos[(k + 1) % p.num_vertices];
+            n[0] += (a[1] - b[1]) * (a[2] + b[2]);
+            n[1] += (a[2] - b[2]) * (a[0] + b[0]);
+            n[2] += (a[0] - b[0]) * (a[1] + b[1]);
+        }
+        const float len = std::sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
+        if (!(len > 1e-12f)) continue;
+        const float turn = n[0] * c[0] + n[1] * c[1] + n[2] * c[2] > 0 ? -1.0f : 1.0f; // towards the camera
+        faces[i] = {{n[0] / len * turn, n[1] / len * turn, n[2] / len * turn}, len * 0.5f, float(p.luma)};
+        is_car[i] = 1;
+        for (int k = 0; k < p.num_vertices; ++k) shared[key(p, k)].push_back(uint32_t(i));
+    }
+    constexpr float kCrease = 0.6428f; // cos 50 degrees
+    for (size_t i = 0; i < polys.size(); ++i) {
+        if (!is_car[i]) continue;
+        const rt::GeoPoly &p = polys[i];
+        const Face &self = faces[i];
+        car_first_[i] = int32_t(car_corners_.size());
+        for (int k = 0; k < p.num_vertices; ++k) {
+            float n[3] = {0, 0, 0}, light = 0, weight = 0;
+            for (uint32_t j : shared[key(p, k)]) {
+                const Face &f = faces[j];
+                if (f.n[0] * self.n[0] + f.n[1] * self.n[1] + f.n[2] * self.n[2] < kCrease) continue;
+                for (int a = 0; a < 3; ++a) n[a] += f.n[a] * f.area;
+                light += f.light * f.area;
+                weight += f.area;
+            }
+            const float len = std::sqrt(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
+            CarCorner corner{self.light, {self.n[0], self.n[1], self.n[2]}};
+            if (weight > 0 && len > 1e-12f) {
+                corner.light = light / weight;
+                for (int a = 0; a < 3; ++a) corner.normal[a] = n[a] / len;
+            }
+            car_corners_.push_back(corner);
+        }
+    }
+}
+
+// The cars' shadow map (set_car_shadows): the sun's view, axes from the
+// game's light vector (camera space); the casters (build: the cars' opaque
+// faces) within kShadowReach of the camera, fitted into the map with a
+// margin; their triangles go after the scene's in verts_, already in the
+// map's clip space. The fragment uniform (car_light_) tells ps_poly the same
+// view; its strength is 0 when nothing casts.
+void GpuRenderer::shadow_casters(const std::vector<rt::GeoPoly> &polys) {
+    shadow_first_ = uint32_t(verts_.size());
+    shadow_count_ = 0;
+    std::fill(std::begin(car_light_) + 4, std::end(car_light_), 0.0f);
+    if (casters_now_.empty()) return;
+    constexpr float kShadowReach = 40.0f; // camera units: the player's car is about 5 away
+    constexpr float kShadowDepth = 60.0f; // how far beyond the casters a receiver may be, along the light
+    constexpr float kStrength = 0.45f;    // the light taken away in shadow
+    float dir[3] = {game_light_[0], game_light_[1], game_light_[2]}; // the light's travel
+    float len = std::sqrt(dir[0] * dir[0] + dir[1] * dir[1] + dir[2] * dir[2]);
+    if (!(len > 1e-6f)) return;
+    for (float &c : dir) c /= len;
+    const float hint[3] = {0.0f, std::fabs(dir[1]) > 0.95f ? 0.0f : 1.0f, std::fabs(dir[1]) > 0.95f ? 1.0f : 0.0f};
+    float right[3] = {hint[1] * dir[2] - hint[2] * dir[1], hint[2] * dir[0] - hint[0] * dir[2], hint[0] * dir[1] - hint[1] * dir[0]};
+    len = std::sqrt(right[0] * right[0] + right[1] * right[1] + right[2] * right[2]);
+    for (float &c : right) c /= len;
+    const float up[3] = {dir[1] * right[2] - dir[2] * right[1], dir[2] * right[0] - dir[0] * right[2], dir[0] * right[1] - dir[1] * right[0]};
+    auto view = [&](const rt::GeoPoly &p, int k, float out[3]) {
+        const float x = p.v[k].x / p.object_focus_x, y = p.v[k].y / p.object_focus_y, z = p.v[k].p[0];
+        out[0] = x * right[0] + y * right[1] + z * right[2];
+        out[1] = x * up[0] + y * up[1] + z * up[2];
+        out[2] = x * dir[0] + y * dir[1] + z * dir[2];
+    };
+    float lo[3] = {1e30f, 1e30f, 1e30f}, hi[3] = {-1e30f, -1e30f, -1e30f};
+    std::vector<size_t> kept;
+    for (size_t i : casters_now_) {
+        const rt::GeoPoly &p = polys[i];
+        bool near = p.num_vertices >= 3;
+        for (int k = 0; near && k < p.num_vertices; ++k) near = p.v[k].p[0] > 0.0f && p.v[k].p[0] < kShadowReach;
+        if (!near) continue;
+        kept.push_back(i);
+        for (int k = 0; k < p.num_vertices; ++k) {
+            float l[3];
+            view(p, k, l);
+            for (int a = 0; a < 3; ++a) lo[a] = std::min(lo[a], l[a]), hi[a] = std::max(hi[a], l[a]);
+        }
+    }
+    if (kept.empty()) return;
+    const float pad = 0.5f;
+    lo[0] -= pad, lo[1] -= pad, hi[0] += pad, hi[1] += pad, lo[2] -= pad;
+    const float range = hi[2] - lo[2] + kShadowDepth;
+    for (size_t i : kept) {
+        const rt::GeoPoly &p = polys[i];
+        PolyVertex c[8] = {};
+        for (int k = 0; k < p.num_vertices; ++k) {
+            float l[3];
+            view(p, k, l);
+            c[k].x = (l[0] - lo[0]) / (hi[0] - lo[0]) * 2.0f - 1.0f;
+            c[k].y = (l[1] - lo[1]) / (hi[1] - lo[1]) * 2.0f - 1.0f;
+            c[k].depth = (l[2] - lo[2]) / range;
+        }
+        for (int k = 1; k + 1 < p.num_vertices; ++k) {
+            verts_.push_back(c[0]);
+            verts_.push_back(c[k]);
+            verts_.push_back(c[k + 1]);
+        }
+    }
+    shadow_count_ = uint32_t(verts_.size()) - shadow_first_;
+    float *u = car_light_;
+    std::copy(right, right + 3, u + 4);
+    std::copy(up, up + 3, u + 8);
+    std::copy(dir, dir + 3, u + 12);
+    u[16] = lo[0], u[17] = lo[1], u[18] = 1.0f / (hi[0] - lo[0]), u[19] = 1.0f / (hi[1] - lo[1]);
+    u[20] = lo[2], u[21] = 1.0f / range, u[22] = kStrength, u[23] = 1.0f / float(kShadowMapSize);
+}
+
 void GpuRenderer::build(const rt::Video &video, int w, int h, int scale, bool sharp_textures,
                         const std::vector<rt::GeoPoly> &polys) {
     verts_.clear();
@@ -298,6 +615,30 @@ void GpuRenderer::build(const rt::Video &video, int w, int h, int scale, bool sh
         return a > b;
     });
     const float depth_step = 1.0f / float(order_.size() + 2);
+    shade_cars(polys);
+    casters_now_.clear();
+    // the cars' shadows fall on what the cars' camera sees (not the minimap's)
+    bool have_car_camera = false;
+    std::array<float, 5> car_camera{};
+    if (car_shadows_ && shadow_pipe_)
+        for (size_t i = 0; i < polys.size() && !have_car_camera; ++i)
+            if (!car_first_.empty() && car_first_[i] >= 0) {
+                const rt::GeoPoly &p = polys[i];
+                car_camera = {float(p.center[0]), float(p.center[1]), p.object_focus_x, p.object_focus_y, float(p.window)};
+                have_car_camera = true;
+            }
+    // the real sky's reflection: the cars' camera, in the frame's uv
+    std::fill(std::begin(sky_camera_), std::end(sky_camera_), 0.0f);
+    if (car_reflect_)
+        for (size_t i = 0; i < polys.size(); ++i)
+            if (!car_first_.empty() && car_first_[i] >= 0) {
+                const rt::GeoPoly &p = polys[i];
+                sky_camera_[0] = float(crtc_x + p.center[0]) / float(w);
+                sky_camera_[1] = float((384 - p.center[1]) + crtc_y) / float(h);
+                sky_camera_[2] = p.object_focus_x / float(w);
+                sky_camera_[3] = p.object_focus_y / float(h);
+                break;
+            }
     uint32_t drawn = 0;
     for (size_t i : order_) {
         const rt::GeoPoly &poly = polys[i];
@@ -389,10 +730,36 @@ void GpuRenderer::build(const rt::Video &video, int w, int h, int scale, bool sh
         auto material = m2gpu::pack_polygon_material(
             poly.texheader[0], poly.texheader[1], poly.texheader[2], poly.luma, poly.texlod, lod_bias, color);
         if (sharp_textures) material.info[0] |= 1u << 23;
+        if (msaa_ > 1) material.info[0] |= 1u << 25; // alpha to coverage for cut-out texels (m2.hlsl)
+        material.info[0] |= aniso_bits_ << 26;
         if (poly.local_texture) {
             material.info[0] = 1u << 24;
             material.info[1] = poly.local_texture - 1;
             material.info[2] = poly.luma;
+        }
+
+        // the cars' shading (shade_cars): bit 29 smooth light, bit 30 reflections
+        const int32_t car = car_first_.empty() ? -1 : car_first_[i];
+        bool receives = false; // the cars' shadows: on the scenery seen through the cars' camera
+        if (have_car_camera && car < 0 && !poly.local_texture && !rt::Geo::hud_overlay_address(poly.object_oba)) {
+            const std::array<float, 5> camera{float(poly.center[0]), float(poly.center[1]), poly.object_focus_x,
+                                              poly.object_focus_y, float(poly.window)};
+            receives = camera == car_camera;
+            for (int k = 0; receives && k < poly.num_vertices; ++k) receives = poly.v[k].p[0] > 0.0f;
+        }
+        // a car's opaque faces near the camera cast them (not its see-through
+        // ones: the game's own checker shadow under it, the windows)
+        if (have_car_camera && car >= 0 && !poly.local_texture && !((material.info[0] >> 2) & 1u) &&
+            (material.info[0] & 3u) != 3u)
+            casters_now_.push_back(i);
+        if (car >= 0 && !poly.local_texture) {
+            if (smooth_cars_) material.info[0] |= 1u << 29;
+            if (sharp_car_textures_) material.info[0] |= 1u << 31;
+            // the paint only: the bodies (the player's car 0x7d68 and its
+            // 0x7d94, the opponents' models), not the wheels, shadows or lights
+            const uint32_t part = poly.mobile_key.part;
+            if (car_reflect_ && (rt::is_opponent_body_part(part) || part == 0x7d68u || part == 0x7d94u))
+                material.info[0] |= 1u << 30;
         }
 
         // model2_3d_project, then a fan from vertex 0 (the polygon is convex)
@@ -405,6 +772,18 @@ void GpuRenderer::build(const rt::Video &video, int w, int h, int scale, bool sh
                     ooz, g0.p[1] * ooz * (1.0f / 8.0f), g0.p[2] * ooz * (1.0f / 8.0f),
                     r, g, b, 1.0f, {material.info[0], material.info[1], material.info[2], material.info[3]},
                     {material.more[0], material.more[1]}};
+            if (car >= 0) {
+                const CarCorner &c = car_corners_[size_t(car + k)];
+                v[k].light_oz = c.light * ooz;
+                for (int a = 0; a < 3; ++a) v[k].normal_oz[a] = c.normal[a] * ooz;
+                v[k].position_oz[0] = g0.x / poly.object_focus_x * ooz;
+                v[k].position_oz[1] = g0.y / poly.object_focus_y * ooz;
+                v[k].position_oz[2] = -1.0f; // z * (1 / z); negative: a car, which receives no shadows
+            } else if (receives) {
+                v[k].position_oz[0] = g0.x / poly.object_focus_x * ooz;
+                v[k].position_oz[1] = g0.y / poly.object_focus_y * ooz;
+                v[k].position_oz[2] = 1.0f;
+            }
         }
         if (triangles_) {
             // The shadows' camera is the most common one (window, centre,
@@ -452,6 +831,7 @@ void GpuRenderer::build(const rt::Video &video, int w, int h, int scale, bool sh
         }
         batches_.back().count = uint32_t(verts_.size()) - batches_.back().first;
     }
+    shadow_casters(polys);
     if (!triangles_) return;
     // Keep the main camera's polygons: their triangles for the acceleration
     // structure, their vertex runs (per clip batch) for the view z pass.
@@ -679,11 +1059,81 @@ bool GpuRenderer::render(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *target, int 
     }
     SDL_EndGPUCopyPass(copy);
 
+    // the course's sky for the cars' paint: the back layers, then their mip levels
+    std::fill(car_light_ + 24, car_light_ + 28, 0.0f);
+    if (car_reflect_ && sky_env_pipe_ && sky_camera_[2] > 0.0f) {
+        if (!sky_env_) {
+            SDL_GPUTextureCreateInfo ki{};
+            ki.type = SDL_GPU_TEXTURETYPE_2D;
+            ki.format = SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM;
+            ki.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER;
+            ki.width = kSkyEnvW, ki.height = kSkyEnvH;
+            ki.layer_count_or_depth = 1;
+            ki.num_levels = kSkyEnvLevels;
+            sky_env_ = SDL_CreateGPUTexture(dev_, &ki);
+        }
+        SDL_GPUColorTargetInfo kt{};
+        kt.texture = sky_env_;
+        kt.load_op = SDL_GPU_LOADOP_DONT_CARE;
+        kt.store_op = SDL_GPU_STOREOP_STORE;
+        if (SDL_GPURenderPass *kp = sky_env_ ? SDL_BeginGPURenderPass(cmd, &kt, 1, nullptr) : nullptr) {
+            SDL_BindGPUGraphicsPipeline(kp, sky_env_pipe_);
+            SDL_GPUBuffer *storage[2] = {tilepix_, tiledata_};
+            SDL_BindGPUFragmentStorageBuffers(kp, 0, storage, 2);
+            SDL_DrawGPUPrimitives(kp, 3, 1, 0, 0);
+            SDL_EndGPURenderPass(kp);
+            SDL_GenerateMipmapsForGPUTexture(cmd, sky_env_);
+            std::copy(sky_camera_, sky_camera_ + 4, car_light_ + 24);
+        }
+    }
+
+    // the cars' shadow map, drawn before the frame that reads it
+    if (shadow_count_ && shadow_pipe_) {
+        if (!shadow_map_) {
+            SDL_GPUTextureCreateInfo st{};
+            st.type = SDL_GPU_TEXTURETYPE_2D;
+            st.format = shadow_format_;
+            st.usage = SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER;
+            st.width = st.height = kShadowMapSize;
+            st.layer_count_or_depth = st.num_levels = 1;
+            shadow_map_ = SDL_CreateGPUTexture(dev_, &st);
+        }
+        if (shadow_map_) {
+            SDL_GPUDepthStencilTargetInfo sd{};
+            sd.texture = shadow_map_;
+            sd.clear_depth = 1.0f;
+            sd.load_op = SDL_GPU_LOADOP_CLEAR;
+            sd.store_op = SDL_GPU_STOREOP_STORE;
+            sd.stencil_load_op = SDL_GPU_LOADOP_DONT_CARE;
+            sd.stencil_store_op = SDL_GPU_STOREOP_DONT_CARE;
+            if (SDL_GPURenderPass *sp = SDL_BeginGPURenderPass(cmd, nullptr, 0, &sd)) {
+                const SDL_GPUViewport sv{0, 0, float(kShadowMapSize), float(kShadowMapSize), 0, 1};
+                SDL_SetGPUViewport(sp, &sv);
+                SDL_BindGPUGraphicsPipeline(sp, shadow_pipe_);
+                SDL_GPUBufferBinding svb{vbuf_, 0};
+                SDL_BindGPUVertexBuffers(sp, 0, &svb, 1);
+                SDL_DrawGPUPrimitives(sp, shadow_count_, 1, shadow_first_, 0);
+                SDL_EndGPURenderPass(sp);
+            }
+        } else {
+            car_light_[22] = 0.0f;
+        }
+    }
+
     SDL_GPUColorTargetInfo ct{};
     ct.texture = target;
     ct.load_op = SDL_GPU_LOADOP_CLEAR;
     ct.clear_color = SDL_FColor{0, 0, 0, 1};
     ct.store_op = SDL_GPU_STOREOP_STORE;
+    // MSAA (not with the shadow passes, which read single-sample depth): drawn
+    // into msaa_color_, resolved into resolve_, copied into the target (which
+    // may be larger than the frame)
+    const bool multisampled = msaa_ > 1 && !shadows_ && msaa_color_;
+    if (multisampled) {
+        ct.texture = msaa_color_;
+        ct.store_op = SDL_GPU_STOREOP_RESOLVE;
+        ct.resolve_texture = resolve_;
+    }
     SDL_GPUDepthStencilTargetInfo dt{};
     dt.texture = depth_;
     dt.clear_depth = 1.0f;
@@ -701,6 +1151,12 @@ bool GpuRenderer::render(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *target, int 
     SDL_SetGPUViewport(pass, &viewport);
     const float screen[4] = {fw, fh, 0, 0};
     SDL_PushGPUVertexUniformData(cmd, 0, screen, sizeof screen);
+    // the cars' reflections and shadows (m2.hlsl CarLight): towards the game's sun, camera space
+    car_light_[0] = -game_light_[0], car_light_[1] = -game_light_[1], car_light_[2] = -game_light_[2];
+    if (const float len = std::sqrt(car_light_[0] * car_light_[0] + car_light_[1] * car_light_[1] + car_light_[2] * car_light_[2]);
+        len > 1e-6f)
+        for (int a = 0; a < 3; ++a) car_light_[a] /= len;
+    SDL_PushGPUFragmentUniformData(cmd, 0, car_light_, sizeof car_light_);
     const SDL_Rect full{0, 0, pixel_w, pixel_h};
 
     // a full-frame quad through `pipe`: the tilemap layers, or the CPU front layers
@@ -725,6 +1181,10 @@ bool GpuRenderer::render(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *target, int 
         SDL_BindGPUVertexBuffers(pass, 0, &vb, 1);
         SDL_GPUBuffer *storage[4] = {texram_, luma_, xlat_, opponent_atlas_ ? opponent_atlas_ : texram_};
         SDL_BindGPUFragmentStorageBuffers(pass, 0, storage, 4);
+        const SDL_GPUTextureSamplerBinding textures[2] = {
+            {shadow_count_ && shadow_map_ ? shadow_map_ : shadow_none_, shadow_sampler_},
+            {car_light_[26] > 0.0f ? sky_env_ : sky_none_, sky_sampler_}};
+        SDL_BindGPUFragmentSamplers(pass, 0, textures, 2);
         for (const Batch &b : batches_) {
             if (!b.count) continue;
             const int x0 = b.clip.x * pixel_w / w;
@@ -739,6 +1199,15 @@ bool GpuRenderer::render(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *target, int 
     }
     draw_quad(cpu_front ? quad_pipe_ : front_pipe_);
     SDL_EndGPURenderPass(pass);
+    if (multisampled) {
+        SDL_GPUCopyPass *copy_out = SDL_BeginGPUCopyPass(cmd);
+        SDL_GPUTextureLocation from{};
+        from.texture = resolve_;
+        SDL_GPUTextureLocation to{};
+        to.texture = target;
+        SDL_CopyGPUTextureToTexture(copy_out, &from, &to, Uint32(pixel_w), Uint32(pixel_h), 1, false);
+        SDL_EndGPUCopyPass(copy_out);
+    }
     if (!shadow_inputs) return true;
 
     // Shadow inputs (dxr.hlsl step 1): the view z of the polygon that won
@@ -807,6 +1276,7 @@ bool GpuRenderer::render(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *target, int 
 bool GpuRenderer::enable_shadows() {
     if (shadows_) return true;
     if (!ok() || !(SDL_GetGPUShaderFormats(dev_) & SDL_GPU_SHADERFORMAT_DXIL)) return false;
+    if (msaa_ > 1) return false; // its passes read single-sample depth (init's msaa)
     auto dxil = [&](const unsigned char *code, size_t size, const char *entry, SDL_GPUShaderStage stage,
                     int uniforms, int samplers, int storage_buffers) {
         SDL_GPUShaderCreateInfo si{};
@@ -968,6 +1438,249 @@ bool GpuRenderer::apply_shadow(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *target
     SDL_BindGPUFragmentSamplers(pass, 0, &tsb, 1);
     SDL_DrawGPUPrimitives(pass, 6, 1, 0, 0);
     SDL_EndGPURenderPass(pass);
+    return true;
+}
+
+// The display passes (present): made on first use, so that nothing of them
+// exists while they are off.
+namespace {
+constexpr SDL_GPUTextureFormat kGlowFormat = SDL_GPU_TEXTUREFORMAT_R16G16B16A16_FLOAT;
+
+struct PostUniforms { // m2.hlsl Post
+    float src_uv[2], src_lod, lines, step[2], dst_size[2], bloom, crt, threshold, pad;
+};
+
+SDL_GPUGraphicsPipeline *post_pipeline(SDL_GPUDevice *dev, SDL_GPUShader *vs, SDL_GPUShader *ps,
+                                       SDL_GPUTextureFormat format) {
+    SDL_GPUColorTargetDescription color{};
+    color.format = format;
+    SDL_GPUGraphicsPipelineCreateInfo pi{};
+    pi.vertex_shader = vs;
+    pi.fragment_shader = ps;
+    pi.primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST;
+    pi.rasterizer_state.cull_mode = SDL_GPU_CULLMODE_NONE;
+    pi.target_info.color_target_descriptions = &color;
+    pi.target_info.num_color_targets = 1;
+    return SDL_CreateGPUGraphicsPipeline(dev, &pi);
+}
+} // namespace
+
+bool GpuRenderer::init_post() {
+    if (post_ps_) return true;
+    if (post_failed_ || !dev_) return false;
+    post_failed_ = true; // until everything is made
+    post_vs_ = shader(k_vs_post_spv, sizeof k_vs_post_spv, k_vs_post_dxil, sizeof k_vs_post_dxil, k_vs_post_msl,
+                      "vs_post", SDL_GPU_SHADERSTAGE_VERTEX, 0, 0);
+    SDL_GPUShader *bright = shader(k_ps_post_bright_spv, sizeof k_ps_post_bright_spv, k_ps_post_bright_dxil,
+                                   sizeof k_ps_post_bright_dxil, k_ps_post_bright_msl, "ps_post_bright",
+                                   SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 1);
+    SDL_GPUShader *blur = shader(k_ps_post_blur_spv, sizeof k_ps_post_blur_spv, k_ps_post_blur_dxil,
+                                 sizeof k_ps_post_blur_dxil, k_ps_post_blur_msl, "ps_post_blur",
+                                 SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 1);
+    SDL_GPUShader *ps = shader(k_ps_post_spv, sizeof k_ps_post_spv, k_ps_post_dxil, sizeof k_ps_post_dxil,
+                               k_ps_post_msl, "ps_post", SDL_GPU_SHADERSTAGE_FRAGMENT, 1, 2);
+    if (post_vs_ && bright && blur) {
+        post_bright_pipe_ = post_pipeline(dev_, post_vs_, bright, kGlowFormat);
+        post_blur_pipe_ = post_pipeline(dev_, post_vs_, blur, kGlowFormat);
+    }
+    for (SDL_GPUShader *sh : {bright, blur})
+        if (sh) SDL_ReleaseGPUShader(dev_, sh);
+    SDL_GPUSamplerCreateInfo smp{};
+    smp.min_filter = smp.mag_filter = SDL_GPU_FILTER_LINEAR;
+    smp.mipmap_mode = SDL_GPU_SAMPLERMIPMAPMODE_NEAREST;
+    smp.address_mode_u = smp.address_mode_v = smp.address_mode_w = SDL_GPU_SAMPLERADDRESSMODE_CLAMP_TO_EDGE;
+    smp.max_lod = 16;
+    post_sampler_ = SDL_CreateGPUSampler(dev_, &smp);
+    if (!post_vs_ || !ps || !post_bright_pipe_ || !post_blur_pipe_ || !post_sampler_) {
+        std::fprintf(stderr, "daytona: the display passes unavailable: %s\n", SDL_GetError());
+        if (ps) SDL_ReleaseGPUShader(dev_, ps);
+        return false;
+    }
+    post_ps_ = ps;
+    post_failed_ = false;
+    return true;
+}
+
+bool GpuRenderer::present(SDL_GPUCommandBuffer *cmd, const PostFrame &f) {
+    if (!f.source || !f.target || f.dest.w <= 0 || f.dest.h <= 0 || !init_post()) return false;
+    SDL_GPUGraphicsPipeline *pipe = nullptr;
+    for (auto &fp : post_pipes_)
+        if (fp.first == f.format) pipe = fp.second;
+    if (!pipe) {
+        pipe = post_pipeline(dev_, post_vs_, post_ps_, f.format);
+        if (!pipe) return false;
+        post_pipes_.emplace_back(f.format, pipe);
+    }
+    PostUniforms u{};
+    u.src_uv[0] = f.uv_w, u.src_uv[1] = f.uv_h;
+    u.src_lod = f.lod;
+    u.lines = float(f.lines);
+    u.dst_size[0] = float(f.dest.w), u.dst_size[1] = float(f.dest.h);
+    u.bloom = f.bloom, u.crt = f.crt, u.threshold = f.threshold;
+
+    auto fullscreen = [&](SDL_GPUTexture *out, SDL_GPUGraphicsPipeline *p, SDL_GPUTexture *in, SDL_GPUTexture *glow,
+                          const SDL_GPUViewport *viewport, bool clear) {
+        SDL_GPUColorTargetInfo ct{};
+        ct.texture = out;
+        ct.load_op = clear ? SDL_GPU_LOADOP_CLEAR : SDL_GPU_LOADOP_DONT_CARE;
+        ct.clear_color = SDL_FColor{0, 0, 0, 1};
+        ct.store_op = SDL_GPU_STOREOP_STORE;
+        SDL_GPURenderPass *pass = SDL_BeginGPURenderPass(cmd, &ct, 1, nullptr);
+        if (!pass) return false;
+        SDL_BindGPUGraphicsPipeline(pass, p);
+        if (viewport) SDL_SetGPUViewport(pass, viewport);
+        const SDL_GPUTextureSamplerBinding tex[2] = {{in, post_sampler_}, {glow ? glow : in, post_sampler_}};
+        SDL_BindGPUFragmentSamplers(pass, 0, tex, p == pipe ? 2 : 1);
+        SDL_PushGPUFragmentUniformData(cmd, 0, &u, sizeof u);
+        SDL_DrawGPUPrimitives(pass, 3, 1, 0, 0);
+        SDL_EndGPURenderPass(pass);
+        return true;
+    };
+
+    if (f.bloom > 0) { // the glow, at a quarter of the viewport
+        const int gw = std::max(1, f.dest.w / 4), gh = std::max(1, f.dest.h / 4);
+        if (gw != glow_w_ || gh != glow_h_) {
+            for (SDL_GPUTexture *&t : glow_)
+                if (t) SDL_ReleaseGPUTexture(dev_, t), t = nullptr;
+            SDL_GPUTextureCreateInfo gi{};
+            gi.type = SDL_GPU_TEXTURETYPE_2D;
+            gi.format = kGlowFormat;
+            gi.usage = SDL_GPU_TEXTUREUSAGE_COLOR_TARGET | SDL_GPU_TEXTUREUSAGE_SAMPLER;
+            gi.width = Uint32(gw), gi.height = Uint32(gh);
+            gi.layer_count_or_depth = gi.num_levels = 1;
+            glow_[0] = SDL_CreateGPUTexture(dev_, &gi);
+            glow_[1] = SDL_CreateGPUTexture(dev_, &gi);
+            glow_w_ = glow_[0] && glow_[1] ? gw : 0, glow_h_ = gh;
+            if (!glow_w_) return false;
+        }
+        u.step[0] = 1.0f / float(gw), u.step[1] = 1.0f / float(gh); // a glow pixel, in the source's uv
+        if (!fullscreen(glow_[0], post_bright_pipe_, f.source, nullptr, nullptr, false)) return false;
+        u.src_uv[0] = u.src_uv[1] = 1, u.src_lod = 0; // the blur reads the glow textures whole
+        for (int pass = 0; pass < 2; pass++) { // twice each way: a wider glow
+            u.step[0] = 1.0f / float(gw), u.step[1] = 0;
+            if (!fullscreen(glow_[1], post_blur_pipe_, glow_[0], nullptr, nullptr, false)) return false;
+            u.step[0] = 0, u.step[1] = 1.0f / float(gh);
+            if (!fullscreen(glow_[0], post_blur_pipe_, glow_[1], nullptr, nullptr, false)) return false;
+        }
+        u.src_uv[0] = f.uv_w, u.src_uv[1] = f.uv_h, u.src_lod = f.lod;
+    }
+    const SDL_GPUViewport vp{float(f.dest.x), float(f.dest.y), float(f.dest.w), float(f.dest.h), 0, 1};
+    return fullscreen(f.target, pipe, f.source, f.bloom > 0 ? glow_[0] : nullptr, &vp, true);
+}
+
+bool GpuRenderer::draw_benchmark(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *target, int pixel_w, int pixel_h,
+                                 int layers) {
+    if (!ok() || pixel_w <= 0 || pixel_h <= 0 || layers <= 0) return false;
+    const float fw = float(pixel_w), fh = float(pixel_h);
+    // the planes: from the bottom of the frame (near, z 1.5) to the top
+    // (far, z 80), the texture (256 x 256, wrapping) repeated along them
+    verts_.clear();
+    auto material = m2gpu::pack_polygon_material(2u << 13 | 3u << 0 | 3u << 3 | 1u << 6 | 1u << 7, 0x20, 0, 0x80, 0, 0, 0x4210);
+    if (msaa_ > 1) material.info[0] |= 1u << 25;
+    material.info[0] |= aniso_bits_ << 26;
+    for (int l = 0; l < layers; ++l) {
+        const float depth = 1.0f - float(l + 1) / float(layers + 2); // back to front: each one passes the test
+        const float shift = float(l) * 0.37f;
+        auto corner = [&](float x, float y) {
+            const float t = 1.0f - y / fh;            // 0 at the bottom, 1 at the top
+            const float z = 1.5f + t * t * 78.5f;    // camera units
+            const float ooz = 1.0f / z;
+            const float u = (x / fw - 0.5f) * 2048.0f, v = (z + shift) * 512.0f;
+            PolyVertex c{};
+            c.x = x, c.y = y, c.depth = depth;
+            c.ooz = ooz, c.uoz = u * ooz / 8.0f, c.voz = v * ooz / 8.0f;
+            c.r = c.g = c.b = c.a = 1.0f;
+            for (int k = 0; k < 4; ++k) c.info[k] = material.info[size_t(k)];
+            c.more[0] = material.more[0], c.more[1] = material.more[1];
+            return c;
+        };
+        constexpr int kRows = 16; // strips, so that 1/z follows the curve
+        for (int r = 0; r < kRows; ++r) {
+            const float y0 = fh * float(r) / kRows, y1 = fh * float(r + 1) / kRows;
+            const PolyVertex a = corner(0, y0), b = corner(fw, y0), c = corner(fw, y1), d = corner(0, y1);
+            for (const PolyVertex &v : {a, b, c, a, c, d}) verts_.push_back(v);
+        }
+    }
+    const uint32_t vert_bytes = uint32_t(verts_.size() * sizeof(PolyVertex));
+    if (!ensure(1, 1, pixel_w, pixel_h, vert_bytes)) return false; // no layers: a 1 x 1 front texture
+
+    auto *p = static_cast<uint8_t *>(SDL_MapGPUTransferBuffer(dev_, upload_, true));
+    if (!p) return false;
+    std::memcpy(p, verts_.data(), vert_bytes);
+    const bool fill = !bench_filled_;
+    if (fill) { // once: blocks of noise (texels that vary as a texture's do, not each one at random)
+        uint32_t x = 0x9e3779b9u;
+        auto *words = reinterpret_cast<uint32_t *>(p + vert_bytes);
+        const uint32_t n = (kTexramBytes + kLumaBytes + kXlatEntries * 4) / 4;
+        for (uint32_t i = 0; i < n; ++i) {
+            if (!(i & 15u)) x ^= x << 13, x ^= x >> 17, x ^= x << 5;
+            const uint32_t v = x + i * 0x01010101u;
+            words[i] = i >= (kTexramBytes + kLumaBytes) / 4 ? v & 0xffu : v;
+        }
+    }
+    SDL_UnmapGPUTransferBuffer(dev_, upload_);
+    SDL_GPUCopyPass *copy = SDL_BeginGPUCopyPass(cmd);
+    auto upload_buffer = [&](uint32_t from, SDL_GPUBuffer *buffer, uint32_t size) {
+        SDL_GPUTransferBufferLocation src{upload_, from};
+        SDL_GPUBufferRegion dst{buffer, 0, size};
+        SDL_UploadToGPUBuffer(copy, &src, &dst, true);
+    };
+    upload_buffer(0, vbuf_, vert_bytes);
+    if (fill) {
+        upload_buffer(vert_bytes, texram_, kTexramBytes);
+        upload_buffer(vert_bytes + kTexramBytes, luma_, kLumaBytes);
+        upload_buffer(vert_bytes + kTexramBytes + kLumaBytes, xlat_, kXlatEntries * 4);
+        bench_filled_ = true;
+        texram_generation_ = ~0ull;
+    }
+    SDL_EndGPUCopyPass(copy);
+
+    SDL_GPUColorTargetInfo ct{};
+    ct.texture = target;
+    ct.load_op = SDL_GPU_LOADOP_CLEAR;
+    ct.clear_color = SDL_FColor{0, 0, 0, 1};
+    ct.store_op = SDL_GPU_STOREOP_STORE;
+    const bool multisampled = msaa_ > 1 && msaa_color_;
+    if (multisampled) {
+        ct.texture = msaa_color_;
+        ct.store_op = SDL_GPU_STOREOP_RESOLVE;
+        ct.resolve_texture = resolve_;
+    }
+    SDL_GPUDepthStencilTargetInfo dt{};
+    dt.texture = depth_;
+    dt.clear_depth = 1.0f;
+    dt.load_op = SDL_GPU_LOADOP_CLEAR;
+    dt.store_op = SDL_GPU_STOREOP_DONT_CARE;
+    dt.stencil_load_op = SDL_GPU_LOADOP_DONT_CARE;
+    dt.stencil_store_op = SDL_GPU_STOREOP_DONT_CARE;
+    SDL_GPURenderPass *pass = SDL_BeginGPURenderPass(cmd, &ct, 1, &dt);
+    if (!pass) return false;
+    const SDL_GPUViewport viewport{0, 0, fw, fh, 0, 1};
+    SDL_SetGPUViewport(pass, &viewport);
+    const SDL_Rect full{0, 0, pixel_w, pixel_h};
+    SDL_SetGPUScissor(pass, &full);
+    const float screen[4] = {fw, fh, 0, 0};
+    SDL_PushGPUVertexUniformData(cmd, 0, screen, sizeof screen);
+    const float light[28] = {0, 1, 0};
+    SDL_PushGPUFragmentUniformData(cmd, 0, light, sizeof light);
+    SDL_BindGPUGraphicsPipeline(pass, poly_pipe_);
+    SDL_GPUBufferBinding vb{vbuf_, 0};
+    SDL_BindGPUVertexBuffers(pass, 0, &vb, 1);
+    SDL_GPUBuffer *storage[4] = {texram_, luma_, xlat_, texram_};
+    SDL_BindGPUFragmentStorageBuffers(pass, 0, storage, 4);
+    const SDL_GPUTextureSamplerBinding textures[2] = {{shadow_none_, shadow_sampler_}, {sky_none_, sky_sampler_}};
+    SDL_BindGPUFragmentSamplers(pass, 0, textures, 2);
+    SDL_DrawGPUPrimitives(pass, Uint32(verts_.size()), 1, 0, 0);
+    SDL_EndGPURenderPass(pass);
+    if (multisampled) {
+        SDL_GPUCopyPass *copy_out = SDL_BeginGPUCopyPass(cmd);
+        SDL_GPUTextureLocation from{};
+        from.texture = resolve_;
+        SDL_GPUTextureLocation to{};
+        to.texture = target;
+        SDL_CopyGPUTextureToTexture(copy_out, &from, &to, Uint32(pixel_w), Uint32(pixel_h), 1, false);
+        SDL_EndGPUCopyPass(copy_out);
+    }
     return true;
 }
 
