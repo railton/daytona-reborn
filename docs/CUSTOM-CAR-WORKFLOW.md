@@ -304,7 +304,13 @@ folder. What differed from the Camaro, and what to reuse:
   grey plate (RFN-0909) is its own quad in front of everything across its
   area, its picture in surface 7's free lower half. The trim within 3.5 cm
   of the glass takes the body colour: baked at the sides' resolution it
-  smeared the windows' edges. 20,004 faces. Wider arches, a ducktail and a diffuser
+  smeared the windows' edges. 20,004 faces.
+  The model's panel seams and gaps (the wings against the body, the lids)
+  baked as thin broken dark lines and read as dirt on the clean paint:
+  after the bake, dark texels in lines up to 4 texels wide (what a 5 x 5
+  opening removes) next to the paint take the nearest paint's colour; wide
+  dark areas and the gloss-black parts (handles, emblem, bezels: their
+  exact colour) stay, and the stripes and vents are drawn afterwards. Wider arches, a ducktail and a diffuser
   would need new geometry and were left out.
 - **A straight wheel.** The model's front wheels are steered about 9
   degrees: spun about the game's axle, that one wobbled. The rear wheel is
