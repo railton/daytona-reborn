@@ -88,8 +88,17 @@ bool is_select_body(const rt::GeoPoly &p) {
 bool is_select_glass(const rt::GeoPoly &p) {
     return !p.mobile_key.part && (p.object_oba == 0x961bbfu || p.object_oba == 0x961cb0u);
 }
+// The cockpit view (VR2) draws its own model of the bonnet and dashboard
+// (Revision A's ROM object 0x94fff9, keyed as the body), in the body's frame
+// with the camera inside the car. Its bonnet and wings (the livery texture
+// 0x6412, and 0x4400 at 0x1a9a) are painted with the new body's surfaces;
+// the dashboard stays as it is.
+bool is_cockpit_bonnet(const rt::GeoPoly &p) {
+    return !p.mobile_key.slot && p.mobile_key.part == 0x7d68u && p.object_oba == 0x94fff9u &&
+           (p.texheader[0] == 0x6412u || (p.texheader[0] == 0x4400u && p.texheader[2] == 0x1a9au));
+}
 bool is_player_body(const rt::GeoPoly &p) {
-    return (!p.mobile_key.slot && p.mobile_key.part == 0x7d68u) || is_select_body(p);
+    return (!p.mobile_key.slot && p.mobile_key.part == 0x7d68u && p.object_oba != 0x94fff9u) || is_select_body(p);
 }
 bool is_player_glass(const rt::GeoPoly &p) {
     return (!p.mobile_key.slot && p.mobile_key.part == 0x7d94u) || is_select_glass(p);
@@ -151,6 +160,140 @@ void OpponentBodies::set_player(uint32_t texture_base) {
     }
     if (out < 0)
         for (auto &u : player_normals_) u = {-u[0], -u[1], -u[2]};
+    build_top_view();
+}
+
+// For the cockpit view: which surface body 0 shows from above at each (x, z),
+// and the surfaces whose texture is a plane over (x, z), fitted from their
+// corners (u = a x + b z + c; kept only when it fits every corner).
+void OpponentBodies::build_top_view() {
+    top_surface_.assign(size_t(kTopGridX) * kTopGridZ, -1);
+    top_planes_ = {};
+    const auto &body = bodies_[0];
+    if (body.empty()) return;
+    float box[4] = {1e9f, 1e9f, -1e9f, -1e9f};
+    for (const auto &f : body)
+        for (unsigned i = 0; i < f.count; ++i) {
+            box[0] = std::min(box[0], f.vertices[i][0]), box[1] = std::min(box[1], f.vertices[i][2]);
+            box[2] = std::max(box[2], f.vertices[i][0]), box[3] = std::max(box[3], f.vertices[i][2]);
+        }
+    std::copy_n(box, 4, top_box_);
+    const float cw = (box[2] - box[0]) / kTopGridX, ch = (box[3] - box[1]) / kTopGridZ;
+    if (!(cw > 0 && ch > 0)) return;
+    std::vector<float> height(top_surface_.size(), -1e9f);
+    for (const auto &f : body) {
+        // each triangle of the face over the cells whose centre it covers
+        for (unsigned t = 1; t + 1 < f.count; ++t) {
+            const auto &a = f.vertices[0], &b = f.vertices[t], &c = f.vertices[t + 1];
+            const float det = (b[0] - a[0]) * (c[2] - a[2]) - (c[0] - a[0]) * (b[2] - a[2]);
+            if (std::abs(det) < 1e-9f) continue;
+            const int i0 = std::max(0, int((std::min({a[0], b[0], c[0]}) - box[0]) / cw));
+            const int i1 = std::min(kTopGridX - 1, int((std::max({a[0], b[0], c[0]}) - box[0]) / cw));
+            const int j0 = std::max(0, int((std::min({a[2], b[2], c[2]}) - box[1]) / ch));
+            const int j1 = std::min(kTopGridZ - 1, int((std::max({a[2], b[2], c[2]}) - box[1]) / ch));
+            for (int j = j0; j <= j1; ++j)
+                for (int i = i0; i <= i1; ++i) {
+                    const float x = box[0] + (i + .5f) * cw, z = box[1] + (j + .5f) * ch;
+                    const float s = ((x - a[0]) * (c[2] - a[2]) - (c[0] - a[0]) * (z - a[2])) / det;
+                    const float r = ((b[0] - a[0]) * (z - a[2]) - (x - a[0]) * (b[2] - a[2])) / det;
+                    if (s < 0 || r < 0 || s + r > 1) continue;
+                    const float y = a[1] + s * (b[1] - a[1]) + r * (c[1] - a[1]);
+                    const size_t k = size_t(j) * kTopGridX + i;
+                    if (y > height[k]) height[k] = y, top_surface_[k] = int8_t(f.surface);
+                }
+        }
+    }
+    for (int surface = 0; surface < 10; ++surface) {
+        if (surface == int(kPlayerGlassSurface)) continue; // seen through, not a paint
+        double m[3][3] = {}, ru[3] = {}, rv[3] = {};
+        int corners = 0;
+        for (const auto &f : body) {
+            if (f.surface != surface) continue;
+            for (unsigned i = 0; i < f.count; ++i, ++corners) {
+                const double q[3] = {f.vertices[i][0], f.vertices[i][2], 1};
+                for (int r = 0; r < 3; ++r) {
+                    for (int c = 0; c < 3; ++c) m[r][c] += q[r] * q[c];
+                    ru[r] += q[r] * f.vertices[i][3], rv[r] += q[r] * f.vertices[i][4];
+                }
+            }
+        }
+        if (corners < 3) continue;
+        // Cramer's rule on the 3 x 3 normal equations
+        auto det3 = [](const double a[3][3]) {
+            return a[0][0] * (a[1][1] * a[2][2] - a[1][2] * a[2][1]) - a[0][1] * (a[1][0] * a[2][2] - a[1][2] * a[2][0]) +
+                   a[0][2] * (a[1][0] * a[2][1] - a[1][1] * a[2][0]);
+        };
+        const double d = det3(m);
+        if (std::abs(d) < 1e-12) continue;
+        Plane plane;
+        for (int k = 0; k < 3; ++k) {
+            double mu[3][3], mv[3][3];
+            for (int r = 0; r < 3; ++r)
+                for (int c = 0; c < 3; ++c) mu[r][c] = c == k ? ru[r] : m[r][c], mv[r][c] = c == k ? rv[r] : m[r][c];
+            plane.u[k] = float(det3(mu) / d), plane.v[k] = float(det3(mv) / d);
+        }
+        bool fits = true;
+        for (const auto &f : body) {
+            if (f.surface != surface) continue;
+            for (unsigned i = 0; i < f.count && fits; ++i) {
+                const auto &q = f.vertices[i];
+                fits = std::abs(plane.u[0] * q[0] + plane.u[1] * q[2] + plane.u[2] - q[3]) < 2e-3f &&
+                       std::abs(plane.v[0] * q[0] + plane.v[1] * q[2] + plane.v[2] - q[4]) < 2e-3f;
+            }
+        }
+        plane.valid = fits;
+        top_planes_[size_t(surface)] = plane;
+    }
+}
+
+// One of the cockpit's bonnet faces painted with the surface the new body
+// shows from above at its centre; false when that surface is not a plane
+// over (x, z) (the face is then left as the game drew it).
+bool OpponentBodies::paint_cockpit(const rt::GeoPoly &source, rt::GeoPoly &out) const {
+    if (top_surface_.empty() || !source.num_vertices) return false;
+    float x = 0, z = 0;
+    for (int i = 0; i < source.num_vertices; ++i) x += source.v[i].ox, z += source.v[i].oz;
+    x /= source.num_vertices, z /= source.num_vertices;
+    const float cw = (top_box_[2] - top_box_[0]) / kTopGridX, ch = (top_box_[3] - top_box_[1]) / kTopGridZ;
+    const int i = std::clamp(int((x - top_box_[0]) / cw), 0, kTopGridX - 1);
+    const int j = std::clamp(int((z - top_box_[1]) / ch), 0, kTopGridZ - 1);
+    // where the highest face is not a paint seen from above (the glass, a
+    // wing's edge), the nearest cell that is, within 8 cells
+    int surface = -1;
+    float best = 1e30f;
+    for (int dj = -8; dj <= 8; ++dj)
+        for (int di = -8; di <= 8; ++di) {
+            const int ci = i + di, cj = j + dj;
+            if (ci < 0 || cj < 0 || ci >= kTopGridX || cj >= kTopGridZ) continue;
+            const int s = top_surface_[size_t(cj) * kTopGridX + ci];
+            const float d = (di * cw) * (di * cw) + (dj * ch) * (dj * ch);
+            if (s >= 0 && top_planes_[size_t(s)].valid && d < best) best = d, surface = s;
+        }
+    if (surface < 0) return false;
+    const auto &plane = top_planes_[size_t(surface)];
+    out = rt::GeoPoly{};
+    out.z = source.z;
+    std::copy_n(source.viewport, 4, out.viewport);
+    std::copy_n(source.center, 2, out.center);
+    out.window = source.window;
+    out.num_vertices = source.num_vertices;
+    out.local_texture = uint8_t(texture_base_ + surface + 1);
+    // the game's light on this face, over the brightest it gives the bonnet
+    const float lit = light_reference_ > 1.0f ? float(source.luma) / light_reference_ : 1.0f;
+    out.luma = uint8_t(std::lround(std::clamp(lit, 0.08f, 1.0f) * 127));
+    out.mobile_key = source.mobile_key;
+    out.object_command = source.object_command;
+    out.object_oba = source.object_oba;
+    out.object_focus_x = source.object_focus_x;
+    out.object_focus_y = source.object_focus_y;
+    std::copy_n(source.object_matrix, 12, out.object_matrix);
+    for (int k = 0; k < source.num_vertices; ++k) {
+        auto v = source.v[k];
+        v.p[1] = std::clamp(plane.u[0] * v.ox + plane.u[1] * v.oz + plane.u[2], 0.0f, 1.0f) * 8;
+        v.p[2] = std::clamp(plane.v[0] * v.ox + plane.v[1] * v.oz + plane.v[2], 0.0f, 1.0f) * 8;
+        out.v[k] = v;
+    }
+    return true;
 }
 
 // luma = a + w . n over the original body's faces this frame (object space,
@@ -209,7 +352,7 @@ static bool fit_light(const std::vector<const rt::GeoPoly *> &faces, float fit[4
 void OpponentBodies::fit_player_light(const std::vector<rt::GeoPoly> &scene) {
     std::map<uint32_t, std::vector<const rt::GeoPoly *>> cars;
     for (const auto &p : scene)
-        if (is_player_body(p) && p.source_num_vertices >= 3) cars[p.object_command].push_back(&p);
+        if ((is_player_body(p) || is_cockpit_bonnet(p)) && p.source_num_vertices >= 3) cars[p.object_command].push_back(&p);
     light_fits_.clear();
     float reference = 0;
     for (const auto &[command, faces] : cars) {
@@ -230,11 +373,16 @@ const std::vector<rt::GeoPoly> *OpponentBodies::replace(const std::vector<rt::Ge
     // the runtime's established opponent slots for supported revisions.
     std::map<uint32_t, const rt::GeoPoly *> candidates;
     std::map<uint32_t, size_t> replaced;
+    bool cockpit = false;
     for (const auto &poly : scene) {
         const auto key = poly.mobile_key;
         if (player_) { // the player's car: its body (slot 0, or the select screen's); its glass goes with it
             if (!poly.object_command || poly.object_direct) continue;
             if (is_player_glass(poly)) replaced.emplace(poly.object_command, 0);
+            if (is_cockpit_bonnet(poly)) {
+                cockpit = true;
+                continue;
+            }
             if (!is_player_body(poly) || poly.object_matrix[11] <= 0.f) continue;
             candidates.try_emplace(poly.object_command, &poly);
             continue;
@@ -245,7 +393,7 @@ const std::vector<rt::GeoPoly> *OpponentBodies::replace(const std::vector<rt::Ge
         if (poly.object_matrix[11] <= 0.f) continue;
         candidates.try_emplace(poly.object_command, &poly);
     }
-    if (candidates.empty()) return nullptr;
+    if (candidates.empty() && !cockpit) return nullptr;
 
     scene_.clear();
     for (const auto &[command, source] : candidates) {
@@ -280,10 +428,10 @@ const std::vector<rt::GeoPoly> *OpponentBodies::replace(const std::vector<rt::Ge
             const auto &a = vertices[0], &b = vertices[1], &c = vertices[2];
             const float ux = b.x - a.x, uy = b.y - a.y, uz = b.p[0] - a.p[0];
             const float vx = c.x - a.x, vy = c.y - a.y, vz = c.p[0] - a.p[0];
-            const float facing = (uy * vz - uz * vy) * a.x + (uz * vx - ux * vz) * a.y +
-                                 (ux * vy - uy * vx) * a.p[0];
-            const bool away = facing >= 0;
-            if (away && !player_) continue;
+            const float nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx; // outward
+            const bool away = nx * a.x + ny * a.y + nz * a.p[0] >= 0;
+            // turned from the camera: kept only to cast the shadow, and only facing the sun
+            if (away && (!player_ || !casts_shadow(nx, ny, nz))) continue;
             // A face crossing the near plane (an opponent against the player's
             // car) is cut there rather than dropped, so the body has no holes.
             const unsigned count = clip_near(vertices, face.count);
@@ -375,7 +523,9 @@ const std::vector<rt::GeoPoly> *OpponentBodies::replace(const std::vector<rt::Ge
                 const auto &a = vertices[0], &b = vertices[1], &cc = vertices[2];
                 const float ux = b.x - a.x, uy = b.y - a.y, uz = b.p[0] - a.p[0];
                 const float vx = cc.x - a.x, vy = cc.y - a.y, vz = cc.p[0] - a.p[0];
-                const bool away = (uy * vz - uz * vy) * a.x + (uz * vx - ux * vz) * a.y + (ux * vy - uy * vx) * a.p[0] >= 0;
+                const float nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+                const bool away = nx * a.x + ny * a.y + nz * a.p[0] >= 0;
+                if (away && !casts_shadow(nx, ny, nz)) continue;
                 const unsigned count = clip_near(vertices, face.count);
                 if (count < 3) continue;
                 auto &poly = scene_.emplace_back();
@@ -401,7 +551,7 @@ const std::vector<rt::GeoPoly> *OpponentBodies::replace(const std::vector<rt::Ge
             replaced[command] = scene_.size() - first; // the game's wheel goes
         }
     }
-    if (candidates.empty() || replaced.empty()) return nullptr;
+    if ((candidates.empty() || replaced.empty()) && !cockpit) return nullptr;
 
     // Keep the original wheel, shadow and other emissions. Only substitute
     // the same body command in the same camera window.
@@ -447,6 +597,11 @@ const std::vector<rt::GeoPoly> *OpponentBodies::replace(const std::vector<rt::Ge
             ++removed;
             continue;
         }
+        if (player_ && is_cockpit_bonnet(poly)) {
+            rt::GeoPoly painted;
+            scene_.push_back(paint_cockpit(poly, painted) ? painted : poly);
+            continue;
+        }
         scene_.push_back(poly);
         if (!player_ || !is_player_wheel(poly)) continue;
         const auto it = wheel_centre.find({poly.mobile_key.part, poly.object_command});
@@ -481,3 +636,4 @@ const std::vector<rt::GeoPoly> *OpponentBodies::replace(const std::vector<rt::Ge
 }
 
 } // namespace app
+

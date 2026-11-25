@@ -209,6 +209,9 @@ private:
     struct CarCorner { float light, normal[3]; };
     std::vector<int32_t> car_first_;    // per polygon: its first corner in car_corners_, -1 if not a car's
     std::vector<CarCorner> car_corners_;
+    // shade_cars' corners, sorted by (emission, object-space position); kept between frames
+    struct ShadeCorner { uint32_t command, x, y, z, poly, k; };
+    std::vector<ShadeCorner> corner_scratch_;
     void shade_cars(const std::vector<rt::GeoPoly> &polys);
     // the display passes: shaders, pipelines (the glow's, the target's per format), glow textures
     SDL_GPUShader *post_vs_ = nullptr, *post_ps_ = nullptr;

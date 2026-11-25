@@ -36,6 +36,15 @@ model follows that model's licence, and none is part of this repository.
   6 glass (reflects the sky at 15 %), 7 and 8 matte (wheel wells, a grille's
   mesh, spoilers: no reflection), the others painted bodywork (full
   reflection with "Paint reflections").
+- The cockpit view (VR2) keeps the game's own bonnet and dashboard, the
+  bonnet painted with your body seen from above: at each point the surface
+  of your highest face there, so the surfaces seen from above must have a
+  texture that is a plane over x and z (u and v each a linear function of
+  x and z), as a top-down projection gives.
+- Cost: every face is work for the processor each frame, about 0.3
+  microseconds (a 20,000-face body with four 1,700-face wheels: about 6 ms
+  a frame, against 0.3 ms with the game's car). Keep the body under about
+  20,000 faces and the wheel under about 2,000.
 
 `liveries.rgba`: exactly 3 x 10 x (256 x 128 + 128 x 64 + 64 x 32 + 32 x 16)
 RGBA pixels (5,222,400 bytes): per body, per surface, the 256 x 128 texture
@@ -54,8 +63,8 @@ the atlas's second body's (`liveries.rgba`, body 1); SHADE is its light.
 ## Limits
 
 - The game's car is replaced in the race, its start, replays and the
-  mission select screen (its two turning cars); the cockpit view (VR2)
-  still shows the game car's hood.
+  mission select screen (its two turning cars); in the cockpit view (VR2)
+  only the bonnet's paint changes.
 - The game's own window reflection is dropped with its glass.
 - Opponents keep their bodies (`M2_OPPONENT_BODIES`, the 1024-face format,
   is separate and unlit).

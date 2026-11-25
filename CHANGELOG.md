@@ -34,8 +34,21 @@ the game's car.
 - The mission select screen's two turning cars (not keyed: known by their
   ROM objects) take the body and wheels too, each lit by its own game light
   over the brightest's, so the car not chosen stays dimmed as the game's.
-- Known limits: the cockpit view (VR2) still shows the game car's hood.
-- Checked with a 22,586-face body made from a third-party model (kept local,
+- The cockpit view (VR2): the game draws its own model of the bonnet and
+  dashboard there (ROM object 0x94fff9, keyed as the body, the camera
+  inside the car). Its bonnet and wings are painted with the new body seen
+  from above (per point, the surface of the body's highest face, its
+  texture fitted as a plane over x and z); the dashboard stays.
+- Faster: smooth car shading grouped the corners in a hash of vectors, one
+  per corner, each frame; it now sorts them, the same light to the bit (the
+  frames byte-identical with and without a custom body). A face turned
+  from the camera is kept only when it faces the sun (it only casts the
+  shadow), and none without car shadows. 3440 x 1440, MSAA 4x, shadows,
+  reflections, bloom and CRT, 3,600 frames of a race: game + renderer CPU
+  median 22.4 -> 9.9 ms (p99 36.0 -> 14.7 ms) with the test body, now
+  20,869 faces and four 1,679-face wheels (were 27,731 and 3,289); 1.2 ms
+  with the game's car.
+- Checked with a 20,869-face body made from a third-party model (kept local,
   its licence's): no flicker between consecutive frames, the shadow with its
   outline, the numbers upright from every camera.
 

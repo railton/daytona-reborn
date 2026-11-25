@@ -5,6 +5,7 @@
 #include "app/gpu/dxr_shaders_gen.h"
 
 #include <algorithm>
+#include <tuple>
 #include <unordered_map>
 #include <utility>
 #include <cmath>
@@ -479,26 +480,16 @@ void GpuRenderer::shade_cars(const std::vector<rt::GeoPoly> &polys) {
     car_first_.assign(polys.size(), -1);
     struct Face { float n[3], area, light; };
     std::vector<Face> faces(polys.size());
-    std::vector<uint8_t> is_car(polys.size(), 0);
-    struct Key {
-        uint32_t command, x, y, z;
-        bool operator==(const Key &) const = default;
+    // each corner as (emission, object-space position), sorted: the corners
+    // sharing a position are then side by side (a hash of vectors, one per
+    // corner, cost 5 ms a frame with a 20,000-face player's car)
+    using Corner = ShadeCorner;
+    auto same = [](const Corner &a, const Corner &b) {
+        return a.command == b.command && a.x == b.x && a.y == b.y && a.z == b.z;
     };
-    struct KeyHash {
-        size_t operator()(const Key &k) const {
-            uint64_t h = 1469598103934665603ull;
-            for (uint32_t w : {k.command, k.x, k.y, k.z}) h = (h ^ w) * 1099511628211ull;
-            return size_t(h);
-        }
-    };
-    auto key = [](const rt::GeoPoly &p, int k) {
-        Key out{p.object_command, 0, 0, 0};
-        std::memcpy(&out.x, &p.v[k].ox, 4);
-        std::memcpy(&out.y, &p.v[k].oy, 4);
-        std::memcpy(&out.z, &p.v[k].oz, 4);
-        return out;
-    };
-    std::unordered_map<Key, std::vector<uint32_t>, KeyHash> shared;
+    std::vector<Corner> &corners = corner_scratch_;
+    corners.clear();
+    uint32_t total = 0;
     for (size_t i = 0; i < polys.size(); ++i) {
         const rt::GeoPoly &p = polys[i];
         // (the opponents' local bodies are not lit; the player's are: their
@@ -524,19 +515,30 @@ void GpuRenderer::shade_cars(const std::vector<rt::GeoPoly> &polys) {
         if (!(len > 1e-12f)) continue;
         const float turn = n[0] * c[0] + n[1] * c[1] + n[2] * c[2] > 0 ? -1.0f : 1.0f; // towards the camera
         faces[i] = {{n[0] / len * turn, n[1] / len * turn, n[2] / len * turn}, len * 0.5f, float(p.luma)};
-        is_car[i] = 1;
-        for (int k = 0; k < p.num_vertices; ++k) shared[key(p, k)].push_back(uint32_t(i));
-    }
-    constexpr float kCrease = 0.6428f; // cos 50 degrees
-    for (size_t i = 0; i < polys.size(); ++i) {
-        if (!is_car[i]) continue;
-        const rt::GeoPoly &p = polys[i];
-        const Face &self = faces[i];
-        car_first_[i] = int32_t(car_corners_.size());
+        car_first_[i] = int32_t(total);
+        total += p.num_vertices;
         for (int k = 0; k < p.num_vertices; ++k) {
+            Corner e{p.object_command, 0, 0, 0, uint32_t(i), uint32_t(k)};
+            std::memcpy(&e.x, &p.v[k].ox, 4);
+            std::memcpy(&e.y, &p.v[k].oy, 4);
+            std::memcpy(&e.z, &p.v[k].oz, 4);
+            corners.push_back(e);
+        }
+    }
+    car_corners_.resize(total);
+    std::sort(corners.begin(), corners.end(), [](const Corner &a, const Corner &b) {
+        // then in the scene's order, as the faces were summed before: the same light to the bit
+        return std::tie(a.command, a.x, a.y, a.z, a.poly, a.k) < std::tie(b.command, b.x, b.y, b.z, b.poly, b.k);
+    });
+    constexpr float kCrease = 0.6428f; // cos 50 degrees
+    for (size_t g = 0; g < corners.size();) {
+        size_t end = g + 1;
+        while (end < corners.size() && same(corners[end], corners[g])) ++end;
+        for (size_t e = g; e < end; ++e) {
+            const Face &self = faces[corners[e].poly];
             float n[3] = {0, 0, 0}, light = 0, weight = 0;
-            for (uint32_t j : shared[key(p, k)]) {
-                const Face &f = faces[j];
+            for (size_t o = g; o < end; ++o) {
+                const Face &f = faces[corners[o].poly];
                 if (f.n[0] * self.n[0] + f.n[1] * self.n[1] + f.n[2] * self.n[2] < kCrease) continue;
                 for (int a = 0; a < 3; ++a) n[a] += f.n[a] * f.area;
                 light += f.light * f.area;
@@ -548,8 +550,9 @@ void GpuRenderer::shade_cars(const std::vector<rt::GeoPoly> &polys) {
                 corner.light = light / weight;
                 for (int a = 0; a < 3; ++a) corner.normal[a] = n[a] / len;
             }
-            car_corners_.push_back(corner);
+            car_corners_[size_t(car_first_[corners[e].poly]) + corners[e].k] = corner;
         }
+        g = end;
     }
 }
 
@@ -993,8 +996,10 @@ bool GpuRenderer::render(SDL_GPUCommandBuffer *cmd, SDL_GPUTexture *target, int 
     const int lod_scale = std::clamp(int(std::lround(double(output_h) / h)), 1, 4);
     const auto &original = pose_polys ? *pose_polys : video.gpu_polys();
     const auto *replacement = have_opponents_ ? opponent_bodies_.replace(original) : nullptr;
-    if (have_player_)
+    if (have_player_) {
+        player_body_.set_shadow_light(car_shadows_ ? game_light_.data() : nullptr);
         if (const auto *player = player_body_.replace(replacement ? *replacement : original)) replacement = player;
+    }
     // before build(): its materials ask for the pack only once it is on the GPU
     if (!hires_.entries.empty()) hires_upload(cmd, video.gpu_mem());
     build(video, w, h, lod_scale, sharp_textures, replacement ? *replacement : original);

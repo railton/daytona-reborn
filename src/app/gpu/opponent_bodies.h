@@ -2,6 +2,7 @@
 
 #include "runtime/geo.h"
 
+#include <algorithm>
 #include <map>
 #include <array>
 #include <string>
@@ -41,6 +42,13 @@ public:
     // a new body, standing on the same ground (Hornet: radius 0.371 model units)
     static constexpr float kPlayerWheelScale = 1.10f;
     const std::vector<uint8_t> &atlas() const { return atlas_; }
+    // The light the player's car casts its shadow by (its travel, camera
+    // space), or none: a face turned from the camera is kept (shadow only)
+    // only when it faces this light.
+    void set_shadow_light(const float *travel) {
+        shadow_light_ = travel != nullptr;
+        if (travel) std::copy_n(travel, 3, shadow_travel_);
+    }
     // A null result means the original scene can be used directly.
     const std::vector<rt::GeoPoly> *replace(const std::vector<rt::GeoPoly> &scene);
 
@@ -57,8 +65,23 @@ private:
     std::vector<uint8_t> atlas_;
     std::vector<rt::GeoPoly> scene_;
     bool player_ = false;
+    bool shadow_light_ = false;
+    float shadow_travel_[3] = {0, 0, 1};
+    bool casts_shadow(float nx, float ny, float nz) const {
+        return shadow_light_ && nx * shadow_travel_[0] + ny * shadow_travel_[1] + nz * shadow_travel_[2] < 0;
+    }
     uint32_t texture_base_ = 0;
     std::vector<std::array<float, 3>> player_normals_; // body 0's faces, outward, model space
+    // The cockpit view paints the game's own bonnet with the body's surfaces
+    // seen from above: per cell of a grid over the body (x, z), the surface
+    // of its highest face; per surface its texture as a plane over (x, z).
+    static constexpr int kTopGridX = 48, kTopGridZ = 96;
+    std::vector<int8_t> top_surface_;       // kTopGridX * kTopGridZ, -1: none
+    float top_box_[4] = {0, 0, 0, 0};        // x0, z0, x1, z1
+    struct Plane { bool valid = false; float u[3], v[3]; }; // u = u0 x + u1 z + u2
+    std::array<Plane, 10> top_planes_{};
+    void build_top_view();
+    bool paint_cockpit(const rt::GeoPoly &source, rt::GeoPoly &out) const;
     float light_fit_[4] = {0, 0, 0, 0};                // a, w (the last good fit)
     bool light_fitted_ = false;
     std::map<uint32_t, std::array<float, 4>> light_fits_; // this frame's, by body emission
