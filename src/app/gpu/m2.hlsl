@@ -395,12 +395,18 @@ float4 ps_poly(PolyOut i) : SV_Target {
         const bool smooth = ((flags >> 29) & 1u) != 0u, reflective = ((flags >> 30) & 1u) != 0u;
         const uint shade = smooth ? uint(clamp(i.light_oz / i.oz.x + 0.5, 0.0, 255.0)) : i.info.z;
         const float4 c = opponent_paint(uv, footprint, i.info.y, shade);
-        // see-through glass (bit 28): half covered, as the game's translucency
-        // (alpha to coverage with MSAA, bit 25; else every other pixel)
+        // see-through glass (bit 28): covered as much as info.w / 255, as the
+        // game's translucency (alpha to coverage with MSAA, bit 25; else an
+        // ordered 2 x 2 pattern of pixels)
         float alpha = 1.0;
         if ((flags >> 28) & 1u) {
-            if ((flags >> 25) & 1u) alpha = 0.5;
-            else if (((uint(i.pos.x) ^ uint(i.pos.y)) & 1u) == 0u) discard;
+            const float cover = float(i.info.w & 0xffu) / 255.0;
+            if ((flags >> 25) & 1u) alpha = cover;
+            else {
+                const uint2 p = uint2(i.pos.xy) & 1u;
+                const float order = (p.x == 0u ? (p.y == 0u ? 0.0 : 0.75) : (p.y == 0u ? 0.5 : 0.25)) + 0.125;
+                if (cover <= order) discard;
+            }
         }
         if (!smooth && !reflective) return float4(c.rgb, alpha);
         // a player body's surfaces by role (OpponentBodies, after the

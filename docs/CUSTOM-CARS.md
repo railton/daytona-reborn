@@ -73,11 +73,14 @@ exceed REAR_Z by more than 1, HALF_TRACK lie between 0.3 and 1.2.
 
 ## See-through glass (optional)
 
-`car.ini`, `key=value` lines: `glass_see_through=1` draws the player's glass
-(surface 6) half see-through, as the game's own translucency: half of each
-pixel's samples with MSAA, every other pixel without. The glass then casts
-no shadow. For a car with an interior behind its windows; without one the
-road shows through the car.
+`car.ini`, `key=value` lines: `glass_opacity=F` (0.25 to 1) draws the
+player's glass (surface 6) covering that share of each pixel, the rest
+see-through, as the game's own translucency: of the pixel's samples with
+MSAA, an ordered pattern of pixels without. `glass_see_through=1` is 0.5.
+The glass then casts no shadow. For a car with an interior behind its
+windows; without one the road shows through the car. At 0.5 the mission
+select screen's backdrop showed through a car's side windows (the seats
+sit below them): 0.75 keeps the car from looking hollow.
 
 ## Limits
 

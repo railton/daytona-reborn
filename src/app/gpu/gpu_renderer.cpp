@@ -838,7 +838,10 @@ void GpuRenderer::build(const rt::Video &video, int w, int h, int scale, bool sh
             see_through = have_player_ && player_body_.glass_see_through() &&
                           poly.local_texture > OpponentBodies::kPlayerTextureBase &&
                           (poly.local_texture - 1 - OpponentBodies::kPlayerTextureBase) % 10 == OpponentBodies::kPlayerGlassSurface;
-            if (see_through) material.info[0] |= (1u << 28) | (msaa_ > 1 ? 1u << 25 : 0u); // bit 28: local bodies only
+            if (see_through) { // bit 28: local bodies only; info.w its coverage (0..255)
+                material.info[0] |= (1u << 28) | (msaa_ > 1 ? 1u << 25 : 0u);
+                material.info[3] = uint32_t(std::lround(player_body_.glass_opacity() * 255.0f));
+            }
         }
 
         // the cars' shading (shade_cars): bit 29 smooth light, bit 30 reflections

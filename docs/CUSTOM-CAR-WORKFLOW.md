@@ -240,7 +240,9 @@ folder. What differed from the Camaro, and what to reuse:
   saturation), and on the body panels' own atlas the pale, worn paint too.
   The paint is recoloured in the textures before the bake, each texel's
   light kept relative to the paint's median (the wear stays).
-- **Interior kept, behind see-through glass** (`car.ini`). The cabin's faces
+- **Interior kept, behind see-through glass** (`car.ini`, `glass_opacity=0.75`:
+  at half, the select screen's backdrop showed through the side windows
+  and the car looked hollow). The cabin's faces
   are those enclosed by the car (rays from them up, down, to both sides,
   ahead and behind all meet it) between the windscreen's and the rear
   window's bases, above the sills: limited to the cabin, the engine bay's
