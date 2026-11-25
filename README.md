@@ -16,6 +16,32 @@ This repository is a fork of [Daytona Reborn](https://github.com/yodo113/Daytona
 by yodo113, itself built on [daytona-arcade-recomp](https://github.com/alphanu1/daytona-arcade-recomp)
 by alphanu1. What it adds is listed in [CHANGELOG.md](CHANGELOG.md).
 
+## Change Logs
+
+**`2026-11-25`** **0.21.0**: make the high-resolution texture pack from **Settings > AI textures** (Linux with Docker, NVIDIA or the processor); the home screen tells when a [new version](#new-versions) is out; Windows build fixes; follow-ups of an external graphics review (detail fading in, smoother edge HUD, steadier shadows, a 10x faster pack refresh).
+
+**`2026-11-25`** **0.20.0**: **Smooth menus and HUD**: the game's 2D pictures with smooth curves at high resolution, colours and dithering kept.
+
+**`2026-11-25`** **0.19.0**: **High-resolution textures** (experimental): the race's textures upscaled 4x by AI models on your computer, from your ROM set. See [docs/HIRES-TEXTURES.md](docs/HIRES-TEXTURES.md).
+
+**`2026-11-25`** **0.18.0**: Online: the course and gearbox choices come only from the race's master (the relay needs updating); car shadows in two cascades, so the opponents ahead cast them too.
+
+**`2026-11-25`** **0.17.0**: Image enhancements: bloom, an arcade monitor (CRT) look, paint reflecting the course's real sky, car shadows, and **automatic quality**, which measures the graphics card at the first start.
+
+**`2026-11-24`** **0.16.0**: Online server: abuse limits and a lighter relay.
+
+**`2026-11-24`** **0.15.0**: Online: a start that no longer looks frozen, Esc pauses without stopping the race, the master chooses the gearbox, a chime when a player joins; **Generate logs** in Settings > Game.
+
+**`2026-11-24`** **0.14.0** to **0.14.5**: The PC home redesigned in a neon look over an animated speedway; Settings and room details in the same look; Windows paths with accents.
+
+**`2026-11-24`** **0.13.0**: Online across continents: a star relay, race data also by UDP, a dropped player back in the race, everyone starting together.
+
+**`2026-11-24`** **0.12.0**: Online cars no longer flicker; **`Build Daytona.bat`** builds on Windows with nothing to install; the ROM set chosen on the first screen.
+
+**`2026-11-24`** **0.11.0**: Online rooms of 4 to 8 across continents without slow motion; the version on the home screen; course and gearbox chosen with keys or a gamepad.
+
+Everything, with measurements and known limits: [CHANGELOG.md](CHANGELOG.md).
+
 ## Original project documentation
 
 From Daytona Reborn beta 0.10, kept in this repository:
@@ -126,15 +152,16 @@ builds:** they contain code generated from the ROM.
 
 ## Playing
 
-The Revision A game opens on its home menu. **Settings** has six tabs:
+The Revision A game opens on its home menu. **Settings** has seven tabs:
 
 | Tab | What it holds |
 | --- | --- |
-| Game | the ROM set (Browse, Check); logs (Generate logs, on by default; Open the logs folder) |
+| Game | the ROM set (Browse, Check); logs (Generate logs, on by default; Open the logs folder); updates (check for new versions) |
 | Display | picture format, graphics API, renderer, render resolution, draw mode, fullscreen, display pacing |
-| Enhancements | draw distance, 3D scenery, opponents' detail, polygon budget, widescreen options, image quality (automatic or each option), screen effects, screen colours, smoothing |
+| Enhancements | draw distance, 3D scenery, opponents' detail, polygon budget, widescreen options, image quality (automatic or each option), smooth menus and HUD, screen effects, screen colours, smoothing |
 | Link play | linking cabinets on a local network |
 | Controls | devices, steering, force feedback, every control's key, gamepad and wheel assignment |
+| AI textures | experimental: what this computer has for the high-resolution texture pack, making it, using or deleting it ([docs/HIRES-TEXTURES.md](docs/HIRES-TEXTURES.md)) |
 | Sound | volume, music and effects balance, native sound |
 
 When something goes wrong, the game's log tells what happened: send
@@ -263,9 +290,11 @@ desktop computer from your ROM set, then built for the other platform.
   `python3 scripts/extract_strings.py` and fill `lang/fr.po` and
   `lang/pt.po`.
 - Headless tools: `m2run` (with `--relay` to join an Online room),
-  `m2gpushot` (`--hires-textures PACK`), `m2texcap` (the textures a session
-  uses, for a high-resolution pack), and `daytona --capture-home FILE.bmp`
-  for the interface.
+  `m2gpushot` (frames through the hardware renderer; `--hires-textures
+  PACK`, `--smooth-2d`; `--bench` reports the frame time's median, p95 and
+  p99), `m2texcap` (the textures a session uses, for a high-resolution
+  pack), `daytona --make-hires-pack` (the AI textures tab's job without the
+  window), and `daytona --capture-home FILE.bmp` for the interface.
 
 ## Licence
 
