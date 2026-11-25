@@ -216,7 +216,7 @@ quality" appears only when a race fell short of full speed.
 | Yellow triangles on the rear window after reducing | paint under the glass and trims reduced into it | paint near the glass and trims kept at their targets |
 | Lamps read as balls; sky streaks on the grille | reflector bowls, slanted slats | pressed flat |
 
-## The second car: a Beetle, black, at its real size
+## The second car: a Beetle at its real size
 
 A 1960s Beetle (Sketchfab, CC BY 4.0), converted by `fusca.py` in the same
 folder. What differed from the Camaro, and what to reuse:
@@ -224,8 +224,9 @@ folder. What differed from the Camaro, and what to reuse:
 - **Try the colour first.** Before any conversion, `fusca/preview.py GLB
   OUT.png [HEX]` draws the whole model from four angles with its paint
   recoloured (point splats of the textured faces, a Lambert light, a rough
-  sky reflection): the paint's colour was chosen from it (black, keeping
-  the model's own wear) before anything else was done.
+  sky reflection): a black paint keeping the model's own wear was chosen
+  from it. Converted and seen in the game, the black did not look good; the
+  car keeps the model's own paint for now (`fusca.py GLB OUT original`).
 - **Its size: real.** Its wheelbase is 2.40 against the game car's 2.81.
   Scaled to the game's wheels it would have been 1.93 m tall; at its own
   size its wheels sit in its own arches, drawn there by `M2WHEEL2` (see
