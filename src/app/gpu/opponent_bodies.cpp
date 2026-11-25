@@ -79,6 +79,14 @@ bool OpponentBodies::load(const std::string &directory, int max_faces) {
             wheel_radius_ = std::max(wheel_radius_, std::sqrt(f.vertices[i][1] * f.vertices[i][1] +
                                                               f.vertices[i][2] * f.vertices[i][2]));
 
+    // optional: car.ini, "key=value" lines; glass_see_through=1
+    glass_see_through_ = false;
+    if (std::ifstream ini(root / "car.ini"); ini)
+        for (std::string line; std::getline(ini, line);) {
+            if (!line.empty() && line.back() == '\r') line.pop_back();
+            if (line == "glass_see_through=1") glass_see_through_ = true;
+        }
+
     std::ifstream image(root / "liveries.rgba", std::ios::binary | std::ios::ate);
     if (!image || image.tellg() != atlas_bytes) return false;
     std::vector<uint8_t> atlas(atlas_bytes);

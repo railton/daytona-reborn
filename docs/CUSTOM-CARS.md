@@ -71,6 +71,14 @@ game wheel's origin is its inner face). The drawing only: the game's physics,
 its collisions and the checkered shadow stay the game car's. FRONT_Z must
 exceed REAR_Z by more than 1, HALF_TRACK lie between 0.3 and 1.2.
 
+## See-through glass (optional)
+
+`car.ini`, `key=value` lines: `glass_see_through=1` draws the player's glass
+(surface 6) half see-through, as the game's own translucency: half of each
+pixel's samples with MSAA, every other pixel without. The glass then casts
+no shadow. For a car with an interior behind its windows; without one the
+road shows through the car.
+
 ## Limits
 
 - The game's car is replaced in the race, its start, replays and the

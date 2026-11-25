@@ -39,6 +39,11 @@ the game's car.
   with a real-size 1960s Beetle (wheelbase 2.40 against the game car's
   2.81): 15,840 faces and a 1,180-face wheel, game + renderer CPU median
   5.9 ms at 3440 x 1440 with every image option.
+- See-through glass: a body folder's `car.ini` with `glass_see_through=1`
+  draws the player's glass half covered (alpha to coverage with MSAA, every
+  other pixel without), as the game's own translucency, so a car with an
+  interior shows it; the glass casts no shadow. Without it the frames are
+  unchanged (checked against the Camaro's, byte for byte).
 - The mission select screen's two turning cars (not keyed: known by their
   ROM objects) take the body and wheels too, each lit by its own game light
   over the brightest's, so the car not chosen stays dimmed as the game's.

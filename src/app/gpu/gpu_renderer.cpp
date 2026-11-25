@@ -827,10 +827,18 @@ void GpuRenderer::build(const rt::Video &video, int w, int h, int scale, bool sh
         if (msaa_ > 1) material.info[0] |= 1u << 25; // alpha to coverage for cut-out texels (m2.hlsl)
         material.info[0] |= aniso_bits_ << 26;
         if (hires_data_uploaded_ && hires_index_ready_ && renderer >= 2) material.info[0] |= 1u << 11; // m2.hlsl hires_texel
+        bool see_through = false; // the player's see-through glass (car.ini)
         if (poly.local_texture) {
             material.info[0] = 1u << 24;
             material.info[1] = poly.local_texture - 1;
             material.info[2] = poly.luma;
+            // the player's see-through glass (car.ini): half its samples
+            // (MSAA, alpha to coverage) or every other pixel, as the game's
+            // own translucency; it casts no shadow
+            see_through = have_player_ && player_body_.glass_see_through() &&
+                          poly.local_texture > OpponentBodies::kPlayerTextureBase &&
+                          (poly.local_texture - 1 - OpponentBodies::kPlayerTextureBase) % 10 == OpponentBodies::kPlayerGlassSurface;
+            if (see_through) material.info[0] |= (1u << 28) | (msaa_ > 1 ? 1u << 25 : 0u); // bit 28: local bodies only
         }
 
         // the cars' shading (shade_cars): bit 29 smooth light, bit 30 reflections
@@ -846,7 +854,7 @@ void GpuRenderer::build(const rt::Video &video, int w, int h, int scale, bool sh
         // ones: the game's own checker shadow under it, the windows)
         const bool opponent_local = poly.local_texture && poly.local_texture <= OpponentBodies::kPlayerTextureBase;
         if (have_car_camera && car >= 0 && !opponent_local && !((material.info[0] >> 2) & 1u) &&
-            (material.info[0] & 3u) != 3u)
+            (material.info[0] & 3u) != 3u && !see_through)
             casters_now_.push_back(i);
         if (car >= 0 && !opponent_local) {
             if (smooth_cars_) material.info[0] |= 1u << 29;

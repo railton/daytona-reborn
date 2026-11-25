@@ -42,6 +42,9 @@ public:
     // a new body, standing on the same ground (Hornet: radius 0.371 model units)
     static constexpr float kPlayerWheelScale = 1.10f;
     const std::vector<uint8_t> &atlas() const { return atlas_; }
+    // car.ini's glass_see_through=1: the player's glass (surface 6) drawn
+    // half see-through (the car has an interior behind it)
+    bool glass_see_through() const { return glass_see_through_; }
     // The light the player's car casts its shadow by (its travel, camera
     // space), or none: a face turned from the camera is kept (shadow only)
     // only when it faces this light.
@@ -77,6 +80,7 @@ private:
     std::vector<uint8_t> atlas_;
     std::vector<rt::GeoPoly> scene_;
     bool player_ = false;
+    bool glass_see_through_ = false;
     bool shadow_light_ = false;
     float shadow_travel_[3] = {0, 0, 1};
     bool casts_shadow(float nx, float ny, float nz) const {

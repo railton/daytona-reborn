@@ -226,7 +226,7 @@ folder. What differed from the Camaro, and what to reuse:
   recoloured (point splats of the textured faces, a Lambert light, a rough
   sky reflection): a black paint keeping the model's own wear was chosen
   from it. Converted and seen in the game, the black did not look good; the
-  car keeps the model's own paint for now (`fusca.py GLB OUT original`).
+  car keeps the model's own paint for now, a little warmer (below).
 - **Its size: real.** Its wheelbase is 2.40 against the game car's 2.81.
   Scaled to the game's wheels it would have been 1.93 m tall; at its own
   size its wheels sit in its own arches, drawn there by `M2WHEEL2` (see
@@ -240,8 +240,24 @@ folder. What differed from the Camaro, and what to reuse:
   saturation), and on the body panels' own atlas the pale, worn paint too.
   The paint is recoloured in the textures before the bake, each texel's
   light kept relative to the paint's median (the wear stays).
-- **Interior** removed by the "never seen from outside" pass alone, the
-  glass counting as opaque.
+- **Interior kept, behind see-through glass** (`car.ini`). The cabin's faces
+  are those enclosed by the car (rays from them up, down, to both sides,
+  ahead and behind all meet it) between the windscreen's and the rear
+  window's bases, above the sills: limited to the cabin, the engine bay's
+  and front boot's faces, reduced, poked through the lids as dark patches.
+  Seen through the glass, they cannot take a projected texture (it would be
+  the body's); each takes the mean colour of its own texture (darker, in
+  the car's shade) from a palette in surface 8 (matte), in 2 x 2 texel
+  cells. The visibility test counting the glass as opaque found almost
+  none of them: the glass's faces mostly have opaque texture at their
+  centre, and rays pass by them.
+- **The paint, warmer.** The model's own sand (193, 158, 108) read brown
+  under the game's light and sky reflection; its paint texels are turned
+  7 degrees towards yellow, their saturation x1.25 and value x1.10
+  (`fusca.py GLB OUT warm`).
+- **A straight wheel.** The model's front wheels are steered about 9
+  degrees: spun about the game's axle, that one wobbled. The rear wheel is
+  used, its axle (the direction of least spread) turned exactly onto x.
 - **Bumpers on their own surface.** Seen from behind, the rear bumper lay
   over the apron, whose texels then took the chrome (white patches below
   the engine lid, and on the sides' corners). The bumpers (bright trim, low,
@@ -253,8 +269,8 @@ folder. What differed from the Camaro, and what to reuse:
 - **Its own wheel** from the model: centred, mirrored like the body, its
   origin moved to its inner face (as the game wheel's), the part of the
   atlas it uses resampled into the wheel texture.
-- Result: 15,840 faces, a 1,180-face wheel, game + renderer CPU median
-  5.9 ms in the benchmark above.
+- Result: 19,924 faces (about 4,000 of them the cabin), a 1,180-face wheel,
+  game + renderer CPU median 6.7 ms in the benchmark above.
 
 ## For the next car
 

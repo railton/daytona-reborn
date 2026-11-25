@@ -395,14 +395,21 @@ float4 ps_poly(PolyOut i) : SV_Target {
         const bool smooth = ((flags >> 29) & 1u) != 0u, reflective = ((flags >> 30) & 1u) != 0u;
         const uint shade = smooth ? uint(clamp(i.light_oz / i.oz.x + 0.5, 0.0, 255.0)) : i.info.z;
         const float4 c = opponent_paint(uv, footprint, i.info.y, shade);
-        if (!smooth && !reflective) return c;
+        // see-through glass (bit 28): half covered, as the game's translucency
+        // (alpha to coverage with MSAA, bit 25; else every other pixel)
+        float alpha = 1.0;
+        if ((flags >> 28) & 1u) {
+            if ((flags >> 25) & 1u) alpha = 0.5;
+            else if (((uint(i.pos.x) ^ uint(i.pos.y)) & 1u) == 0u) discard;
+        }
+        if (!smooth && !reflective) return float4(c.rgb, alpha);
         // a player body's surfaces by role (OpponentBodies, after the
         // opponents' 30 textures): its glass (6) reflects 15 % as much (sky and sun),
         // dark tinted; its wheel wells (7) and matte dark parts (8: the
         // grille's mesh, spoilers) reflect nothing
         const uint surface = i.info.y >= 30u ? (i.info.y - 30u) % 10u : 0u;
         const float strength = surface == 6u ? 0.15 : (surface == 7u || surface == 8u) ? 0.0 : 1.0;
-        return float4((reflective && strength > 0.0 ? car_paint(c.rgb, i, strength) : c.rgb) * car_shadow_light(i), 1.0);
+        return float4((reflective && strength > 0.0 ? car_paint(c.rgb, i, strength) : c.rgb) * car_shadow_light(i), alpha);
     }
     if ((flags >> 2) & 1u) { // checker: the rasterizer draws pixels with (x ^ y) odd
         const uint2 p = uint2(i.pos.xy);
