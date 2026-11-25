@@ -7,8 +7,11 @@
 // Configuration: flags, or the environment (Docker):
 //
 //	DAYTONA_PORT (7777), DAYTONA_PASSWORD (none), DAYTONA_MAX_ROOMS (100),
-//	DAYTONA_MAX_CONNECTIONS (1000), DAYTONA_MAX_PER_IP (16), and the race
-//	settings' defaults (see package settings).
+//	DAYTONA_MAX_CONNECTIONS (1000), DAYTONA_MAX_PER_IP (16),
+//	DAYTONA_MAX_ROOMS_PER_IP (8), DAYTONA_ROOM_ALONE_MIN (30),
+//	DAYTONA_ROOM_IDLE_MIN (120), DAYTONA_JOIN_TRIES_PER_MIN (20), and the
+//	race settings' defaults (see package settings). The abuse limits are in
+//	guard.go.
 //
 // The game asks the defaults (op=info) and creates a room with the owner's
 // choices over them (op=create set=...). A room is gone when its last
@@ -57,6 +60,7 @@ func newKey() string {
 type client struct {
 	conn net.Conn
 	addr string
+	ip   string // addr's address, without the port
 	name string
 	room *room
 	out  chan proto.Frame
@@ -75,6 +79,9 @@ type client struct {
 	udpState // numbered game data, by TCP and UDP (udp.go); under server.mu
 
 	race raceStats // what this server saw of it in the current race, for the log (racelog.go)
+
+	lim   limits         // its frames' rate (guard.go), its reading goroutine only
+	dgram datagramLimits // its datagrams' rate (guard.go), under server.mu
 }
 
 // latencyMs: the client's round trip in ms, -1 before the first measure.
@@ -119,6 +126,10 @@ type room struct {
 	eeprom  []proto.Setting // race.EEPROM()
 	created time.Time
 
+	creatorIP  string    // rooms per address (guard.go)
+	aloneSince time.Time // when one member was left (or the room was created)
+	active     time.Time // the last join, race or game data: a room idle too long is closed (guard.go)
+
 	ringSince, ringLogged time.Time // the ring's start, its last lines in the log (racelog.go)
 }
 
@@ -140,13 +151,23 @@ type server struct {
 	// (forward); the helper's rooms stay a plain ring
 	star bool
 
-	udpConn   *net.UDPConn       // the UDP side of the port (udp.go); nil: TCP only
-	udpByAddr map[string]*client // under mu
+	udpConn    *net.UDPConn       // the UDP side of the port (udp.go); nil: TCP only
+	udpByAddr  map[string]*client // under mu
+	byKey      map[string]*client // every member by its key (Status.Key), under mu
+	udpPending []*client          // players with messages for their next datagram (udp.go), under mu
+	udpRepeat  int                // earlier messages repeated in each datagram
+
+	// abuse limits (guard.go), under mu
+	failures                       map[string]*tries
+	maxRoomsPerIP, joinTriesPerMin int
+	roomAlone, roomIdle            time.Duration
 }
 
 func newServer(race settings.Race, password string, maxRooms, maxConns, maxPerIP int) *server {
 	return &server{rooms: map[string]*room{}, password: password, maxRooms: maxRooms, race: race, now: time.Now,
-		perIP: map[string]int{}, maxConns: maxConns, maxPerIP: maxPerIP}
+		perIP: map[string]int{}, maxConns: maxConns, maxPerIP: maxPerIP,
+		udpByAddr: map[string]*client{}, byKey: map[string]*client{}, failures: map[string]*tries{},
+		udpRepeat: defaultRepeat, maxRoomsPerIP: defaultRoomsPerIP, joinTriesPerMin: defaultJoinTries, roomAlone: defaultRoomAlone, roomIdle: defaultRoomIdle}
 }
 
 func (s *server) join(c *client, h proto.Hello) error {
@@ -162,13 +183,18 @@ func (s *server) join(c *client, h proto.Hello) error {
 		if len(s.rooms) >= s.maxRooms {
 			return proto.Errf("server_full", "server full: %d rooms at most", s.maxRooms)
 		}
+		if c.ip != "" && s.roomsOf(c.ip) >= s.maxRoomsPerIP {
+			return proto.Errf("too_many_rooms", "%d rooms already open from %s (%d at most)", s.roomsOf(c.ip), c.ip, s.maxRoomsPerIP)
+		}
 		race := s.race
 		if h.Op == "create" {
 			if err := race.Apply(h.Settings); err != nil {
 				return proto.Errf("settings", "%v", err)
 			}
 		}
-		r = &room{code: h.Room, game: h.Game, race: race, eeprom: race.EEPROM(), created: s.now()}
+		now := s.now()
+		r = &room{code: h.Room, game: h.Game, race: race, eeprom: race.EEPROM(), created: now,
+			creatorIP: c.ip, aloneSince: now, active: now}
 		log.Printf("room %s: created (%s)", h.Room, race)
 		if h.Op == "auto" {
 			r.auto = h.Players
@@ -192,6 +218,8 @@ func (s *server) join(c *client, h proto.Hello) error {
 	r.members = append(r.members, c)
 	c.room = r
 	c.key = newKey()
+	s.byKey[c.key] = c
+	r.active = s.now()
 	if r.owner == nil && r.auto == 0 {
 		r.owner = c
 	}
@@ -253,6 +281,7 @@ func (s *server) formRing(r *room) {
 		m.race.reset()
 	}
 	r.ringSince, r.ringLogged = time.Now(), time.Now()
+	r.active = s.now()
 	s.notify(r)
 }
 
@@ -300,6 +329,8 @@ func (s *server) rejoin(c *client, h proto.Hello) error {
 		return proto.Errf("not_found", "no place kept in room %q for this player", h.Room)
 	}
 	c.name, c.key, c.room = old.name, old.key, r
+	s.byKey[c.key] = c
+	s.forgetAddr(old)
 	c.rtt.Store(old.rtt.Load())
 	c.race.copyFrom(&old.race)
 	c.race.backs.Add(1)
@@ -339,6 +370,13 @@ func (s *server) remove(c *client) {
 		}
 	}
 	c.room = nil
+	if s.byKey[c.key] == c {
+		delete(s.byKey, c.key)
+	}
+	s.forgetAddr(c)
+	if len(r.members) == 1 {
+		r.aloneSince = s.now()
+	}
 	if r.owner == c { // the next in line owns the room
 		r.owner = nil
 		if len(r.members) > 0 && r.auto == 0 {
@@ -349,6 +387,7 @@ func (s *server) remove(c *client) {
 		s.logRing(r, fmt.Sprintf("ended (%q left)", c.name))
 		r.ring = nil
 		r.epoch++
+		r.active = s.now()
 	}
 	log.Printf("room %s: %q (%s) left (%d in the room)", r.code, c.name, c.addr, len(r.members))
 	if len(r.members) == 0 {
@@ -507,6 +546,7 @@ func (s *server) forwardLocked(c *client, f proto.Frame) {
 	if pos == 0 || f.Epoch != r.epoch {
 		return // an old ring's data, or c is not in the race
 	}
+	r.active = s.now() // games exchanging data: never idle
 	next := r.ring[pos%len(r.ring)]
 	if s.star && r.auto == 0 && next != nil {
 		f = s.compose(r, pos-1, c, next, f)
@@ -571,7 +611,9 @@ func (s *server) handle(conn net.Conn) {
 		tc.SetNoDelay(true)
 		tc.SetKeepAlive(true)
 	}
-	c := &client{conn: conn, addr: conn.RemoteAddr().String(), out: make(chan proto.Frame, sendQueue), done: make(chan struct{})}
+	c := &client{conn: conn, addr: conn.RemoteAddr().String(), out: make(chan proto.Frame, sendQueue), done: make(chan struct{}),
+		lim: newLimits(time.Now())}
+	c.ip, _, _ = net.SplitHostPort(c.addr)
 	defer c.close()
 
 	br := bufio.NewReaderSize(conn, 32*1024)
@@ -581,10 +623,14 @@ func (s *server) handle(conn net.Conn) {
 		return
 	}
 	h, err := proto.ParseHello(strings.TrimSpace(line))
-	if err == nil && s.password != "" && subtle.ConstantTimeCompare([]byte(h.Password), []byte(s.password)) != 1 {
+	if err == nil && s.tooManyTries(c.ip) {
+		err = proto.Errf("slow_down", "too many failed attempts from %s: wait a minute", c.ip)
+	} else if err == nil && s.password != "" && subtle.ConstantTimeCompare([]byte(h.Password), []byte(s.password)) != 1 {
 		err = proto.Errf("password", "wrong server password")
+		s.failed(c.ip, err)
 	}
 	if err != nil {
+		conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
 		proto.WriteFrame(conn, proto.Frame{Type: proto.TypeError, Payload: proto.ErrorPayload(err)})
 		log.Printf("%s: refused: %v", c.addr, err)
 		return
@@ -635,6 +681,7 @@ func (s *server) handle(conn net.Conn) {
 		join = s.rejoin
 	}
 	if err := join(c, h); err != nil {
+		s.failed(c.ip, err)
 		c.send(proto.Frame{Type: proto.TypeError, Payload: proto.ErrorPayload(err)})
 		log.Printf("%s: refused: %v", c.addr, err)
 		select {
@@ -651,9 +698,28 @@ func (s *server) handle(conn net.Conn) {
 		if err != nil {
 			return
 		}
+		if !c.lim.allow(f, time.Now()) { // a flood: this connection goes, not the others (guard.go)
+			s.mu.Lock()
+			where := "-"
+			if c.room != nil {
+				where = c.room.code
+			}
+			s.mu.Unlock()
+			log.Printf("room %s: %q (%s) sends too much (frame type %q), disconnecting", where, c.name, c.addr, f.Type)
+			c.send(proto.Frame{Type: proto.TypeError, Payload: proto.ErrorPayload(
+				proto.Errf("flood", "disconnected: your game sent too much data"))})
+			select {
+			case <-c.done:
+			case <-time.After(2 * time.Second):
+			}
+			return
+		}
 		switch f.Type {
 		case proto.TypeData:
 			s.forward(c, f)
+			if br.Buffered() < 7 { // nothing more to read at once: this batch's datagrams go now
+				s.flushDatagrams()
+			}
 		case proto.TypeBegin:
 			s.begin(c)
 		case proto.TypeControl:
@@ -720,6 +786,11 @@ func main() {
 	maxRooms := flag.Int("max-rooms", envInt("DAYTONA_MAX_ROOMS", 100), "rooms open at the same time, at most (DAYTONA_MAX_ROOMS)")
 	maxConns := flag.Int("max-connections", envInt("DAYTONA_MAX_CONNECTIONS", 1000), "connections at the same time, at most (DAYTONA_MAX_CONNECTIONS)")
 	maxPerIP := flag.Int("max-per-ip", envInt("DAYTONA_MAX_PER_IP", 16), "connections from one address, at most (DAYTONA_MAX_PER_IP)")
+	roomsPerIP := flag.Int("max-rooms-per-ip", envInt("DAYTONA_MAX_ROOMS_PER_IP", defaultRoomsPerIP), "rooms open from one address, at most (DAYTONA_MAX_ROOMS_PER_IP)")
+	aloneMin := flag.Int("room-alone-min", envInt("DAYTONA_ROOM_ALONE_MIN", int(defaultRoomAlone/time.Minute)), "minutes a room's creator may wait alone (DAYTONA_ROOM_ALONE_MIN)")
+	idleMin := flag.Int("room-idle-min", envInt("DAYTONA_ROOM_IDLE_MIN", int(defaultRoomIdle/time.Minute)), "minutes a room may go without a race (DAYTONA_ROOM_IDLE_MIN)")
+	udpRepeat := flag.Int("udp-repeat", envInt("DAYTONA_UDP_REPEAT", defaultRepeat), "earlier messages repeated in each datagram (DAYTONA_UDP_REPEAT)")
+	joinTries := flag.Int("join-tries-per-min", envInt("DAYTONA_JOIN_TRIES_PER_MIN", defaultJoinTries), "failed attempts a minute from one address (DAYTONA_JOIN_TRIES_PER_MIN)")
 	flag.Parse()
 
 	race, err := settings.FromEnv(os.Getenv)
@@ -727,6 +798,10 @@ func main() {
 		log.Fatal(err)
 	}
 	s := newServer(race, *password, *maxRooms, *maxConns, *maxPerIP)
+	s.maxRoomsPerIP, s.joinTriesPerMin, s.udpRepeat = *roomsPerIP, *joinTries, max(0, *udpRepeat)
+	s.roomAlone, s.roomIdle = time.Duration(*aloneMin)*time.Minute, time.Duration(*idleMin)*time.Minute
+	log.Printf("limits: %d rooms from one address, a room closed after %v alone or %v without a race, %d failed attempts a minute",
+		s.maxRoomsPerIP, s.roomAlone, s.roomIdle, s.joinTriesPerMin)
 	s.star = os.Getenv("DAYTONA_STAR") != "0"
 	if s.star {
 		log.Printf("star mode: each player gets every other car's latest data in one hop")
@@ -751,6 +826,11 @@ func main() {
 		for range time.Tick(pingEvery) {
 			s.refreshLatency()
 			s.logRaces()
+		}
+	}()
+	go func() {
+		for range time.Tick(janitorEvery) {
+			s.janitor()
 		}
 	}()
 	s.serve(ln)

@@ -15,19 +15,24 @@ package main
 //
 //	'h' key            game -> relay: who this address is (its Status.Key); every 2 s
 //	'd' epoch(4) n(1) n x [seq(4) len(2) message]   numbered messages, newest first
+//
+// The messages a player gets in one go (a frame's block and token) share one
+// datagram, with the udpRepeat messages before them: built under the
+// server's lock, sent once it is released (flushDatagrams).
 
 import (
 	"encoding/binary"
 	"log"
 	"net"
+	"time"
 
 	"daytona-relay/proto"
 )
 
 const (
-	maxDatagram  = 1200 // bytes: under the usual path MTU, no fragmentation
-	maxRepeated  = 2    // earlier messages repeated in each datagram
-	maxOutOfStep = 64   // numbers kept waiting for an earlier one
+	maxDatagram   = 1200 // bytes: under the usual path MTU, no fragmentation
+	defaultRepeat = 2    // earlier messages repeated in each datagram (DAYTONA_UDP_REPEAT)
+	maxOutOfStep  = 64   // numbers kept waiting for an earlier one
 )
 
 type udpState struct {
@@ -38,7 +43,14 @@ type udpState struct {
 	rxEarly  map[uint32][]byte // arrived before rxNext
 	txEpoch  uint32
 	txNext   uint32
-	txRecent [][]byte // the last messages sent, numbered, for repetition
+	txRecent [][]byte // the last messages sent by UDP, numbered, for repetition
+	txPend   [][]byte // numbered messages for its next datagram (flushDatagrams)
+}
+
+// datagram: one ready to send, outside the server's lock.
+type datagram struct {
+	to   *net.UDPAddr
+	data []byte
 }
 
 // receiveNumbered takes message seq of c's (from TCP or UDP): once, in order.
@@ -90,7 +102,7 @@ func (s *server) sendData(next *client, f proto.Frame) {
 		return
 	}
 	if next.txEpoch != f.Epoch {
-		next.txEpoch, next.txNext, next.txRecent = f.Epoch, 0, nil
+		next.txEpoch, next.txNext, next.txRecent, next.txPend = f.Epoch, 0, nil, nil
 	}
 	seq := next.txNext
 	next.txNext++
@@ -101,11 +113,27 @@ func (s *server) sendData(next *client, f proto.Frame) {
 	if s.udpConn == nil || next.udpAddr == nil {
 		return
 	}
-	// the datagram: this message and the recent ones that fit
-	dg := []byte{'d', 0, 0, 0, 0, 0}
-	binary.BigEndian.PutUint32(dg[1:], f.Epoch)
+	if len(next.txPend) == 0 {
+		s.udpPending = append(s.udpPending, next)
+	}
+	next.txPend = append(next.txPend, numbered)
+}
+
+// buildDatagrams turns c's pending messages into datagrams (newest first,
+// then the ones before them for repetition). Caller holds s.mu.
+func (s *server) buildDatagrams(c *client, out []datagram) []datagram {
+	pend := c.txPend
+	c.txPend = nil
+	if c.udpAddr == nil || len(pend) == 0 {
+		return out
+	}
+	var dg []byte
+	start := func() {
+		dg = []byte{'d', 0, 0, 0, 0, 0}
+		binary.BigEndian.PutUint32(dg[1:], c.txEpoch)
+	}
 	add := func(m []byte) bool { // m: seq(4) + message
-		if len(dg)+6+len(m)-4 > maxDatagram {
+		if len(dg)+2+len(m) > maxDatagram || dg[5] == 255 {
 			return false
 		}
 		dg = append(dg, m[:4]...)
@@ -114,21 +142,66 @@ func (s *server) sendData(next *client, f proto.Frame) {
 		dg[5]++
 		return true
 	}
-	if add(numbered) {
-		for i := len(next.txRecent) - 1; i >= 0; i-- {
-			if !add(next.txRecent[i]) {
-				break
+	start()
+	for i := len(pend) - 1; i >= 0; i-- {
+		if !add(pend[i]) {
+			if dg[5] > 0 {
+				out = append(out, datagram{c.udpAddr, dg})
+			}
+			start()
+			if !add(pend[i]) { // larger than a datagram: TCP alone carries it
+				continue
 			}
 		}
-		s.udpConn.WriteToUDP(dg, next.udpAddr)
 	}
-	next.txRecent = append(next.txRecent, numbered)
-	if len(next.txRecent) > maxRepeated {
-		next.txRecent = next.txRecent[1:]
+	for i := len(c.txRecent) - 1; i >= 0 && add(c.txRecent[i]); i-- {
+	}
+	if dg[5] > 0 {
+		out = append(out, datagram{c.udpAddr, dg})
+	}
+	c.txRecent = append(c.txRecent, pend...)
+	if n := len(c.txRecent) - s.udpRepeat; n > 0 {
+		c.txRecent = append(c.txRecent[:0], c.txRecent[n:]...)
+	}
+	return out
+}
+
+// takeDatagrams: every player's pending datagrams, built. Caller holds s.mu.
+func (s *server) takeDatagrams() []datagram {
+	var out []datagram
+	for _, c := range s.udpPending {
+		out = s.buildDatagrams(c, out)
+	}
+	s.udpPending = s.udpPending[:0]
+	return out
+}
+
+// sendDatagrams sends them; the caller does not hold s.mu.
+func (s *server) sendDatagrams(dgs []datagram) {
+	for _, d := range dgs {
+		s.udpConn.WriteToUDP(d.data, d.to)
 	}
 }
 
-// serveUDP reads the games' datagrams.
+// flushDatagrams builds and sends the pending datagrams. Takes s.mu.
+func (s *server) flushDatagrams() {
+	if s.udpConn == nil {
+		return
+	}
+	s.mu.Lock()
+	dgs := s.takeDatagrams()
+	s.mu.Unlock()
+	s.sendDatagrams(dgs)
+}
+
+// forgetAddr: c's datagram address is no longer c's. Caller holds s.mu.
+func (s *server) forgetAddr(c *client) {
+	if c.udpAddr != nil && s.udpByAddr[c.udpAddr.String()] == c {
+		delete(s.udpByAddr, c.udpAddr.String())
+	}
+}
+
+// serveUDP reads the games' datagrams (rate limited per player: guard.go).
 func (s *server) serveUDP() {
 	buf := make([]byte, 64*1024)
 	for {
@@ -143,23 +216,16 @@ func (s *server) serveUDP() {
 		dg := buf[:n]
 		s.mu.Lock()
 		switch dg[0] {
-		case 'h': // a game's address: its key says who it is
-			key := string(dg[1:])
-			for _, r := range s.rooms {
-				for _, m := range r.members {
-					if m.udp && m.key != "" && m.key == key {
-						if m.udpAddr == nil || m.udpAddr.String() != addr.String() {
-							if s.udpByAddr == nil {
-								s.udpByAddr = map[string]*client{}
-							}
-							m.udpAddr = addr
-							s.udpByAddr[addr.String()] = m
-						}
-					}
+		case 'h': // a game's address: its key says who it is; only from that player's own address
+			if m := s.byKey[string(dg[1:])]; m != nil && m.udp && m.room != nil && addr.IP.String() == m.ip {
+				if m.udpAddr == nil || m.udpAddr.String() != addr.String() {
+					s.forgetAddr(m)
+					m.udpAddr = addr
+					s.udpByAddr[addr.String()] = m
 				}
 			}
 		case 'd':
-			if c := s.udpByAddr[addr.String()]; c != nil && c.udpAddr != nil && len(dg) >= 6 {
+			if c := s.udpByAddr[addr.String()]; c != nil && c.udpAddr != nil && len(dg) >= 6 && c.dgram.allow(n, time.Now()) {
 				epoch := binary.BigEndian.Uint32(dg[1:])
 				count, p := int(dg[5]), 6
 				for i := 0; i < count && p+6 <= len(dg); i++ {
@@ -174,6 +240,8 @@ func (s *server) serveUDP() {
 				}
 			}
 		}
+		dgs := s.takeDatagrams()
 		s.mu.Unlock()
+		s.sendDatagrams(dgs)
 	}
 }

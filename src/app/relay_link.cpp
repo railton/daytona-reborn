@@ -83,6 +83,10 @@ std::string server_error(const std::string &payload) {
     if (code == "players") return TXR("Invalid number of players: 2 to 8.");
     if (code == "settings") return TXR("The server refused the room's settings.");
     if (code == "room_kind") return TXR("This room belongs to the daytona-link helper, not to the game's Online mode.");
+    if (code == "too_many_rooms") return TXR("Too many rooms open from your address.");
+    if (code == "slow_down") return TXR("Too many failed attempts: wait a minute and try again.");
+    if (code == "idle") return TXR("The room was closed: nobody raced in it for a long time.");
+    if (code == "flood") return TXR("Disconnected by the server: your game sent too much data.");
     if (code == "game_version")
         return TXR("This room was created by another version of the game: every player needs the same version.");
     return std::string(TXR("The server refused the connection: ")) + text;
@@ -166,6 +170,7 @@ RelayLink::RelayLink(const std::string &server, const online::Hello &hello)
     // docs/ONLINE_PROTOCOL_STUDY.md)
     if (const char *v = std::getenv("M2_PROTO_COALESCE")) coalesce_ = *v != '0';
     if (const char *v = std::getenv("M2_PROTO_RECONNECT")) may_reconnect_ = *v != '0';
+    if (const char *v = std::getenv("M2_PROTO_UDP_REPEAT")) udp_repeat_ = std::max(0, std::atoi(v));
     const char *u = std::getenv("M2_PROTO_UDP");
     if (!(u && *u == '0') && hello.op != online::Hello::Op::Info) {
         udp_ = true;
@@ -222,6 +227,7 @@ void RelayLink::lost(const std::string &why) {
     rx_codec_.reset();
     tx_seq_ = rx_next_ = 0; // and its numbers (a new client there)
     tx_recent_.clear();
+    udp_pend_.clear();
     rx_early_.clear();
     udp_close();
     online::Hello back = hello_struct_;
@@ -301,8 +307,45 @@ void RelayLink::poll() {
     if (state_ != State::Failed && sock_ >= 0 && now_ms() - last_rx_ms_ > silence) lost(TXR("The server stopped answering."));
 }
 
+// The messages written since the last flush (a frame's block and token)
+// in one datagram, newest first, with the udp_repeat_ messages before them.
+void RelayLink::udp_flush() {
+    if (udp_pend_.empty()) return;
+    std::string dg;
+    auto start = [&] {
+        dg = "d";
+        for (int i = 0; i < 4; ++i) dg += char(uint8_t(epoch_ >> (24 - 8 * i)));
+        dg += '\0';
+    };
+    auto add = [&](const std::string &m) { // m: seq(4) + message
+        if (dg.size() + 2 + m.size() > 1200 || uint8_t(dg[5]) == 255) return false;
+        dg.append(m, 0, 4);
+        dg += char(uint8_t((m.size() - 4) >> 8));
+        dg += char(uint8_t(m.size() - 4));
+        dg.append(m, 4, std::string::npos);
+        dg[5] = char(uint8_t(dg[5]) + 1);
+        return true;
+    };
+    auto send = [&] {
+        if (udp_sock_ >= 0 && dg[5] != 0) ::send(native_socket(udp_sock_), dg.data(), int(dg.size()), kNoSignal);
+    };
+    start();
+    for (auto it = udp_pend_.rbegin(); it != udp_pend_.rend(); ++it)
+        if (!add(*it)) {
+            send();
+            start();
+            add(*it); // larger than a datagram: TCP alone carries it
+        }
+    for (auto it = tx_recent_.rbegin(); it != tx_recent_.rend() && add(*it); ++it) {}
+    send();
+    for (auto &m : udp_pend_) tx_recent_.push_back(std::move(m));
+    udp_pend_.clear();
+    if (tx_recent_.size() > size_t(udp_repeat_)) tx_recent_.erase(tx_recent_.begin(), tx_recent_.end() - udp_repeat_);
+}
+
 void RelayLink::flush() {
     if (sock_ < 0) return; // reconnecting: sent once back
+    if (udp_) udp_flush();
     while (!out_.empty()) {
         const auto sent = ::send(native_socket(sock_), out_.data(), int(std::min<size_t>(out_.size(), 1 << 16)), kNoSignal);
         if (sent > 0) {
@@ -384,6 +427,7 @@ void RelayLink::frame(uint8_t type, uint32_t epoch, const std::string &payload) 
                 rx_codec_.reset();
                 tx_seq_ = rx_next_ = 0; // numbers start again with the ring
                 tx_recent_.clear();
+                udp_pend_.clear();
                 rx_early_.clear();
             }
             epoch_ = epoch;
@@ -540,25 +584,7 @@ bool RelayLink::write(const uint8_t *buf, int n) {
         ++tx_seq_;
         numbered += message;
         online::append_frame(out_, online::kData, epoch_, reinterpret_cast<const uint8_t *>(numbered.data()), numbered.size());
-        if (udp_sock_ >= 0 && numbered.size() + 6 <= 1200) { // the datagram: this one and the recent ones that fit
-            std::string dg = "d";
-            for (int i = 0; i < 4; ++i) dg += char(uint8_t(epoch_ >> (24 - 8 * i)));
-            dg += '\0';
-            auto add = [&](const std::string &m) {
-                if (dg.size() + 2 + m.size() > 1200) return false;
-                dg.append(m, 0, 4);
-                dg += char(uint8_t((m.size() - 4) >> 8));
-                dg += char(uint8_t(m.size() - 4));
-                dg.append(m, 4, std::string::npos);
-                ++dg[5];
-                return true;
-            };
-            add(numbered);
-            for (auto it = tx_recent_.rbegin(); it != tx_recent_.rend() && add(*it); ++it) {}
-            ::send(native_socket(udp_sock_), dg.data(), int(dg.size()), kNoSignal);
-        }
-        tx_recent_.push_back(numbered);
-        if (tx_recent_.size() > 2) tx_recent_.erase(tx_recent_.begin());
+        if (udp_sock_ >= 0) udp_pend_.push_back(std::move(numbered)); // its datagram goes with the flush (udp_flush)
     } else {
         online::append_frame(out_, online::kData, epoch_, reinterpret_cast<const uint8_t *>(message.data()), message.size());
     }

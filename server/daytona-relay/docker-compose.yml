@@ -19,9 +19,14 @@ services:
       DAYTONA_MAX_ROOMS: "${DAYTONA_MAX_ROOMS:-100}"
       DAYTONA_MAX_CONNECTIONS: "${DAYTONA_MAX_CONNECTIONS:-1000}"
       DAYTONA_MAX_PER_IP: "${DAYTONA_MAX_PER_IP:-16}"          # players behind one router share an address
+      DAYTONA_MAX_ROOMS_PER_IP: "${DAYTONA_MAX_ROOMS_PER_IP:-8}"   # rooms open from one address
+      DAYTONA_ROOM_ALONE_MIN: "${DAYTONA_ROOM_ALONE_MIN:-30}"     # a room's creator alone this long: closed
+      DAYTONA_ROOM_IDLE_MIN: "${DAYTONA_ROOM_IDLE_MIN:-120}"      # a room without a race this long: closed
+      DAYTONA_JOIN_TRIES_PER_MIN: "${DAYTONA_JOIN_TRIES_PER_MIN:-20}" # failed attempts (room code, password) a minute from one address
       # Star mode: each player gets every other car's latest data in one hop, and a
       # dropped player may come back within 10 s. 0: the ring of 0.12 (diagnostics).
       DAYTONA_STAR: "${DAYTONA_STAR:-1}"
+      DAYTONA_UDP_REPEAT: "${DAYTONA_UDP_REPEAT:-2}"             # earlier messages repeated in each datagram
       # Race settings' defaults: the game shows them when creating a room, its creator may change them:
       DAYTONA_CABINET: "${DAYTONA_CABINET:-twin}"                 # twin | uplight | deluxe
       DAYTONA_COUNTRY: "${DAYTONA_COUNTRY:-usa}"                  # usa (English) | jpn (Japanese) | export
@@ -33,6 +38,8 @@ services:
       DAYTONA_START: "${DAYTONA_START:-master}"                   # master: only the room's creator starts a race | anyone
     read_only: true
     cap_drop: [ALL]
+    mem_limit: 256m   # an abuse cannot take the machine's memory (the relay uses a few MB)
+    pids_limit: 128
     security_opt: ["no-new-privileges:true"]
     logging:
       driver: json-file

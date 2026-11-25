@@ -361,9 +361,10 @@ later: the other cars freeze, then jump. UDP has no such wait, but loses
 packets and is blocked on some networks.
 
 **The solution.** Every race message travels **both ways at once**: in its
-TCP frame and in a UDP datagram that also **repeats the two messages before
-it**. The receiver takes each message **once, in order, from whichever path
-brings it first**.
+TCP frame and in a UDP datagram. A frame's messages (the block and the
+token) share one datagram, which also **repeats the two messages before
+them**. The receiver takes each message **once, in order, from whichever
+path brings it first**.
 
 ```mermaid
 sequenceDiagram
@@ -379,6 +380,13 @@ sequenceDiagram
     S->>Rx: TCP D 6, D 7 (resent)
     Note over Rx: already delivered: dropped
 ```
+
+**Why two repeats.** Measured with 8 players at 100 ms: with 2% random
+loss the TCP copy already covers most lost datagrams (the worst player
+96.7% smooth without repeats, 96.3-99.4% with two); with loss in bursts, as
+on Wi-Fi, the repeats are what keeps the cars moving (worst player 96.2%
+without, 98.1% with two). Each repeat costs traffic: the relay sends about
+0.46 Mbit/s a player with two, 0.33 without (`DAYTONA_UDP_REPEAT`).
 
 **In detail.** With `udp=1`, every `D` message carries a 4-byte sequence
 number, which restarts with each epoch. A datagram is `d`, the epoch, a
@@ -543,8 +551,12 @@ and some stutter. Pick a server close to every player.
 
 ## Limits and safety
 
-- Up to 8 players a room; a server caps connections, connections per
-  address and rooms (`DAYTONA_MAX_*`).
+- Up to 8 players a room. A server caps connections, connections and rooms
+  per address and rooms in all; it rate-limits each connection (a player
+  who floods is disconnected, not the others), closes idle rooms, slows
+  down whoever keeps trying wrong room codes or passwords, and takes a
+  player's datagram address only from that player's own connection
+  (`server/daytona-relay/README.md`, "Abuse limits").
 - The connection is **not encrypted**: race data is not sensitive, but a
   room's password travels in clear.
 

@@ -1140,6 +1140,18 @@ msgstr ""
 msgid "This room belongs to the daytona-link helper, not to the game's Online mode."
 msgstr ""
 
+msgid "Too many rooms open from your address."
+msgstr ""
+
+msgid "Too many failed attempts: wait a minute and try again."
+msgstr ""
+
+msgid "The room was closed: nobody raced in it for a long time."
+msgstr ""
+
+msgid "Disconnected by the server: your game sent too much data."
+msgstr ""
+
 msgid "This room was created by another version of the game: every player needs the same version."
 msgstr ""
 

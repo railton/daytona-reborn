@@ -4,6 +4,65 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`). The
 fork's version is in `VERSION`, raised with every code change (rules.md
 rule 14); each version has its section here.
 
+## 0.16.0 (2026-11-24)
+
+### Online server: abuse limits
+
+A security review of the relay found that a player in a room could push the
+others out, and that a few addresses could hold every room. The relay now
+limits (`server/daytona-relay/cmd/daytona-relay/guard.go`, "Abuse limits"
+in its README):
+
+- **Each connection's traffic**: 400 frames, 1 MB and 20 control messages a
+  second; a game sends about 120 frames and a few control messages. Before,
+  a player flooding control messages filled the other players' send queues
+  and the server disconnected *them* (a player on a 1 Mbit/s line was out
+  in 0.9 s); now the flooder is disconnected (error `flood`) and the race
+  goes on. Each player's datagrams likewise (the excess is dropped).
+- **Rooms**: 8 open from one address (one address held 16, so 7 addresses
+  could take all 100); a room whose creator waits alone 30 minutes, or that
+  goes 2 hours without a race, is closed (error `idle`). The games' link
+  data counts as activity, so a race is never cut.
+- **Guessing**: 20 failed attempts a minute from one address (a room that
+  does not exist, a wrong password; error `slow_down`); one address tried
+  4,187 room codes a second before.
+- **Datagram addresses** are taken only from the address of the player's
+  own connection (before, anyone with a player's key could point that
+  player's datagrams at another machine), and forgotten when the player
+  leaves.
+- Settings: `DAYTONA_MAX_ROOMS_PER_IP`, `DAYTONA_ROOM_ALONE_MIN`,
+  `DAYTONA_ROOM_IDLE_MIN`, `DAYTONA_JOIN_TRIES_PER_MIN`.
+- The container: at most 256 MB of memory and 128 processes; Go 1.27.4,
+  pinned by digest (1.24 no longer gets security fixes).
+- Checked: the relay's decoder and wire parsers fuzzed (53 million inputs,
+  no crash), `govulncheck` (nothing that applies), the attacks above
+  repeated against the new relay.
+
+### Online: a lighter relay
+
+- **The relay's codec is 6 times faster** (8 bytes compared at a time, a
+  reference given up once it has lost, its buffers reused): 28 to 4.3 µs
+  to encode a block, decoding about 6 times faster; the bytes are the same
+  as the game's (its test against the game's codec, fuzzed 45 s more).
+- **A frame's messages share one datagram**, in the game and in the relay
+  (before, the block and the token went in two, each repeating the ones
+  before), and the relay sends its datagrams once its lock is released.
+- Measured, 8 headless players on a local relay, a session each: the
+  relay's CPU 9.4% to about 5.5% of a core, what it sends 0.63 to 0.46
+  Mbit/s a player (a full room about 1.7 GB an hour instead of 2.3), the
+  other cars as smooth (99.1-99.9%). Synthetic load on 2 CPUs: about 35%
+  less CPU at 5 rooms; it still saturates near 20 rooms (the codec is no
+  longer the limit there).
+- The repeats each datagram carries stay at two: with loss in bursts the
+  worst player was 98.1% smooth with them and 96.2% without (with random
+  loss they hardly matter); `DAYTONA_UDP_REPEAT` (and the game's
+  `M2_PROTO_UDP_REPEAT`, diagnostics) lower them for less traffic.
+
+The game shows its own text for the four new errors, in the player's
+language. The online version stays 10: 0.15 games play with 0.16 games and
+with the new relay (they show the server's English text for the new
+errors).
+
 ## 0.15.0 (2026-11-24)
 
 ### Online play

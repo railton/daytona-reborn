@@ -92,7 +92,10 @@ private:
     bool udp_ = false;
     long long udp_sock_ = -1;
     uint32_t tx_seq_ = 0, rx_next_ = 0;
-    std::vector<std::string> tx_recent_; // numbered: seq(4) + message
+    std::vector<std::string> tx_recent_; // numbered: seq(4) + message, sent by UDP, for repetition
+    std::vector<std::string> udp_pend_;  // numbered, for the next datagram (udp_flush)
+    int udp_repeat_ = 2;                 // earlier messages repeated in each datagram (M2_PROTO_UDP_REPEAT)
+    void udp_flush();
     std::map<uint32_t, std::string> rx_early_;
     uint64_t udp_hello_ms_ = 0;
     uint64_t udp_received_ = 0, udp_first_ = 0; // diagnostics: datagram messages, delivered first by UDP

@@ -41,6 +41,10 @@ Edit `docker-compose.yml`, or put them in a `.env` file beside it, then
 | `DAYTONA_MAX_ROOMS` | `100` | rooms open at the same time |
 | `DAYTONA_MAX_CONNECTIONS` | `1000` | connections at the same time |
 | `DAYTONA_MAX_PER_IP` | `16` | connections from one address (players behind one router share it) |
+| `DAYTONA_MAX_ROOMS_PER_IP` | `8` | rooms open from one address |
+| `DAYTONA_ROOM_ALONE_MIN` | `30` | minutes a room's creator may wait alone before the room is closed |
+| `DAYTONA_ROOM_IDLE_MIN` | `120` | minutes a room may go without a race (no game data) before it is closed |
+| `DAYTONA_JOIN_TRIES_PER_MIN` | `20` | failed attempts a minute from one address (a room that does not exist, a wrong password) |
 | `DAYTONA_CABINET` | `twin` | `twin`, `uplight`, `deluxe` |
 | `DAYTONA_COUNTRY` | `usa` | `usa` (the game in English), `jpn` (in Japanese), `export` |
 | `DAYTONA_DIFFICULTY` | `normal` | `easy`, `normal`, `hard`, `hardest` |
@@ -49,6 +53,7 @@ Edit `docker-compose.yml`, or put them in a `.env` file beside it, then
 | `DAYTONA_ADVERTISE_SOUND` | `on` | `on`, `off` |
 | `DAYTONA_FREE_PLAY` | `on` | `on` (no coins, Start only), `off` |
 | `DAYTONA_START` | `master` | `master` (only the room's creator starts a race), `anyone` |
+| `DAYTONA_UDP_REPEAT` | `2` | earlier messages repeated in each datagram: what covers a burst of lost datagrams (fewer: less traffic) |
 | `DAYTONA_STAR` | `1` | `1` star mode (above); `0` the ring of 0.12, for comparisons (no rejoin) |
 
 The race variables are the **defaults**: the game shows them when its
@@ -63,6 +68,29 @@ Example `.env`:
 
     DAYTONA_PASSWORD=change-this-password
     DAYTONA_DIFFICULTY=hard
+
+## Abuse limits
+
+A room's players are the only ones who can reach it, but one of them, or a
+few addresses, could still take the server from the others. The relay
+(`cmd/daytona-relay/guard.go`) limits:
+
+- **each connection's traffic**: 400 frames, 1 MB and 20 control messages a
+  second (a game sends about 120 frames and a few control messages). One
+  that floods is disconnected itself (error `flood`), and the other players
+  keep racing; each player's datagrams likewise (the excess is dropped);
+- **rooms per address**: 8, and 16 connections;
+- **idle rooms**: closed after 30 minutes with their creator alone, or 2
+  hours without a race (error `idle`); a room whose games are linked is
+  never idle;
+- **guessing**: 20 failed attempts a minute from one address (a room that
+  does not exist, a wrong password; error `slow_down`), so room codes
+  (31^8) and a server password cannot be tried quickly;
+- **datagram addresses**: taken only from the address of the player's own
+  connection, so nobody can send a race's datagrams elsewhere.
+
+The container runs as nobody, read-only, without capabilities, with at
+most 256 MB of memory and 128 processes.
 
 ## Logs
 
@@ -134,7 +162,7 @@ cabinet `127.0.0.1:15200`. LINK ID and CAR NUMBER then go in the test menu
 
 Build (Go 1.22+, or Docker):
 
-    docker run --rm -v "$PWD:/src" -w /src golang:1.24 sh -c \
+    docker run --rm -v "$PWD:/src" -w /src golang:1.27 sh -c \
       'go test ./... && go build -o dist/daytona-link ./cmd/daytona-link && GOOS=windows go build -o dist/daytona-link.exe ./cmd/daytona-link'
 
 ## Testing headless
@@ -200,8 +228,10 @@ A game that says `udp=1` numbers its `D` messages (a 4-byte sequence number
 first) and sends each one in a UDP datagram to the same port as well; the
 server does the same towards it. Datagrams: `h` + key (the game's address,
 every 2 s, which also keeps its router's mapping open) and `d` epoch (4),
-count (1), then count x [seq (4), length (2), message], each repeating the
-two messages before it. Each side takes every number once, in order, from
+count (1), then count x [seq (4), length (2), message], newest first: the
+messages of one go (a frame's block and token) share a datagram, with the
+two messages before them repeated (`DAYTONA_UDP_REPEAT`; the game:
+`M2_PROTO_UDP_REPEAT`). Each side takes every number once, in order, from
 whichever path brings it first. Details in `proto/proto.go` and
 `cmd/daytona-relay/udp.go`; the game's side is `src/app/online.*` and
 `src/app/relay_link.*`.

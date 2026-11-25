@@ -1195,6 +1195,18 @@ msgstr "O servidor recusou as configurações da sala."
 msgid "This room belongs to the daytona-link helper, not to the game's Online mode."
 msgstr "Esta sala pertence ao utilitário daytona-link, não ao modo Online do jogo."
 
+msgid "Too many rooms open from your address."
+msgstr "Muitas salas abertas a partir do seu endereço."
+
+msgid "Too many failed attempts: wait a minute and try again."
+msgstr "Muitas tentativas sem sucesso: espere um minuto e tente de novo."
+
+msgid "The room was closed: nobody raced in it for a long time."
+msgstr "A sala foi fechada: ninguém correu nela por muito tempo."
+
+msgid "Disconnected by the server: your game sent too much data."
+msgstr "Desconectado pelo servidor: seu jogo enviou dados demais."
+
 msgid "This room was created by another version of the game: every player needs the same version."
 msgstr "Esta sala foi criada por outra versão do jogo: todos os jogadores precisam ter a mesma versão."
 

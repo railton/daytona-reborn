@@ -10,7 +10,11 @@
 //	            XOR against it as (varint zero run, varint literal count, literals)*
 package linkcodec
 
-import "errors"
+import (
+	"encoding/binary"
+	"errors"
+	"math/bits"
+)
 
 const (
 	Slot     = 0x1c0
@@ -38,8 +42,9 @@ func (c *Codec) ref(r byte) []byte {
 }
 
 func (c *Codec) push(block []byte) {
+	old := c.hist[1] // its buffer is reused: nothing else holds it
 	c.hist[1] = c.hist[0]
-	c.hist[0] = append([]byte(nil), block...)
+	c.hist[0] = append(old[:0], block...)
 }
 
 func putVar(out []byte, n int) []byte {
@@ -70,6 +75,29 @@ func getVar(m []byte, p int) (int, int, bool) {
 // compresses against the history.
 func IsBlock(f []byte) bool { return len(f) >= 2 && f[0] <= 8 && (len(f)-1)%Slot == 0 }
 
+var zeroSlot [Slot]byte
+
+// differing counts the bytes where a and b (Slot bytes each) differ, 8 at a
+// time; it stops once the count reaches limit (the reference has lost to a
+// better one: only a smaller count is taken), so the encoding is the same.
+func differing(a, b []byte, limit int) int {
+	d := 0
+	for i := 0; i < Slot; i += 8 {
+		x := binary.LittleEndian.Uint64(a[i:]) ^ binary.LittleEndian.Uint64(b[i:])
+		if x == 0 {
+			continue
+		}
+		x |= x >> 4 // each byte's low bit: whether that byte differs
+		x |= x >> 2
+		x |= x >> 1
+		d += bits.OnesCount64(x & 0x0101010101010101)
+		if d >= limit {
+			return d
+		}
+	}
+	return d
+}
+
 // Encode appends the message for one wire frame.
 func (c *Codec) Encode(out, f []byte) []byte {
 	n := len(f)
@@ -89,17 +117,9 @@ func (c *Codec) Encode(out, f []byte) []byte {
 		consider := func(r byte) bool {
 			d := 0
 			if r == 0 {
-				for _, v := range cur {
-					if v != 0 {
-						d++
-					}
-				}
+				d = differing(cur, zeroSlot[:], bestN)
 			} else if x := c.ref(r); x != nil {
-				for i := range cur {
-					if cur[i] != x[i] {
-						d++
-					}
-				}
+				d = differing(cur, x, bestN)
 			} else {
 				return false
 			}
@@ -184,11 +204,11 @@ func (c *Codec) Decode(m []byte) ([]byte, error) {
 	if len(m) < 2 {
 		return nil, ErrMalformed
 	}
-	id := m[1]
+	frame := make([]byte, 1, 1+8*Slot) // the id, then the block
+	frame[0] = m[1]
 	p := 2
-	var block []byte
 	for p < len(m) {
-		if len(block)+Slot > MaxFrame {
+		if len(frame)-1+Slot > MaxFrame {
 			return nil, ErrMalformed
 		}
 		r := m[p]
@@ -212,28 +232,26 @@ func (c *Codec) Decode(m []byte) ([]byte, error) {
 			if zeros > Slot-i || literals > Slot-i-zeros || len(m)-p < literals {
 				return nil, ErrMalformed
 			}
-			for k := 0; k < zeros; k++ {
-				if x != nil {
-					block = append(block, x[i+k])
-				} else {
-					block = append(block, 0)
-				}
+			if x != nil {
+				frame = append(frame, x[i:i+zeros]...)
+			} else {
+				frame = append(frame, zeroSlot[:zeros]...)
 			}
 			i += zeros
-			for k := 0; k < literals; k++ {
-				v := m[p+k]
-				if x != nil {
-					v ^= x[i+k]
+			if x != nil {
+				for k := 0; k < literals; k++ {
+					frame = append(frame, m[p+k]^x[i+k])
 				}
-				block = append(block, v)
+			} else {
+				frame = append(frame, m[p:p+literals]...)
 			}
 			p += literals
 			i += literals
 		}
 	}
-	if len(block) == 0 {
+	if len(frame) == 1 {
 		return nil, ErrMalformed
 	}
-	c.push(block)
-	return append([]byte{id}, block...), nil
+	c.push(frame[1:])
+	return frame, nil
 }
