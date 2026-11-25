@@ -72,6 +72,8 @@ private:
     std::array<std::vector<Face>, 3> bodies_;
     std::vector<Face> wheel_; // the player's wheel (wheel.m2car), empty: the game's
     float wheel_radius_ = 0;  // its tyre's radius (the farthest corner from the axle)
+    struct WheelAxles { bool valid = false; float front_z = 0, rear_z = 0, half_track = 0; };
+    WheelAxles wheel_axles_; // M2WHEEL2: where the new car's wheels go (body space)
     std::vector<uint8_t> atlas_;
     std::vector<rt::GeoPoly> scene_;
     bool player_ = false;

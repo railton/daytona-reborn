@@ -10,7 +10,8 @@ The model, its converted files and the conversion scripts stay on the
 working computer, outside the repository (rule 6 for the game's data; the
 model's own licence for the car). The scripts are referred to here by name;
 they live in the local working folder (`planos/carro-foto/ferramentas/`,
-beside the repository).
+beside the repository): `camaro/` (camaro.py, wheel.py), `fusca/`
+(fusca.py, preview.py), `captura/` (shots.sh and its inputs).
 
 ## The path, in short
 
@@ -215,14 +216,55 @@ quality" appears only when a race fell short of full speed.
 | Yellow triangles on the rear window after reducing | paint under the glass and trims reduced into it | paint near the glass and trims kept at their targets |
 | Lamps read as balls; sky streaks on the grille | reflector bowls, slanted slats | pressed flat |
 
+## The second car: a Beetle, black, at its real size
+
+A 1960s Beetle (Sketchfab, CC BY 4.0), converted by `fusca.py` in the same
+folder. What differed from the Camaro, and what to reuse:
+
+- **Try the colour first.** Before any conversion, `fusca/preview.py GLB
+  OUT.png [HEX]` draws the whole model from four angles with its paint
+  recoloured (point splats of the textured faces, a Lambert light, a rough
+  sky reflection): the paint's colour was chosen from it (black, keeping
+  the model's own wear) before anything else was done.
+- **Its size: real.** Its wheelbase is 2.40 against the game car's 2.81.
+  Scaled to the game's wheels it would have been 1.93 m tall; at its own
+  size its wheels sit in its own arches, drawn there by `M2WHEEL2` (see
+  CUSTOM-CARS.md). No arch to cut, no body to lift. The game's collisions
+  and checkered shadow stay the game car's (about 40 cm longer at each
+  end).
+- **No material is the paint.** Its four materials are texture atlases
+  shared by paint, glass, trim and tyres. Faces are told apart by the
+  texture under them: glass where the texture is transparent (alpha under
+  250), paint by the texture's hue (the beige: 20 to 55 degrees, some
+  saturation), and on the body panels' own atlas the pale, worn paint too.
+  The paint is recoloured in the textures before the bake, each texel's
+  light kept relative to the paint's median (the wear stays).
+- **Interior** removed by the "never seen from outside" pass alone, the
+  glass counting as opaque.
+- **Bumpers on their own surface.** Seen from behind, the rear bumper lay
+  over the apron, whose texels then took the chrome (white patches below
+  the engine lid, and on the sides' corners). The bumpers (bright trim, low,
+  within 42 cm of the ends) get surface 5, the front bumper baked from ahead
+  in one half and the rear from behind in the other; every other surface is
+  baked with the bumpers taken out of the full-detail mesh, so its rays
+  reach the body behind them. The engine lid joins the roof's surface (seen
+  from above they do not overlap).
+- **Its own wheel** from the model: centred, mirrored like the body, its
+  origin moved to its inner face (as the game wheel's), the part of the
+  atlas it uses resampled into the wheel texture.
+- Result: 15,840 faces, a 1,180-face wheel, game + renderer CPU median
+  5.9 ms in the benchmark above.
+
 ## For the next car
 
-1. Copy `camaro.py` and adapt its **material names** (`CarPaint`,
-   `Windows`, `chrome`, ...) and the axis check to the new model; the
-   placement, reduction, bake and writing stages are generic.
+1. Start from the converter nearer the new model: `camaro.py` when the
+   model has a paint material of its own (adapt the material names), on
+   the game's wheels; `fusca.py` when paint and the rest share texture
+   atlases (adapt the colour rules), at its own size with `M2WHEEL2`. Check
+   the axes (which way is the front, which side the right) first.
 2. Keep the per-material targets near the ones above, so that the body
    ends under about 20,000 faces.
-3. Set the **livery** stage for the new car (or keep the model's paint).
+3. Try the paint with `preview.py`, then set the **livery** or colour.
 4. Run `wheel.py` on the new model's wheel (or keep the Camaro's).
 5. Go through every shot in the table and the benchmark before using it.
 6. Write its `CREDITOS.txt` (author, link, licence, what was changed).

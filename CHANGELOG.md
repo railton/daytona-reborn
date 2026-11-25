@@ -31,6 +31,14 @@ the game's car.
   of the game's four wheels through their matrices, so they spin and
   steer; mirrored for the left, raised to stand on the same ground, its
   textures the atlas's second body.
+- A car of another size: `wheel.m2car` may start `M2WHEEL2 FRONT_Z REAR_Z
+  HALF_TRACK`, which draws the wheels on that car's own axles (body space)
+  instead of the game car's; only the drawing moves. With the game's axles
+  (1.4135, -1.399, 0.525) the frames match M2WHEEL1's (a few hundred
+  pixels differ: the game's left and right hubs are 1.6 mm apart). Checked
+  with a real-size 1960s Beetle (wheelbase 2.40 against the game car's
+  2.81): 15,840 faces and a 1,180-face wheel, game + renderer CPU median
+  5.9 ms at 3440 x 1440 with every image option.
 - The mission select screen's two turning cars (not keyed: known by their
   ROM objects) take the body and wheels too, each lit by its own game light
   over the brightest's, so the car not chosen stays dimmed as the game's.

@@ -63,6 +63,14 @@ steer, mirrored for the left ones, and raised so that its tyre (radius: its
 farthest corner from the axle) stands on the same ground. Its surfaces are
 the atlas's second body's (`liveries.rgba`, body 1); SHADE is its light.
 
+A car of another size: `M2WHEEL2 FRONT_Z REAR_Z HALF_TRACK` in place of
+`M2WHEEL1` puts the wheels on its own axles: the wheel's origin (its x = 0
+plane, on the axle) at body z FRONT_Z (front) and REAR_Z (rear), at |x|
+HALF_TRACK, instead of the game car's (z +1.4135 and -1.399, |x| 0.525: the
+game wheel's origin is its inner face). The drawing only: the game's physics,
+its collisions and the checkered shadow stay the game car's. FRONT_Z must
+exceed REAR_Z by more than 1, HALF_TRACK lie between 0.3 and 1.2.
+
 ## Limits
 
 - The game's car is replaced in the race, its start, replays and the

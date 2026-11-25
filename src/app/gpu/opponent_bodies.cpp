@@ -49,14 +49,29 @@ bool OpponentBodies::load(const std::string &directory, int max_faces) {
     // optional, the player's car: wheel.m2car, "M2WHEEL1" then one wheel in
     // the game wheel's own space (the hub at 0, the axle along x, the outer
     // face towards +x: a right wheel; mirrored for the left), its textures
-    // the atlas's second body's surfaces
+    // the atlas's second body's surfaces. "M2WHEEL2 FRONT_Z REAR_Z HALF_TRACK"
+    // also places the wheels: the wheel's origin (its x = 0 plane, on the
+    // axle) at those body-space axles and |x| instead of the game car's (z
+    // +1.4135 and -1.399, |x| 0.525: the game's wheel origin is its inner
+    // face); for a car of another size, the drawing only, the physics stay
     wheel_.clear();
+    wheel_axles_ = {};
     if (std::ifstream wheels(root / "wheel.m2car"); wheels) {
         wheels.imbue(std::locale::classic());
         std::string tag;
         std::vector<Face> wheel;
-        if (wheels >> tag && tag == "M2WHEEL1" && read_faces(wheels, max_faces, wheel) && (wheels >> std::ws).eof())
+        WheelAxles axles;
+        bool ok = wheels >> tag && (tag == "M2WHEEL1" || tag == "M2WHEEL2");
+        if (ok && tag == "M2WHEEL2") {
+            ok = wheels >> axles.front_z >> axles.rear_z >> axles.half_track && std::abs(axles.front_z) <= 3 &&
+                 std::abs(axles.rear_z) <= 3 && axles.front_z > axles.rear_z + 1.0f && axles.half_track > 0.3f &&
+                 axles.half_track < 1.2f;
+            axles.valid = ok;
+        }
+        if (ok && read_faces(wheels, max_faces, wheel) && (wheels >> std::ws).eof()) {
             wheel_ = std::move(wheel);
+            wheel_axles_ = axles;
+        }
     }
     wheel_radius_ = 0;
     for (const auto &f : wheel_)
@@ -569,6 +584,22 @@ const std::vector<rt::GeoPoly> *OpponentBodies::replace(const std::vector<rt::Ge
                 dim = std::clamp((f[0] + std::sqrt(f[1] * f[1] + f[2] * f[2] + f[3] * f[3])) / light_reference_, 0.08f, 1.0f);
             }
             const bool left = source->mobile_key.part == 0x810cu || source->mobile_key.part == 0x8210u;
+            // M2WHEEL2: the hub moved to the new car's axle and track, along
+            // the body's own axes (its height and the game's steering kept)
+            float shift[3] = {0, 0, 0};
+            if (wheel_axles_.valid) {
+                const float d[3] = {m[9] - bm[9], m[10] - bm[10], m[11] - bm[11]};
+                const float ax[3] = {bm[0], bm[1], bm[2]}, az[3] = {bm[6], bm[7], bm[8]};
+                const float xx = ax[0] * ax[0] + ax[1] * ax[1] + ax[2] * ax[2];
+                const float zz = az[0] * az[0] + az[1] * az[1] + az[2] * az[2];
+                if (xx > 1e-12f && zz > 1e-12f) {
+                    const float lx = (d[0] * ax[0] + d[1] * ax[1] + d[2] * ax[2]) / xx;
+                    const float lz = (d[0] * az[0] + d[1] * az[1] + d[2] * az[2]) / zz;
+                    const float dx = (lx < 0 ? -wheel_axles_.half_track : wheel_axles_.half_track) - lx;
+                    const float dz = (lz > 0 ? wheel_axles_.front_z : wheel_axles_.rear_z) - lz;
+                    for (int a = 0; a < 3; ++a) shift[a] = ax[a] * dx + az[a] * dz;
+                }
+            }
             const size_t first = scene_.size();
             for (const auto &face : wheel_) {
                 rt::GeoVertex vertices[8];
@@ -577,9 +608,9 @@ const std::vector<rt::GeoPoly> *OpponentBodies::replace(const std::vector<rt::Ge
                     const auto &v = face.vertices[left ? face.count - 1 - i : i]; // mirrored: the winding kept
                     const float x = left ? -v[0] : v[0];
                     auto &out = vertices[i];
-                    out.x = x * m[0] + v[1] * m[3] + v[2] * m[6] + m[9] + up[0] * lift;
-                    out.y = x * m[1] + v[1] * m[4] + v[2] * m[7] + m[10] + up[1] * lift;
-                    out.p[0] = x * m[2] + v[1] * m[5] + v[2] * m[8] + m[11] + up[2] * lift;
+                    out.x = x * m[0] + v[1] * m[3] + v[2] * m[6] + m[9] + up[0] * lift + shift[0];
+                    out.y = x * m[1] + v[1] * m[4] + v[2] * m[7] + m[10] + up[1] * lift + shift[1];
+                    out.p[0] = x * m[2] + v[1] * m[5] + v[2] * m[8] + m[11] + up[2] * lift + shift[2];
                     out.p[1] = v[3] * 8;
                     out.p[2] = v[4] * 8;
                     out.ox = x, out.oy = v[1], out.oz = v[2];
@@ -716,4 +747,5 @@ const std::vector<rt::GeoPoly> *OpponentBodies::replace(const std::vector<rt::Ge
 }
 
 } // namespace app
+
 
