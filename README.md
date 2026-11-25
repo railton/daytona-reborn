@@ -89,7 +89,9 @@ From Daytona Reborn beta 0.10, kept in this repository:
   Docker for now); what it needs: [docs/HIRES-TEXTURES.md](docs/HIRES-TEXTURES.md).
 - **A custom body for your car (experimental):** a body you made (or
   converted from a model you may use) in place of your car's, lit by the
-  game's light, on the game's wheels; see [docs/CUSTOM-CARS.md](docs/CUSTOM-CARS.md).
+  game's light, on the game's wheels or its own; see
+  [docs/CUSTOM-CARS.md](docs/CUSTOM-CARS.md), and how one was made:
+  [docs/CUSTOM-CAR-WORKFLOW.md](docs/CUSTOM-CAR-WORKFLOW.md).
 - **Controls** for keyboard, gamepads, wheels and pedals, with analogue axes
   and force feedback (experimental).
 - **Languages:** English, French, Brazilian Portuguese.

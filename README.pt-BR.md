@@ -95,6 +95,12 @@ Do Daytona Reborn beta 0.10, mantida neste repositório:
   naturais, a pista); as texturas recortadas mantêm contornos nítidos.
   Geradas em Configurações > Texturas IA (por enquanto Linux com Docker); o
   que é necessário: [docs/HIRES-TEXTURES.md](docs/HIRES-TEXTURES.md).
+- **Uma carroceria própria para o seu carro (experimental):** uma
+  carroceria feita por você (ou convertida de um modelo que você pode usar)
+  no lugar da do seu carro, iluminada pela luz do jogo, nas rodas do jogo
+  ou nas suas; veja [docs/CUSTOM-CARS.md](docs/CUSTOM-CARS.md) e como uma
+  foi feita: [docs/CUSTOM-CAR-WORKFLOW.md](docs/CUSTOM-CAR-WORKFLOW.md) (em
+  inglês).
 - **Controles** para teclado, controles, volantes e pedais, com eixos
   analógicos e force feedback (experimental).
 - **Idiomas:** inglês, francês, português do Brasil.

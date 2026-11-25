@@ -6,6 +6,9 @@ game's own wheels (drawn 10 % bigger), its light, the car shadow, the physics
 and the online data stay the game's. Other players online still see the
 game's car.
 
+How a car was made from a downloaded 3D model, what was tried and dropped,
+and the problems met: [CUSTOM-CAR-WORKFLOW.md](CUSTOM-CAR-WORKFLOW.md).
+
 A body is a folder in the game's data folder, `cars/NAME/` (on Linux
 `~/.local/share/daytona-recomp/daytona/cars/NAME/`), holding two files. The
 setting lists every such folder; it takes effect at the next start.
