@@ -39,6 +39,14 @@ rule 14); each version has its section here.
   on average (max 1.4 ms), 7 of 360 entries; a full check only at the
   pack's first frame. Test: after 50 rounds of random writes the index
   equals a full rebuild. `M2_HIRES_TRACE=FILE` logs each refresh.
+- **`m2gpushot --bench` reports the slow frames:** the median, p95, p99 and
+  maximum of the game's frame plus the renderer's CPU work, and how many
+  frames took over half a frame. Attract race, 9,000 frames, 1920 x 1440:
+  pack off median 0.82, p95 1.23, p99 1.41 ms; pack on 0.88, 1.25, 1.40 ms.
+- Tried and left out: snapping the shadow cascades to whole texels and
+  quarter-octave sizes did not steady the shadows' edges (11.8 % vs 11.9 %
+  of the shadow's pixels changing a frame, 61 frames of the race): the
+  change comes from the cars and the camera moving.
 - **The race's speed check** (whether the graphics card kept up) also runs
   with only sharp car textures, smooth menus and HUD, the texture pack,
   bloom or the arcade monitor on.

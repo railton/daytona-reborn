@@ -37,6 +37,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <vector>
 #include <cinttypes>
 #include <cstdio>
 #include <cstdlib>
@@ -217,6 +218,8 @@ int main(int argc, char **argv) {
                                     std::chrono::steady_clock::now().time_since_epoch()).count());
             });
             double t_tile_cache = 0, t_tile_draw = 0, t_composite = 0;
+            std::vector<double> frame_ms; // the game's frame and the renderer's CPU work, each frame
+            frame_ms.reserve(size_t(frames));
             SDL_GPUFence *last = nullptr;
             const auto t0 = clk::now();
             for (uint64_t f = 0; f < frames; f++) {
@@ -242,6 +245,7 @@ int main(int argc, char **argv) {
                 t_game += std::chrono::duration<double>(b - a).count();
                 t_wait += std::chrono::duration<double>(c - b).count();
                 t_cpu += std::chrono::duration<double>(d - c).count();
+                frame_ms.push_back(std::chrono::duration<double>((b - a) + (d - c)).count() * 1e3);
             }
             if (last) SDL_WaitForGPUFences(dev, true, &last, 1), SDL_ReleaseGPUFence(dev, last);
             const double total = std::chrono::duration<double>(clk::now() - t0).count();
@@ -249,6 +253,16 @@ int main(int argc, char **argv) {
                         "renderer CPU %.2f ms, waiting for the GPU %.2f ms\n",
                         frames, total, double(frames) / total, t_game * 1e3 / double(frames),
                         t_cpu * 1e3 / double(frames), t_wait * 1e3 / double(frames));
+            if (!frame_ms.empty()) { // the slow frames: the game's and the renderer's CPU time
+                std::vector<double> sorted = frame_ms;
+                std::sort(sorted.begin(), sorted.end());
+                auto at = [&](double q) { return sorted[std::min(sorted.size() - 1, size_t(q * double(sorted.size())))]; };
+                size_t over = 0;
+                for (double t : frame_ms) over += t > 1000.0 / 57.52 * 0.5;
+                std::printf("m2gpushot: game + renderer CPU per frame: median %.2f ms, p95 %.2f ms, p99 %.2f ms, "
+                            "max %.2f ms; %zu frames over half a frame (8.7 ms)\n",
+                            at(0.5), at(0.95), at(0.99), sorted.back(), over);
+            }
             std::printf("m2gpushot: of the game's time, CPU tilemaps per frame: decoding layers %.2f ms, "
                         "drawing them %.2f ms, composing %.2f ms\n",
                         t_tile_cache * 1e3 / double(frames), t_tile_draw * 1e3 / double(frames),
