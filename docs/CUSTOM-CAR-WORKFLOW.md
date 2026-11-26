@@ -311,6 +311,12 @@ folder. What differed from the Camaro, and what to reuse:
   opening removes) next to the paint take the nearest paint's colour; wide
   dark areas and the gloss-black parts (handles, emblem, bezels: their
   exact colour) stay, and the stripes and vents are drawn afterwards.
+  The wings' piping (a chrome strip, so baked gloss black) stayed as
+  smudged lines: long thin chrome pieces (over 25 cm, under 3.5 cm wide on
+  average) take the body colour before the bake, and after it gloss-black
+  lines 1 to 2 texels wide and at least 8 long, and specks of 4 texels or
+  fewer, take the paint's. The side stripes are drawn with each texel's
+  coverage of the band (anti-aliased) instead of a hard edge.
 - **A sport wheel made in the converter.** The model's wheel is a steel
   hubcap wheel; recoloured, it could not become the picture's. The
   converter builds one: a revolved profile for a wide, low-profile tyre
