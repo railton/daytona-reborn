@@ -317,6 +317,13 @@ folder. What differed from the Camaro, and what to reuse:
   lines 1 to 2 texels wide and at least 8 long, and specks of 4 texels or
   fewer, take the paint's. The side stripes are drawn with each texel's
   coverage of the band (anti-aliased) instead of a hard edge.
+  Removed, the panel lines were missed: the car looked featureless. So the
+  lines found (the seams and the piping) are redrawn after the cleanup: their
+  breaks closed (a closing with a 2-texel disc), small bits dropped, thinned
+  to one texel (skeletonize), lines shorter than 10 texels dropped, and each
+  drawn as a continuous anti-aliased gloss-black line from the distance to
+  it. The piping's own faces are also sampled densely and drawn on the
+  surface of the nearest face.
 - **A sport wheel made in the converter.** The model's wheel is a steel
   hubcap wheel; recoloured, it could not become the picture's. The
   converter builds one: a revolved profile for a wide, low-profile tyre
