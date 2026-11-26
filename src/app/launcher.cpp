@@ -19,6 +19,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <fstream>
 
 namespace app {
 
@@ -516,6 +517,163 @@ Launcher::Result Launcher::draw_rom_gate() {
 #ifndef M2_MOBILE
 // Settings > AI textures (app/hires_maker.h, docs/HIRES-TEXTURES.md): what
 // this computer has, making the pack with its progress, and using it.
+Launcher::~Launcher() {
+    if (gpu_dev_)
+        for (auto &[path, p] : previews_)
+            if (p.tex) SDL_ReleaseGPUTexture(gpu_dev_, p.tex);
+}
+
+// A car's picture (preview.png in its folder) as a texture, made again when
+// the file changes; none (tex null) when the file is missing or unreadable.
+const Launcher::Preview &Launcher::preview(const std::string &png) {
+    Preview &p = previews_[png];
+    std::error_code ec;
+    const auto path = std::filesystem::u8path(png);
+    const long long stamp = std::filesystem::exists(path, ec)
+                                ? (long long)std::filesystem::last_write_time(path, ec).time_since_epoch().count()
+                                : 0;
+    if (stamp == p.stamp || !gpu_dev_) return p;
+    p.stamp = stamp;
+    if (p.tex) SDL_ReleaseGPUTexture(gpu_dev_, p.tex), p.tex = nullptr;
+    if (!stamp) return p;
+    SDL_Surface *loaded = SDL_LoadPNG(png.c_str());
+    SDL_Surface *rgba = loaded ? SDL_ConvertSurface(loaded, SDL_PIXELFORMAT_ABGR8888) : nullptr;
+    if (loaded) SDL_DestroySurface(loaded);
+    if (!rgba) return p;
+    // at most 1024 wide: a card is a few hundred pixels
+    if (rgba->w > 1024) {
+        SDL_Surface *small = SDL_ScaleSurface(rgba, 1024, std::max(1, rgba->h * 1024 / rgba->w), SDL_SCALEMODE_LINEAR);
+        if (small) SDL_DestroySurface(rgba), rgba = small;
+    }
+    SDL_GPUTextureCreateInfo ti{};
+    ti.type = SDL_GPU_TEXTURETYPE_2D;
+    ti.format = SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM;
+    ti.usage = SDL_GPU_TEXTUREUSAGE_SAMPLER;
+    ti.width = uint32_t(rgba->w), ti.height = uint32_t(rgba->h);
+    ti.layer_count_or_depth = ti.num_levels = 1;
+    SDL_GPUTexture *tex = SDL_CreateGPUTexture(gpu_dev_, &ti);
+    SDL_GPUTransferBufferCreateInfo bi{};
+    bi.usage = SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD;
+    bi.size = uint32_t(rgba->w) * uint32_t(rgba->h) * 4;
+    SDL_GPUTransferBuffer *tb = tex ? SDL_CreateGPUTransferBuffer(gpu_dev_, &bi) : nullptr;
+    if (tb) {
+        auto *dst = static_cast<uint8_t *>(SDL_MapGPUTransferBuffer(gpu_dev_, tb, false));
+        if (dst) {
+            for (int y = 0; y < rgba->h; ++y)
+                std::memcpy(dst + size_t(y) * rgba->w * 4, static_cast<const uint8_t *>(rgba->pixels) + size_t(y) * rgba->pitch,
+                            size_t(rgba->w) * 4);
+            SDL_UnmapGPUTransferBuffer(gpu_dev_, tb);
+            SDL_GPUCommandBuffer *cmd = SDL_AcquireGPUCommandBuffer(gpu_dev_);
+            SDL_GPUCopyPass *copy = cmd ? SDL_BeginGPUCopyPass(cmd) : nullptr;
+            if (copy) {
+                SDL_GPUTextureTransferInfo src{};
+                src.transfer_buffer = tb;
+                SDL_GPUTextureRegion region{};
+                region.texture = tex, region.w = ti.width, region.h = ti.height, region.d = 1;
+                SDL_UploadToGPUTexture(copy, &src, &region, false);
+                SDL_EndGPUCopyPass(copy);
+            }
+            if (cmd) SDL_SubmitGPUCommandBuffer(cmd);
+            if (copy) p.tex = tex, p.w = rgba->w, p.h = rgba->h, tex = nullptr;
+        }
+        SDL_ReleaseGPUTransferBuffer(gpu_dev_, tb);
+    }
+    if (tex) SDL_ReleaseGPUTexture(gpu_dev_, tex);
+    SDL_DestroySurface(rgba);
+    return p;
+}
+
+void Launcher::draw_cars_tab(float scale) {
+    struct Car { std::string folder, name, credit; };
+    static std::vector<Car> cars;
+    static double listed = -1;
+    const std::string root = Config::pref_dir() + "cars";
+    if (ImGui::GetTime() - listed > 2.0 || listed < 0) { // the folder, again now and then
+        listed = ImGui::GetTime();
+        cars.clear();
+        std::error_code ec;
+        for (const auto &e : std::filesystem::directory_iterator(std::filesystem::u8path(root), ec)) {
+            if (!e.is_directory(ec) || !std::filesystem::exists(e.path() / "bodies.m2car", ec)) continue;
+            const auto u8 = e.path().filename().u8string(); // the folder's name as UTF-8 (accents on Windows)
+            const std::string folder(u8.begin(), u8.end());
+            Car c{folder, folder, {}};
+            // car.ini's name=, and the first line of its credits file
+            if (std::ifstream ini(e.path() / "car.ini"); ini)
+                for (std::string line; std::getline(ini, line);) {
+                    if (!line.empty() && line.back() == '\r') line.pop_back();
+                    if (line.rfind("name=", 0) == 0 && line.size() > 5) c.name = line.substr(5);
+                }
+            for (const char *credits : {"CREDITS.txt", "CREDITOS.txt"})
+                if (std::ifstream f(e.path() / credits); f) {
+                    std::getline(f, c.credit);
+                    if (!c.credit.empty() && c.credit.back() == '\r') c.credit.pop_back();
+                    // the links left out: the card has room for the title and the author
+                    for (size_t at; (at = c.credit.find(" (http")) != std::string::npos;) {
+                        const size_t end = c.credit.find(')', at);
+                        c.credit.erase(at, end == std::string::npos ? std::string::npos : end - at + 1);
+                    }
+                    break;
+                }
+            cars.push_back(std::move(c));
+        }
+        std::sort(cars.begin(), cars.end(), [](const Car &a, const Car &b) { return a.name < b.name; });
+    }
+    const bool hardware = cfg_.renderer == "hardware";
+    ImGui::TextWrapped("%s", TX("Pick the car you drive. It changes at once, also during a race; only its look changes "
+                                "(the game's handling stays), and other players online see the game's car."));
+    if (!hardware) ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.3f, 1.0f), "%s", TX("These need the Hardware renderer (Display tab)."));
+    if (const char *env = std::getenv("M2_PLAYER_BODY"); env && *env)
+        ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.3f, 1.0f), "%s", TX("M2_PLAYER_BODY is set: it chooses the car instead."));
+    ImGui::Spacing();
+    const float card_w = 300.f * scale, pic_h = card_w * 9.f / 16.f, pad = 8.f * scale;
+    const float avail = ImGui::GetContentRegionAvail().x;
+    const int per_row = std::max(1, int((avail + pad) / (card_w + pad)));
+    int n = 0;
+    auto card = [&](const std::string &folder, const std::string &name, const std::string &credit) {
+        if (n % per_row) ImGui::SameLine(0, pad);
+        ++n;
+        const bool chosen = cfg_.player_car == folder;
+        ImGui::PushID(folder.empty() ? "##game" : folder.c_str());
+        const ImVec2 at = ImGui::GetCursorScreenPos();
+        const float card_h = pic_h + ImGui::GetTextLineHeightWithSpacing() * 2.6f + pad * 2;
+        if (ImGui::InvisibleButton("card", ImVec2(card_w, card_h)) && !chosen) cfg_.player_car = folder, cfg_.save();
+        const bool hovered = ImGui::IsItemHovered();
+        ImDrawList *dl = ImGui::GetWindowDrawList();
+        const ImU32 edge = chosen ? IM_COL32(255, 196, 40, 255) : hovered ? IM_COL32(200, 200, 210, 255) : IM_COL32(90, 90, 100, 255);
+        dl->AddRectFilled(at, ImVec2(at.x + card_w, at.y + card_h), IM_COL32(24, 24, 30, 230), 6.f * scale);
+        const ImVec2 p0(at.x + pad, at.y + pad), p1(at.x + card_w - pad, at.y + pad + pic_h - pad);
+        const Preview &pv = folder.empty() ? previews_["##none"] : preview(root + "/" + folder + "/preview.png");
+        if (pv.tex) { // the picture fitted in the card, its proportions kept
+            const float bw = p1.x - p0.x, bh = p1.y - p0.y, s_ = std::min(bw / float(pv.w), bh / float(pv.h));
+            const float iw = pv.w * s_, ih = pv.h * s_;
+            const ImVec2 q0(p0.x + (bw - iw) / 2, p0.y + (bh - ih) / 2);
+            dl->AddImage(ImTextureRef((ImTextureID)(intptr_t)pv.tex), q0, ImVec2(q0.x + iw, q0.y + ih));
+        } else {
+            dl->AddRectFilled(p0, p1, IM_COL32(40, 40, 48, 255), 4.f * scale);
+            const char *label = folder.empty() ? TX("The game's own car") : TX("No picture (preview.png)");
+            const ImVec2 ts = ImGui::CalcTextSize(label);
+            dl->AddText(ImVec2((p0.x + p1.x - ts.x) / 2, (p0.y + p1.y - ts.y) / 2), IM_COL32(170, 170, 180, 255), label);
+        }
+        dl->AddText(ImVec2(at.x + pad, at.y + pic_h + pad), IM_COL32(255, 255, 255, 255), name.c_str());
+        if (!credit.empty()) {
+            const ImVec4 clip(at.x + pad, at.y, at.x + card_w - pad, at.y + card_h);
+            dl->AddText(nullptr, 0.0f, ImVec2(at.x + pad, at.y + pic_h + pad + ImGui::GetTextLineHeightWithSpacing()),
+                        IM_COL32(160, 160, 170, 255), credit.c_str(), nullptr, card_w - 2 * pad, &clip);
+        }
+        dl->AddRect(at, ImVec2(at.x + card_w, at.y + card_h), edge, 6.f * scale, 0, chosen ? 3.f * scale : 1.f * scale);
+        ImGui::PopID();
+    };
+    ImGui::BeginDisabled(!hardware);
+    card("", TX("The game's car"), TX("The Hornet, as at the arcade"));
+    for (const auto &c : cars) card(c.folder, c.name, c.credit);
+    ImGui::EndDisabled();
+    ImGui::Spacing();
+    char where[1200];
+    std::snprintf(where, sizeof where, TX("Each car is a folder in %scars (docs/CUSTOM-CARS.md); its picture is preview.png in it."),
+                  Config::pref_dir().c_str());
+    ImGui::TextDisabled("%s", where);
+}
+
 void Launcher::draw_hires_tab(float scale) {
     const ImVec4 good(0.48f, 0.98f, 0.79f, 1), warn(1, 0.74f, 0.45f, 1), bad(1, 0.45f, 0.4f, 1);
     using Stage = HiresMaker::Stage;
@@ -1109,36 +1267,6 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
                 if (ImGui::Checkbox(TX("Smooth menus and HUD"), &cfg_.smooth_2d)) cfg_.save();
                 hint(TX("The game's 2D pictures (menus, speedometer, lap times, results) get smooth curves and diagonals "
                         "at high resolution instead of square pixels. Their colours and dithering stay the game's."));
-#ifndef M2_MOBILE
-                { // the player's car (experimental): a body from <data folder>/cars/NAME/
-                    static std::vector<std::string> cars;
-                    static double listed = -1;
-                    if (ImGui::GetTime() - listed > 2.0 || listed < 0) { // the folder, again now and then
-                        listed = ImGui::GetTime();
-                        cars.clear();
-                        std::error_code ec;
-                        for (const auto &e : std::filesystem::directory_iterator(Config::pref_dir() + "cars", ec))
-                            if (e.is_directory(ec) && std::filesystem::exists(e.path() / "bodies.m2car", ec))
-                                cars.push_back(e.path().filename().string());
-                        std::sort(cars.begin(), cars.end());
-                    }
-                    ImGui::TextUnformatted(TX("Player's car (experimental)"));
-                    ImGui::SetNextItemWidth(std::min(360.f * scale, ImGui::GetContentRegionAvail().x));
-                    const std::string current = cfg_.player_car.empty() ? std::string(TX("The game's own")) : cfg_.player_car;
-                    if (ImGui::BeginCombo("##player_car", current.c_str())) {
-                        if (ImGui::Selectable(TX("The game's own"), cfg_.player_car.empty())) cfg_.player_car.clear(), cfg_.save();
-                        for (const auto &c : cars)
-                            if (ImGui::Selectable(c.c_str(), c == cfg_.player_car)) cfg_.player_car = c, cfg_.save();
-                        ImGui::EndCombo();
-                    }
-                    char where[1200];
-                    std::snprintf(where, sizeof where,
-                                  TX("A car body you made, in a folder of %scars (docs/CUSTOM-CARS.md). The game's wheels, "
-                                     "light and handling are kept. Takes effect at the next start."),
-                                  Config::pref_dir().c_str());
-                    hint("%s", where);
-                }
-#endif
                 if (ImGui::Checkbox(TX("Car shadows"), &cfg_.car_shadows)) cfg_.save();
                 hint(TX("The cars near the camera cast shadows from the game's sun on the road and the walls. Any graphics card."));
                 ImGui::Indent();
@@ -1210,6 +1338,12 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
 
         // ---- Link play: cabinets linked directly, without the relay (advanced: the
         // Online mode in the home menu covers racing over the Internet)
+#ifndef M2_MOBILE
+        if (ImGui::BeginTabItem(TX("Cars"), nullptr, tab_flags(7))) {
+            draw_cars_tab(scale);
+            ImGui::EndTabItem();
+        }
+#endif
         if (ImGui::BeginTabItem(TX("Link play (advanced)"), nullptr, tab_flags(3))) {
             ImGui::Spacing();
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 0.74f, 0.45f, 1));

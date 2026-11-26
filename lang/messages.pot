@@ -446,6 +446,30 @@ msgstr ""
 msgid "Done"
 msgstr ""
 
+msgid "Pick the car you drive. It changes at once, also during a race; only its look changes (the game's handling stays), and other players online see the game's car."
+msgstr ""
+
+msgid "These need the Hardware renderer (Display tab)."
+msgstr ""
+
+msgid "M2_PLAYER_BODY is set: it chooses the car instead."
+msgstr ""
+
+msgid "The game's own car"
+msgstr ""
+
+msgid "No picture (preview.png)"
+msgstr ""
+
+msgid "The game's car"
+msgstr ""
+
+msgid "The Hornet, as at the arcade"
+msgstr ""
+
+msgid "Each car is a folder in %scars (docs/CUSTOM-CARS.md); its picture is preview.png in it."
+msgstr ""
+
 msgid "Experimental: this feature is being tested. It may fail or change; if it does, the log below helps us fix it."
 msgstr ""
 
@@ -933,12 +957,6 @@ msgstr ""
 msgid "The game's 2D pictures (menus, speedometer, lap times, results) get smooth curves and diagonals at high resolution instead of square pixels. Their colours and dithering stay the game's."
 msgstr ""
 
-msgid "Player's car (experimental)"
-msgstr ""
-
-msgid "A car body you made, in a folder of %scars (docs/CUSTOM-CARS.md). The game's wheels, light and handling are kept. Takes effect at the next start."
-msgstr ""
-
 msgid "Car shadows"
 msgstr ""
 
@@ -949,9 +967,6 @@ msgid "In place of the game's own shadow"
 msgstr ""
 
 msgid "The game's simple shadow under the car (a checkered patch) is left out while the cars' shadows are drawn."
-msgstr ""
-
-msgid "These need the Hardware renderer (Display tab)."
 msgstr ""
 
 msgid "Screen effects"
@@ -1034,6 +1049,9 @@ msgstr ""
 msgid ""
 "In-between frames between the game's. Needs the Hardware renderer and the double buffer.\n"
 "Applies the next time the game starts."
+msgstr ""
+
+msgid "Cars"
 msgstr ""
 
 msgid "Link play (advanced)"

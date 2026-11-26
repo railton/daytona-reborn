@@ -43,8 +43,9 @@ beside the repository): `camaro/` (camaro.py, wheel.py), `fusca/`
    versions: a round can silently remove a part (the Beetle lost its front
    bumper that way).
 8. **Use it:** copy the folder to the data folder's `cars/NAME/` and pick it
-   in Settings > Enhancements > Player's car (read when the game starts),
-   or `M2_PLAYER_BODY=FOLDER`.
+   in Settings > Cars (it changes at once), or `M2_PLAYER_BODY=FOLDER`.
+   Give it a `preview.png` for its card (the select screen's frame of it,
+   the blue backdrop made transparent) and a `name=` in `car.ini`.
 
 ## The finished standard
 

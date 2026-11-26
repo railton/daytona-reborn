@@ -1,6 +1,6 @@
 # A custom body for the player's car (experimental)
 
-Settings > Enhancements > **Player's car** draws a body you made in place of
+Settings > **Cars** draws a body you made in place of
 the player's car body, with the hardware renderer. Only the look changes: the
 game's own wheels (drawn 10 % bigger), its light, the car shadow, the physics
 and the online data stay the game's. Other players online still see the
@@ -11,8 +11,13 @@ and the problems met: [CUSTOM-CAR-WORKFLOW.md](CUSTOM-CAR-WORKFLOW.md).
 
 A body is a folder in the game's data folder, `cars/NAME/` (on Linux
 `~/.local/share/daytona-recomp/daytona/cars/NAME/`), holding two files. The
-setting lists every such folder; it takes effect at the next start.
-`M2_PLAYER_BODY=FOLDER` uses another folder for one run.
+Cars tab shows a card for every such folder (and one for the game's own
+car): its picture is `preview.png` in the folder (optional, any size, a
+transparent background reads best), its name `car.ini`'s `name=` (else the
+folder's), its credit the first line of `CREDITS.txt` (or `CREDITOS.txt`),
+links left out. A click changes the car at once, also during a race: the
+renderer loads the folder again between two frames. `M2_PLAYER_BODY=FOLDER`
+uses another folder for one run and wins over the tab.
 
 Third-party models stay on your computer: a body made from someone else's
 model follows that model's licence, and none is part of this repository.

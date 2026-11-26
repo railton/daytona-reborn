@@ -43,6 +43,9 @@ public:
     // folder with bodies.m2car and liveries.rgba, read by the next init();
     // "" the game's own car. M2_PLAYER_BODY wins.
     void set_player_body(const std::string &directory) { player_body_dir_ = directory; }
+    // The same while the game runs (Settings > Cars): the car is changed at
+    // the next frame, without a restart; "" the game's own car.
+    void change_player_body(const std::string &directory);
     int msaa() const { return msaa_; }
     // Texture filtering (an enhancement): 1 the game's own (the exact path),
     // 2 to 16 anisotropic: on surfaces seen at a grazing angle (the road, the
@@ -260,6 +263,8 @@ private:
     OpponentBodies opponent_bodies_, player_body_;
     bool have_opponents_ = false, have_player_ = false;
     std::string player_body_dir_;
+    bool body_change_ = false; // change_player_body: load_bodies() at the next frame
+    void load_bodies();
     std::vector<uint8_t> atlas_cpu_; // the opponents' atlas (or blank), then the player's
     SDL_GPUBuffer *opponent_atlas_ = nullptr;
     bool opponent_atlas_uploaded_ = false;

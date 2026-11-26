@@ -33,6 +33,9 @@ void apply_fullscreen_mode(SDL_Window *window, const std::string &mode);
 class Launcher {
 public:
     Launcher(Config &cfg, SDL_Window *window);
+    ~Launcher();
+    // The GPU device the interface draws with: the Cars tab's pictures are textures on it.
+    void set_gpu_device(SDL_GPUDevice *dev) { gpu_dev_ = dev; }
 
     enum Result { Stay, StartGame, Resume, Reset, Quit, Back };
     // Returns true if the event was consumed (binding capture).
@@ -85,6 +88,13 @@ private:
 #ifndef M2_MOBILE
     HiresMaker hires_;
     void draw_hires_tab(float scale);
+    // Settings > Cars: a card per car folder (its preview.png, its name and
+    // credit), the game's own first; a click changes the car at once
+    void draw_cars_tab(float scale);
+    struct Preview { SDL_GPUTexture *tex = nullptr; int w = 0, h = 0; long long stamp = -1; };
+    const Preview &preview(const std::string &png);
+    std::map<std::string, Preview> previews_;
+    SDL_GPUDevice *gpu_dev_ = nullptr;
 #endif
     std::vector<rt::RomCheck> checks_;
     bool rom_ok_ = false;

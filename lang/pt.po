@@ -449,6 +449,30 @@ msgstr "Ou digite o caminho completo e pressione Enter:"
 msgid "Done"
 msgstr "Concluir"
 
+msgid "Pick the car you drive. It changes at once, also during a race; only its look changes (the game's handling stays), and other players online see the game's car."
+msgstr "Escolha o carro que você dirige. Ele troca na hora, até durante a corrida; só a aparência muda (a dirigibilidade continua a do jogo), e os outros jogadores online veem o carro do jogo."
+
+msgid "These need the Hardware renderer (Display tab)."
+msgstr "Estas opções precisam do renderizador Hardware (aba Tela)."
+
+msgid "M2_PLAYER_BODY is set: it chooses the car instead."
+msgstr "M2_PLAYER_BODY está definida: ela escolhe o carro no lugar desta aba."
+
+msgid "The game's own car"
+msgstr "O carro do próprio jogo"
+
+msgid "No picture (preview.png)"
+msgstr "Sem imagem (preview.png)"
+
+msgid "The game's car"
+msgstr "Original do jogo"
+
+msgid "The Hornet, as at the arcade"
+msgstr "O Hornet, como no fliperama"
+
+msgid "Each car is a folder in %scars (docs/CUSTOM-CARS.md); its picture is preview.png in it."
+msgstr "Cada carro é uma pasta em %scars (docs/CUSTOM-CARS.md); a imagem dele é o preview.png dentro dela."
+
 msgid "Experimental: this feature is being tested. It may fail or change; if it does, the log below helps us fix it."
 msgstr "Experimental: esta funcionalidade está em testes. Ela pode falhar ou mudar; se falhar, o registro abaixo nos ajuda a corrigir."
 
@@ -973,12 +997,6 @@ msgstr "Menus e HUD suaves"
 msgid "The game's 2D pictures (menus, speedometer, lap times, results) get smooth curves and diagonals at high resolution instead of square pixels. Their colours and dithering stay the game's."
 msgstr "As imagens 2D do jogo (menus, velocímetro, tempos de volta, resultados) ganham curvas e diagonais suaves em alta resolução, em vez de pixels quadrados. As cores e o pontilhado continuam os do jogo."
 
-msgid "Player's car (experimental)"
-msgstr "Carro do jogador (experimental)"
-
-msgid "A car body you made, in a folder of %scars (docs/CUSTOM-CARS.md). The game's wheels, light and handling are kept. Takes effect at the next start."
-msgstr "Uma carroceria feita por você, numa pasta de %scars (docs/CUSTOM-CARS.md). As rodas, a luz e a dirigibilidade continuam as do jogo. Vale a partir da próxima vez que o jogo abrir."
-
 msgid "Car shadows"
 msgstr "Sombra dos carros"
 
@@ -990,9 +1008,6 @@ msgstr "No lugar da sombra original do jogo"
 
 msgid "The game's simple shadow under the car (a checkered patch) is left out while the cars' shadows are drawn."
 msgstr "A sombra simples do jogo embaixo do carro (uma mancha quadriculada) deixa de aparecer enquanto as sombras dos carros são desenhadas."
-
-msgid "These need the Hardware renderer (Display tab)."
-msgstr "Estas opções precisam do renderizador Hardware (aba Tela)."
 
 msgid "Screen effects"
 msgstr "Efeitos de tela"
@@ -1079,6 +1094,9 @@ msgid ""
 msgstr ""
 "Quadros intermediários entre os do jogo. Requer o renderizador Hardware e o buffer duplo.\n"
 "Vale a partir da próxima vez que o jogo abrir."
+
+msgid "Cars"
+msgstr "Carros"
 
 msgid "Link play (advanced)"
 msgstr "Link play (avançado)"

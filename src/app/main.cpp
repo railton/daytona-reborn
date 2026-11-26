@@ -1162,6 +1162,7 @@ int main(int argc, char **argv) {
     int shown_scale = 1;
 
     app::Launcher launcher(cfg, window);
+    launcher.set_gpu_device(dev);
 #ifndef M2_MOBILE
     // Automatic quality (app/quality.h): the graphics card measured once, at
     // the first start from the PC home, and again from Settings' "Detect
@@ -1972,6 +1973,9 @@ int main(int argc, char **argv) {
         gpu.set_car_shading(cfg.smooth_cars, cfg.car_reflections);
         gpu.set_car_textures(cfg.sharp_car_textures);
         gpu.set_smooth_2d(cfg.smooth_2d);
+        // Settings > Cars: the player's car changed at once, no restart (M2_PLAYER_BODY wins)
+        static const std::string cars_dir = app::Config::pref_dir() + "cars/";
+        gpu.change_player_body(cfg.player_car.empty() ? std::string() : cars_dir + cfg.player_car);
 #ifndef M2_MOBILE
         if (!hires_from_env && gpu.ok()) { // Settings > AI textures: the pack made on this computer
             const uint64_t version = launcher.hires_pack_version();

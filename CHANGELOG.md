@@ -8,7 +8,7 @@ rule 14); each version has its section here.
 
 ### A custom body for the player's car (experimental)
 
-Settings > Enhancements > Player's car draws a body from the data folder's
+Settings > Cars draws a body from the data folder's
 `cars/NAME/` (or `M2_PLAYER_BODY=FOLDER`) in place of the player's car body,
 with the hardware renderer (docs/CUSTOM-CARS.md). Only the look changes; the
 game's wheels, light, shadow and physics stay, and online the others see
@@ -39,6 +39,12 @@ the game's car.
   with a real-size 1960s Beetle (wheelbase 2.40 against the game car's
   2.81): 15,840 faces and a 1,180-face wheel, game + renderer CPU median
   5.9 ms at 3440 x 1440 with every image option.
+- Settings > **Cars**: a tab of cards, one per car folder with its picture
+  (`preview.png`), its name (`car.ini` `name=`) and its credit, the game's
+  own first; a click changes the car at once, also during a race (the
+  renderer loads the bodies again between two frames, its atlas buffer
+  made anew), where the setting in Enhancements took effect at the next
+  start. M2_PLAYER_BODY still wins.
 - Decal faces: SURFACE 10..19 in bodies.m2car is a face with surface
   SURFACE - 10's texture, drawn in front of the faces it lies on (sorted by
   its nearest corner, 2 cm nearer, instead of its mean depth: a thin strip
