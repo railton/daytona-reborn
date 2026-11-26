@@ -323,7 +323,8 @@ folder. What differed from the Camaro, and what to reuse:
   to one texel (skeletonize), lines shorter than 10 texels dropped, and each
   drawn as a continuous anti-aliased gloss-black line from the distance to
   it. The piping's own faces are also sampled densely and drawn on the
-  surface of the nearest face.
+  surface of the nearest face. The lines are about 3 texels wide (thin ones still read as
+  broken) and breaks up to 6 texels are closed.
 - **A sport wheel made in the converter.** The model's wheel is a steel
   hubcap wheel; recoloured, it could not become the picture's. The
   converter builds one: a revolved profile for a wide, low-profile tyre
