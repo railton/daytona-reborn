@@ -1,10 +1,13 @@
 # Making a custom car: the path that worked
 
-How the first custom player's car (a 1967 Camaro in a "79" race livery) went
-from a downloaded model to the game, what was tried and dropped on the way,
-and every problem met with its cause and fix, so that the next car follows
-the path that works. The file format and the settings are in
-[CUSTOM-CARS.md](CUSTOM-CARS.md); this file is the workflow.
+How a downloaded 3D model becomes a player's car in the game, to the
+finished standard reached with the second car (a customised Beetle matched
+to reference pictures), what was tried and dropped on the way, and every
+problem met with its cause and fix, so that the next car is built to that
+standard from the start. The file format and the settings are in
+[CUSTOM-CARS.md](CUSTOM-CARS.md); this file is the workflow. The standard
+is the section "The finished standard" below; the sections after it are
+the reference (measurements, the first converter's stages) and the history.
 
 The model, its converted files and the conversion scripts stay on the
 working computer, outside the repository (rule 6 for the game's data; the
@@ -17,20 +20,94 @@ beside the repository): `camaro/` (camaro.py, wheel.py), `fusca/`
 
 1. Find an **artist-made 3D model** whose licence allows changing it, in
    glTF (`.glb`). Not a car generated from photos (see "Tried and dropped").
-2. **Measure the game's car** once (done: the numbers below).
-3. **Convert** the model (`camaro.py`): exterior only, onto the game car's
-   wheels, reduced to the face budget, its look baked into 256 x 128
-   textures, written as `bodies.m2car` + `liveries.rgba`.
-4. **Convert its wheel** (`wheel.py`): `wheel.m2car`, its textures into the
-   atlas's second body.
-5. **Check it in the game** with the fixed set of shots below, then the
-   frame time (`m2gpushot --bench`).
-6. Use it: `M2_PLAYER_BODY=FOLDER`, or copy the folder to the data folder's
-   `cars/NAME/` and pick it in Settings > Enhancements > Player's car.
+   Gather **reference pictures** of the look wanted (photos, or AI pictures
+   of that model in that style); without them the model's own look
+   (`preview.py`) is the reference.
+2. **Try the look first** with `preview.py` (its colour, before any
+   conversion).
+3. **Decide its size:** on the game car's wheels (scaled, arches cut) or at
+   its own size on its own axles (`M2WHEEL2`).
+4. **Convert** it with the converter nearer the model (`camaro.py`: a paint
+   material of its own; `fusca.py`: shared texture atlases), to the
+   finished standard below: details cut into the skin, small black parts
+   as their own faces, lamps and the plate on their own texture cells, the
+   textures only paint and large areas.
+5. **Its wheel:** the model's own (`wheel.py`) or one made in the converter
+   (the Beetle's sport wheel).
+6. **Check it** in every standard shot, the select screen's full turn and
+   the cockpit, next to the reference; measure the smudges and the frame
+   time (the performance protocol below).
+7. **Refine** in rounds until the acceptance criterion holds; a refinement
+   agent can run the loop (the brief below).
+8. **Use it:** copy the folder to the data folder's `cars/NAME/` and pick it
+   in Settings > Enhancements > Player's car (read when the game starts),
+   or `M2_PLAYER_BODY=FOLDER`.
 
-Acceptance criterion used: very good quality in the game from the rolling
-start's front shot (the car seen from ahead, close) through the race, in
-every camera, at full speed.
+## The finished standard
+
+What the accepted Beetle does, which every new car follows. The reasons
+are in "Problems met" and in the Beetle's history further down.
+
+### What goes where
+
+| Detail | How it is made | Why |
+| --- | --- | --- |
+| Paint, large areas | the planar textures (256 x 128 a surface), baked from the full model | the only thing they render well |
+| Panel lines (wings, doors, lids), window rubbers, stripes, vents, slats, emblems | **cut into the skin** (`inlay()`): the band is cut out of the triangles it crosses, the pieces take a flat colour | drawn in a texture they blur and smear on curves; laid over the skin (even as decals) they lose to the game's per-face depth order |
+| Panel lines: which ones | only the model's own open panel edges on the exterior paint, one 2 cm line per seam, the ones the reference has | lines from the texture's noise are wobbly and unfaithful |
+| Small black parts (handles, mirrors, piping, running boards) | their own faces in a flat colour, kept out of the bake | baked, they smear the paint behind them |
+| Headlamps, tail lamps, auxiliary lamps | their own texture cells (surface 8, 128 x 128 a kind); new geometry where the model's shape differs from the reference | baked into the front texture a lamp gets about 20 texels |
+| Plate | its own quad, its picture in surface 7's free half | sharp letters |
+| Bumpers, splitter, diffuser, ducktail | rebuilt as new geometry to the reference when the model's differ | repainting keeps the wrong shape |
+| Glass | flat tint (surface 6), a black rubber inlaid along its edge, `glass_opacity=0.75` when there is an interior | the join between glass and body is jagged |
+| Interior | kept when seen through the glass, each face a flat colour from a palette; reduced (about 2,500 faces) | a see-through car with nothing inside looks hollow |
+| Wheels | the model's own, or one built in the converter (revolved profile), on the car's axles; check each profile segment's normal and close every gap | a crude or wobbling wheel spoils the close shots |
+| Seams, gaps, trim bits left in the textures | painted over: every thin dark texel next to the paint takes the paint's colour, except where a small black part lies | read as dirt |
+
+### Budget
+
+The body under about 22,000 faces, each wheel under about 2,000; game +
+renderer CPU median under about 9 ms in the benchmark (the game has 17.4 ms
+a frame). The Beetle: 20,862 faces, a 660-face wheel, 6.88 ms. Pay for
+details by reducing the interior and the paint first.
+
+### Performance protocol
+
+Every change justified by speed: measure the baseline and estimate the
+floor first; one change at a time; control and candidate run interleaved,
+at least 6 runs each, medians (and p95, p99) compared; accepted only if it
+beats both neighbouring control runs and nothing regresses by more than
+about 3 %; each attempt, kept or dropped, appended to a local ledger.
+
+### Acceptance criterion
+
+A car is finished when all hold:
+
+1. **Faithful:** every detail comes from the model's geometry or the
+   reference's layout, never from baked noise.
+2. **Continuous:** no breaks along any line.
+3. **Even:** one width in metres along the whole car.
+4. **No smudges:** the converter's ACCEPTANCE line, the thin dark blobs (6
+   texels or more, up to 4 wide) left in the paint textures over the
+   texels the faces use, outside the meant details: 0 on every surface.
+5. **In the game,** the deciding check: in every standard shot, every angle
+   of the select screen's turn (both cars, the one not chosen dimmed) and
+   the cockpit view, set next to the reference, every feature of the
+   reference that the model can carry is there and nothing reads as dirt,
+   blur or a misplaced part.
+
+### Refinement rounds with an agent
+
+The Beetle was finished by a refinement agent (a capable model, working
+alone for about 45 minutes), briefed with: the reference pictures; the
+converter and this document to read first; the commands to convert, to
+capture the standard shots and the select screen's turn, and to
+benchmark; the acceptance criterion; the budget; and the rules (change only
+the local converter, keep a backup copy first, no git, nothing installed on
+the host, the model never in the repository, install the result into the
+data folders' `cars/NAME/`, a comparison sheet of the game's frames next to
+the reference at the end, a report of what still differs). Changes the
+game itself would need are described, not made, and reviewed afterwards.
 
 ## Tried and dropped: a car generated from photos
 
@@ -88,7 +165,9 @@ The ROM object numbers are Revision A's.
 
 ## 3. Converting the body (`camaro.py`)
 
-`camaro.py GLB HORNET_JSON PARTS_TXT OUT_DIR`, in a Docker image with
+The first converter's stages (the Camaro before its refinement; the
+finished standard above adds the inlaid details, the parts as faces and
+the cleanup). `camaro.py GLB HORNET_JSON PARTS_TXT OUT_DIR`, in a Docker image with
 Python, numpy, scipy, trimesh, pymeshlab and Pillow (about 3 minutes). It
 writes the model's own paint and the "79" livery as two folders. Its
 stages, and why each is there:
@@ -175,7 +254,7 @@ shadows). The shots that found every problem so far:
 | Shot | Inputs | Frames |
 | --- | --- | --- |
 | Rolling start, the car from ahead, close | repository `scripts/inputs/attract_long.txt` | 2160..2260 |
-| Mission select (both cars, the one not chosen dimmed) | `captura/in_vr2.txt` | 1540..1750 |
+| Mission select, the full turn of both cars (the one not chosen dimmed) | `captura/in_vr2.txt` | 1400..1780, every 10 |
 | Race, normal chase | `captura/in_vr4.txt` | 2400..2700 |
 | Race, high chase camera | `captura/in_vr4.txt` | after 2760 |
 | Cockpit view (VR2) | `captura/in_vr2.txt` | after 2760 |
@@ -215,11 +294,18 @@ quality" appears only when a race fell short of full speed.
 | A glitch and 46.9 frames/s in a race | about 42,000 polygons a frame for the car; the renderer's per-corner grouping | smaller mesh and wheel; corners sorted, the body's made once at load; turned-away faces only when facing the sun |
 | Yellow triangles on the rear window after reducing | paint under the glass and trims reduced into it | paint near the glass and trims kept at their targets |
 | Lamps read as balls; sky streaks on the grille | reflector bowls, slanted slats | pressed flat |
+| Lamps blurred up close | about 20 texels each in the front and back textures | their own texture cells, their faces kept whole |
+| Panel lines broken, wobbly or smudged | drawn in the planar textures from the bake's noise | the model's own panel edges cut into the skin (`inlay()`) |
+| Lines laid over the skin showed in pieces, even as decals | the game draws faces in the order of each face's mean depth | cut into the skin instead: nothing lies over anything |
+| Thin dark marks on the clean paint | the model's seams, gaps and trim baked into the textures | every thin dark texel next to the paint takes the paint's colour, the small black parts as their own faces |
+| The car looked hollow at the select screen | see-through glass with too little behind it | glass 75 % covered, the interior kept |
 
-## The second car: a Beetle at its real size
+## The second car: a Beetle at its real size (history)
 
 A 1960s Beetle (Sketchfab, CC BY 4.0), converted by `fusca.py` in the same
-folder. What differed from the Camaro, and what to reuse:
+folder: how it reached the finished standard, round by round, the dead ends
+included (the texture lines, the ribbons, the decals). Its final state is
+the last items below and "The finished standard" above.
 
 - **Try the colour first.** Before any conversion, `fusca/preview.py GLB
   OUT.png [HEX]` draws the whole model from four angles with its paint
@@ -338,6 +424,37 @@ folder. What differed from the Camaro, and what to reuse:
   surface they face), and the glass's colour baked into the body textures
   goes too. The sills between the arches are a clean black skirt.
 
+- **A sport wheel made in the converter.** The model's wheel is a steel
+  hubcap wheel; recoloured, it could not become the picture's. The
+  converter builds one: a revolved profile for a wide, low-profile tyre
+  (34 cm, rim radius 0.25 of 0.362), a polished lip and a deep barrel
+  (banded texture by angle, for the chrome's reflections), seven dished
+  black spokes with sides, a dark brake disc behind them, a chrome cap;
+  666 faces, set 3 cm further out (M2WHEEL2's half track) so it stands
+  out of the wing. Two things to check on a revolved part: each profile
+  segment's normal (its direction rotated a quarter turn) must point out of
+  the part (a flipped one made the tread face inward and the tyre look
+  hollow from behind), and the barrel must reach the disc (looked at
+  obliquely, the gap between them showed the background through the
+  spokes). (The ducktail and the diffuser came later, as new geometry;
+  wider arches were still left out.)
+- **A straight wheel.** The model's front wheels are steered about 9
+  degrees: spun about the game's axle, that one wobbled. The rear wheel is
+  used, its axle (the direction of least spread) turned exactly onto x.
+- **Bumpers on their own surface.** Seen from behind, the rear bumper lay
+  over the apron, whose texels then took the chrome (white patches below
+  the engine lid, and on the sides' corners). The bumpers (bright trim, low,
+  within 42 cm of the ends) get surface 5, the front bumper baked from ahead
+  in one half and the rear from behind in the other; every other surface is
+  baked with the bumpers taken out of the full-detail mesh, so its rays
+  reach the body behind them. The engine lid joins the roof's surface (seen
+  from above they do not overlap).
+- **Its own wheel** from the model: centred, mirrored like the body, its
+  origin moved to its inner face (as the game wheel's), the part of the
+  atlas it uses resampled into the wheel texture.
+- Intermediate result (before the refinement round): 19,924 faces (about
+  4,000 of them the cabin), a 1,180-face wheel, median 6.7 ms.
+
 - **Details inlaid in the skin.** Even as decals the ribbons still lost in
   places: the game's order is per face, and a long ribbon quad against
   big skin faces can still be sorted behind some of them; subdividing the
@@ -365,68 +482,21 @@ folder. What differed from the Camaro, and what to reuse:
   rear plate kept (the pictures have none), the door's outline only the
   model's thin gap, the side stripes ending 12 cm short of the front wing,
   the interior simplified.
-
-### Acceptance criterion for details drawn on a car
-
-A detail (a line, a stripe, a lamp, a plate) is accepted when all hold:
-
-1. **Faithful:** it comes from the model's geometry or the reference
-   picture's layout, never from baked noise. Panel lines: only the model's
-   open panel edges (the converter prints the chains and metres).
-2. **Continuous:** no breaks along it. Geometry ribbons share their
-   corners; texture lines (stripes) are anti-aliased bands.
-3. **Even:** one width in metres along the whole car (ribbons 2 cm), not
-   one width in texels (which varies with the surface's scale).
-4. **No smudges:** the converter's ACCEPTANCE line counts the thin dark
-   blobs (6 texels or more, up to 4 wide) left in the paint textures outside
-   the meant details (stripes, lamps, plate, small black parts). Target 0;
-   the Beetle ends with 0 on the roof and front and 2 to 4 per side and on
-   the bonnet, in places the shots do not show.
-5. **In the game:** in the standard shots (the select screen's side and
-   rear, the rolling start's front, the chase camera's rear), set next to
-   the reference picture, every line of the picture that the model has is
-   there and nothing reads as dirt. This is the deciding check.
-- **A sport wheel made in the converter.** The model's wheel is a steel
-  hubcap wheel; recoloured, it could not become the picture's. The
-  converter builds one: a revolved profile for a wide, low-profile tyre
-  (34 cm, rim radius 0.25 of 0.362), a polished lip and a deep barrel
-  (banded texture by angle, for the chrome's reflections), seven dished
-  black spokes with sides, a dark brake disc behind them, a chrome cap;
-  666 faces, set 3 cm further out (M2WHEEL2's half track) so it stands
-  out of the wing. Two things to check on a revolved part: each profile
-  segment's normal (its direction rotated a quarter turn) must point out of
-  the part (a flipped one made the tread face inward and the tyre look
-  hollow from behind), and the barrel must reach the disc (looked at
-  obliquely, the gap between them showed the background through the
-  spokes). Wider arches, a ducktail and a diffuser
-  would need new geometry and were left out.
-- **A straight wheel.** The model's front wheels are steered about 9
-  degrees: spun about the game's axle, that one wobbled. The rear wheel is
-  used, its axle (the direction of least spread) turned exactly onto x.
-- **Bumpers on their own surface.** Seen from behind, the rear bumper lay
-  over the apron, whose texels then took the chrome (white patches below
-  the engine lid, and on the sides' corners). The bumpers (bright trim, low,
-  within 42 cm of the ends) get surface 5, the front bumper baked from ahead
-  in one half and the rear from behind in the other; every other surface is
-  baked with the bumpers taken out of the full-detail mesh, so its rays
-  reach the body behind them. The engine lid joins the roof's surface (seen
-  from above they do not overlap).
-- **Its own wheel** from the model: centred, mirrored like the body, its
-  origin moved to its inner face (as the game wheel's), the part of the
-  atlas it uses resampled into the wheel texture.
-- Result: 19,924 faces (about 4,000 of them the cabin), a 1,180-face wheel,
-  game + renderer CPU median 6.7 ms in the benchmark above.
+  Accepted by the user as finished.
 
 ## For the next car
 
-1. Start from the converter nearer the new model: `camaro.py` when the
-   model has a paint material of its own (adapt the material names), on
-   the game's wheels; `fusca.py` when paint and the rest share texture
-   atlases (adapt the colour rules), at its own size with `M2WHEEL2`. Check
-   the axes (which way is the front, which side the right) first.
-2. Keep the per-material targets near the ones above, so that the body
-   ends under about 20,000 faces.
-3. Try the paint with `preview.py`, then set the **livery** or colour.
-4. Run `wheel.py` on the new model's wheel (or keep the Camaro's).
-5. Go through every shot in the table and the benchmark before using it.
-6. Write its `CREDITOS.txt` (author, link, licence, what was changed).
+1. Follow "The path, in short" and build to "The finished standard" from
+   the first conversion; do not start from the texture-only approach.
+2. Copy the converter nearer the model and adapt it: the axes (which way
+   is the front, which side the right) first; the material names
+   (`camaro.py`) or the colour rules (`fusca.py`); the size (game wheels or
+   `M2WHEEL2`); the style (paint, livery, the reference's details).
+3. Reuse `fusca.py`'s parts: `inlay()` for every line and stripe, the
+   lamp cells, the plate, the small black parts as faces, the interior
+   palette, the cleanup, the sport wheel, the ACCEPTANCE line.
+4. Run the shots, the select screen's turn, the cockpit and the benchmark;
+   refine (or brief a refinement agent) until the acceptance criterion
+   holds.
+5. Write its `CREDITOS.txt` (author, link, licence, what was changed) and
+   install it into `cars/NAME/`.
