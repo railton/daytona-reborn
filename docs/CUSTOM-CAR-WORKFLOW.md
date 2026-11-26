@@ -338,6 +338,34 @@ folder. What differed from the Camaro, and what to reuse:
   surface they face), and the glass's colour baked into the body textures
   goes too. The sills between the arches are a clean black skirt.
 
+- **Details inlaid in the skin.** Even as decals the ribbons still lost in
+  places: the game's order is per face, and a long ribbon quad against
+  big skin faces can still be sorted behind some of them; subdividing the
+  skin under them reached 164,000 faces. What works: cutting each detail
+  into the skin itself (`inlay()` in fusca.py). A detail's band is cut out
+  of the triangles it crosses and the pieces inside take a flat colour, so
+  nothing lies over anything and the order cannot break it. Done this way:
+  the panel lines (one 2 cm line per seam; none on the roof gutters, the
+  arch edges or around the lamps, which the pictures do not have; 115
+  bands, 15 chains, 13.6 m), a black rubber along every window's edge
+  (14.8 m, hiding the jagged join), the three side stripes, the lid's 29
+  vertical vents, its slats and the VW emblem drawn in strokes. The small
+  black parts (handles, mirrors, piping, running boards) are faces of
+  their own in flat black, out of the bake. Front and rear rebuilt to the
+  pictures: the front bumper, its brackets and the plate replaced by a
+  black splitter, two round auxiliary lamps (their own texture), the
+  headlamp redrawn (a projector, a thin halo, a black bezel), the bonnet
+  emblem and horn grilles gone; at the rear a clean apron in the body
+  colour with two dark inserts, a black diffuser, twin exhaust tips, a
+  wedge ducktail; 32 rivets round the arches; a six-spoke wheel. Budget
+  kept by reducing the interior (4,014 to 2,485 faces) and the paint and
+  trim. 20,862 faces, a 660-face wheel, game + renderer CPU median 6.88 ms;
+  smudges 0 on every surface (counted over the texels the faces use).
+  Still unlike the pictures: no wing flares (they need new geometry), the
+  rear plate kept (the pictures have none), the door's outline only the
+  model's thin gap, the side stripes ending 12 cm short of the front wing,
+  the interior simplified.
+
 ### Acceptance criterion for details drawn on a car
 
 A detail (a line, a stripe, a lamp, a plate) is accepted when all hold:
