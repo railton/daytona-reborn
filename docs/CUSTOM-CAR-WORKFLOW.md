@@ -38,7 +38,10 @@ beside the repository): `camaro/` (camaro.py, wheel.py), `fusca/`
    the cockpit, next to the reference; measure the smudges and the frame
    time (the performance protocol below).
 7. **Refine** in rounds until the acceptance criterion holds; a refinement
-   agent can run the loop (the brief below).
+   agent can run the loop (the brief below). End every round with a full
+   review of every planned item against the plan and the previous
+   versions: a round can silently remove a part (the Beetle lost its front
+   bumper that way).
 8. **Use it:** copy the folder to the data folder's `cars/NAME/` and pick it
    in Settings > Enhancements > Player's car (read when the game starts),
    or `M2_PLAYER_BODY=FOLDER`.
@@ -483,6 +486,27 @@ the last items below and "The finished standard" above.
   model's thin gap, the side stripes ending 12 cm short of the front wing,
   the interior simplified.
   Accepted by the user as finished.
+- **A driver, and the front bumper back.** A seated driver from a
+  separate model (a low-poly race driver, CC BY 4.0, no skin: 21 rigid
+  pieces in an A pose): posed by rotating the pieces about hand-placed
+  joints, the arms and legs by two-bone inverse kinematics onto the model's
+  own steering wheel (left, hands at 10 and 2) and the pedals, small balls
+  closing the shoulders, elbows and knees; 1.72 m so the helmet clears the
+  roof by 4.6 cm; flat colours chosen by hand (sampled per face from his
+  texture they read as grey noise behind the dark glass); 1,466 faces in
+  palette cells of surface 7. The cockpit view does not draw the body, so
+  he never covers it. The front bumper (the user wanted it back; a
+  refinement round had replaced it with the pictures' splitter) is the
+  model's own bar, overriders and brackets at full detail (reduced, the
+  overriders became spikes) in flat gloss black. Both plates are decal
+  quads: as plain faces, the bumper's or the lid's faces covered half of
+  them at some angles. A final full review of every planned item, against
+  the pictures and the earlier versions, found the rear plate's half lost
+  at some select-screen angles and a stray triangle in front of the nose,
+  both already in the accepted version; both fixed. 23,121 faces; median
+  +0.6 to +0.9 ms against the version before (6 interleaved runs each).
+  Lesson: after every refinement round, review the whole car item by item
+  against the plan and the previous versions, not only what was asked.
 
 ## For the next car
 
