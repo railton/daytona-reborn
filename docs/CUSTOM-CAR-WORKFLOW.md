@@ -310,7 +310,20 @@ folder. What differed from the Camaro, and what to reuse:
   after the bake, dark texels in lines up to 4 texels wide (what a 5 x 5
   opening removes) next to the paint take the nearest paint's colour; wide
   dark areas and the gloss-black parts (handles, emblem, bezels: their
-  exact colour) stay, and the stripes and vents are drawn afterwards. Wider arches, a ducktail and a diffuser
+  exact colour) stay, and the stripes and vents are drawn afterwards.
+- **A sport wheel made in the converter.** The model's wheel is a steel
+  hubcap wheel; recoloured, it could not become the picture's. The
+  converter builds one: a revolved profile for a wide, low-profile tyre
+  (34 cm, rim radius 0.25 of 0.362), a polished lip and a deep barrel
+  (banded texture by angle, for the chrome's reflections), seven dished
+  black spokes with sides, a dark brake disc behind them, a chrome cap;
+  666 faces, set 3 cm further out (M2WHEEL2's half track) so it stands
+  out of the wing. Two things to check on a revolved part: each profile
+  segment's normal (its direction rotated a quarter turn) must point out of
+  the part (a flipped one made the tread face inward and the tyre look
+  hollow from behind), and the barrel must reach the disc (looked at
+  obliquely, the gap between them showed the background through the
+  spokes). Wider arches, a ducktail and a diffuser
   would need new geometry and were left out.
 - **A straight wheel.** The model's front wheels are steered about 9
   degrees: spun about the game's axle, that one wobbled. The rear wheel is
