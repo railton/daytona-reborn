@@ -20,10 +20,14 @@ static bool read_faces(std::istream &in, int max_faces, std::vector<OpponentBodi
     body.resize(size_t(face_count));
     for (auto &face : body) {
         int count, surface;
-        if (!(in >> count >> surface >> face.shade) || count < 3 || count > 4 || surface < 0 || surface >= 10 ||
+        if (!(in >> count >> surface >> face.shade) || count < 3 || count > 4 || surface < 0 || surface >= 20 ||
             !(face.shade >= 0 && face.shade <= 2)) return false;
         face.count = uint8_t(count);
-        face.surface = uint8_t(surface);
+        // 10..19: a decal on the skin (a line, a sticker) with surface - 10's texture, drawn in front of
+        // the faces it lies on (the game's order is by each face's mean depth: a big face beside a
+        // thin strip on it would cover it)
+        face.decal = surface >= 10;
+        face.surface = uint8_t(surface % 10);
         for (int i = 0; i < count; ++i) {
             auto &v = face.vertices[i];
             for (float &x : v)
@@ -518,7 +522,13 @@ const std::vector<rt::GeoPoly> *OpponentBodies::replace(const std::vector<rt::Ge
             if (count < 3) continue;
             auto &poly = scene_.emplace_back();
             auto &corner = corners_.emplace_back();
-            poly.z = rt::Geo::z_sort_value(depth / face.count, source->object_z_adjust);
+            float sort_depth = depth / face.count;
+            if (face.decal) { // its nearest corner, 2 cm nearer still
+                sort_depth = vertices[0].p[0];
+                for (unsigned i = 1; i < count; ++i) sort_depth = std::min(sort_depth, vertices[i].p[0]);
+                sort_depth = std::max(sort_depth - 0.02f, near_z);
+            }
+            poly.z = rt::Geo::z_sort_value(sort_depth, source->object_z_adjust);
             std::copy_n(source->viewport, 4, poly.viewport);
             std::copy_n(source->center, 2, poly.center);
             poly.window = source->window;

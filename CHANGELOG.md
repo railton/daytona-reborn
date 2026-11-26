@@ -39,6 +39,11 @@ the game's car.
   with a real-size 1960s Beetle (wheelbase 2.40 against the game car's
   2.81): 15,840 faces and a 1,180-face wheel, game + renderer CPU median
   5.9 ms at 3440 x 1440 with every image option.
+- Decal faces: SURFACE 10..19 in bodies.m2car is a face with surface
+  SURFACE - 10's texture, drawn in front of the faces it lies on (sorted by
+  its nearest corner, 2 cm nearer, instead of its mean depth: a thin strip
+  over a big face lost to it). For panel lines and stickers drawn as
+  geometry. Bodies without them are unchanged.
 - See-through glass: a body folder's `car.ini` with `glass_opacity=F` (0.25
   to 1; `glass_see_through=1` is 0.5) draws the player's glass covering
   that share (alpha to coverage with MSAA, an ordered 2 x 2 pattern

@@ -70,6 +70,7 @@ public:
     struct Face {
         uint8_t count = 0;
         uint8_t surface = 0;
+        bool decal = false; // SURFACE 10..19 in the file: drawn in front of the faces it lies on
         float shade = 1;
         std::array<std::array<float, 5>, 4> vertices{};
     };

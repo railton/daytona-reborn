@@ -325,6 +325,39 @@ folder. What differed from the Camaro, and what to reuse:
   it. The piping's own faces are also sampled densely and drawn on the
   surface of the nearest face. The lines are about 3 texels wide (thin ones still read as
   broken) and breaks up to 6 texels are closed.
+  Lines found in the texture stayed unfaithful (wobbly, smudged where the
+  planar projection met a curve), so they are now **geometry**: the model's
+  own open panel edges (the wings, doors, lids, window frames) on the
+  exterior paint, chains under 15 cm and those by the old bumpers or below
+  30 cm dropped, snapped onto the game's reduced skin, each edge a matte
+  black ribbon 2 cm wide, 4 mm off the skin, written as decal faces
+  (surface 17, see CUSTOM-CARS.md): 332 quads, 30 chains, 33.9 m. The
+  texture keeps no line at all: every thin dark texel next to the paint
+  takes the paint's colour, but where a small black part lies (handles,
+  the emblem, mirrors: chrome pieces under 30 cm, projected onto each
+  surface they face), and the glass's colour baked into the body textures
+  goes too. The sills between the arches are a clean black skirt.
+
+### Acceptance criterion for details drawn on a car
+
+A detail (a line, a stripe, a lamp, a plate) is accepted when all hold:
+
+1. **Faithful:** it comes from the model's geometry or the reference
+   picture's layout, never from baked noise. Panel lines: only the model's
+   open panel edges (the converter prints the chains and metres).
+2. **Continuous:** no breaks along it. Geometry ribbons share their
+   corners; texture lines (stripes) are anti-aliased bands.
+3. **Even:** one width in metres along the whole car (ribbons 2 cm), not
+   one width in texels (which varies with the surface's scale).
+4. **No smudges:** the converter's ACCEPTANCE line counts the thin dark
+   blobs (6 texels or more, up to 4 wide) left in the paint textures outside
+   the meant details (stripes, lamps, plate, small black parts). Target 0;
+   the Beetle ends with 0 on the roof and front and 2 to 4 per side and on
+   the bonnet, in places the shots do not show.
+5. **In the game:** in the standard shots (the select screen's side and
+   rear, the rolling start's front, the chase camera's rear), set next to
+   the reference picture, every line of the picture that the model has is
+   there and nothing reads as dirt. This is the deciding check.
 - **A sport wheel made in the converter.** The model's wheel is a steel
   hubcap wheel; recoloured, it could not become the picture's. The
   converter builds one: a revolved profile for a wide, low-profile tyre

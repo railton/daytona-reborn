@@ -24,7 +24,7 @@ model follows that model's licence, and none is part of this repository.
     M2CAR1
     then 3 bodies (the player's car uses the first; repeat it), each:
       FACES (1..32768 for the player's car; 1..1024 for opponents)
-      per face: COUNT (3 or 4) SURFACE (0..9) SHADE (0..2)
+      per face: COUNT (3 or 4) SURFACE (0..9, or 10..19) SHADE (0..2)
                 then COUNT corners: x y z u v
 
 - Model space is the game car's: +x its right, +y up, +z forward, about one
@@ -70,6 +70,16 @@ HALF_TRACK, instead of the game car's (z +1.4135 and -1.399, |x| 0.525: the
 game wheel's origin is its inner face). The drawing only: the game's physics,
 its collisions and the checkered shadow stay the game car's. FRONT_Z must
 exceed REAR_Z by more than 1, HALF_TRACK lie between 0.3 and 1.2.
+
+## Decals: lines and stickers on the skin
+
+SURFACE 10 to 19 marks a decal face: it takes surface SURFACE - 10's texture
+and is drawn in front of the faces it lies on. The game draws a car's faces
+in the order of each face's mean depth, so a thin strip lying a few
+millimetres over a big face can lose to it; a decal is sorted by its nearest
+corner, 2 cm nearer still. Lay it 3 to 5 mm off the skin, along the skin's
+normal, wound outward. Panel lines made this way stay sharp at any
+distance, where lines in a 256 x 128 texture blur.
 
 ## See-through glass (optional)
 
