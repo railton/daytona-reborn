@@ -470,8 +470,11 @@ msgstr "Celle du jeu"
 msgid "The Hornet, as at the arcade"
 msgstr "La Hornet, comme en salle d'arcade"
 
-msgid "Each car is a folder in %scars (docs/CUSTOM-CARS.md); its picture is preview.png in it."
-msgstr "Chaque voiture est un dossier dans %scars (docs/CUSTOM-CARS.md) ; son image est le preview.png qu'il contient."
+msgid "Each car is a folder in %s, in the format of docs/CUSTOM-CARS.md; its picture is preview.png in it."
+msgstr "Chaque voiture est un dossier dans %s, au format de docs/CUSTOM-CARS.md ; son image est le preview.png qu'il contient."
+
+msgid "Left out, not in that format (the log says why): %s"
+msgstr "Écartées, hors de ce format (le journal dit pourquoi) : %s"
 
 msgid "Experimental: this feature is being tested. It may fail or change; if it does, the log below helps us fix it."
 msgstr "Expérimental : cette fonction est en cours de test. Elle peut échouer ou changer ; en cas d'échec, le journal ci-dessous nous aide à la corriger."
@@ -1603,3 +1606,6 @@ msgstr "Le jeu ne lit pas les données reçues."
 
 msgid "Invalid data from another player: is everyone on the same version of the game?"
 msgstr "Données invalides d'un autre joueur : tout le monde a-t-il la même version du jeu ?"
+
+# Plus utilisés (no longer used):
+#~ msgid "Each car is a folder in %scars (docs/CUSTOM-CARS.md); its picture is preview.png in it."

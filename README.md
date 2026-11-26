@@ -166,7 +166,7 @@ The Revision A game opens on its home menu. **Settings** has eight tabs:
 | Game | the ROM set (Browse, Check); logs (Generate logs, on by default; Open the logs folder); updates (check for new versions) |
 | Display | picture format, graphics API, renderer, render resolution, draw mode, fullscreen, display pacing |
 | Enhancements | draw distance, 3D scenery, opponents' detail, polygon budget, widescreen options, image quality (automatic or each option), smooth menus and HUD, screen effects, screen colours, smoothing |
-| Cars | experimental: the car you drive, a card with a picture for each (the game's own, or a body made from a 3D model, [docs/CUSTOM-CARS.md](docs/CUSTOM-CARS.md)); it changes at once |
+| Cars | experimental, shown when the project's `cars/` folder holds a car: the car you drive, a card with a picture for each (the game's own, or a body made from a 3D model in the format of [cars/README.md](cars/README.md)); it changes at once |
 | Link play | linking cabinets on a local network |
 | Controls | devices, steering, force feedback, every control's key, gamepad and wheel assignment |
 | AI textures | experimental: what this computer has for the high-resolution texture pack, making it, using or deleting it ([docs/HIRES-TEXTURES.md](docs/HIRES-TEXTURES.md)) |

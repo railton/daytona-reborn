@@ -467,7 +467,10 @@ msgstr ""
 msgid "The Hornet, as at the arcade"
 msgstr ""
 
-msgid "Each car is a folder in %scars (docs/CUSTOM-CARS.md); its picture is preview.png in it."
+msgid "Each car is a folder in %s, in the format of docs/CUSTOM-CARS.md; its picture is preview.png in it."
+msgstr ""
+
+msgid "Left out, not in that format (the log says why): %s"
 msgstr ""
 
 msgid "Experimental: this feature is being tested. It may fail or change; if it does, the log below helps us fix it."

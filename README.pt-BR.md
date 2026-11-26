@@ -176,7 +176,7 @@ O jogo Revision A abre na tela inicial. As **Configurações** têm oito abas:
 | Jogo | a ROM (Procurar, Verificar); logs (Gerar logs, ligado por padrão; Abrir a pasta de logs); atualizações (procurar novas versões) |
 | Vídeo | formato da imagem, API gráfica, renderizador, resolução de renderização, modo de desenho, tela cheia, ritmo de exibição |
 | Melhorias | distância de visão, cenário em 3D, detalhe dos adversários, orçamento de polígonos, opções de widescreen, qualidade de imagem (automática ou cada opção), menus e HUD suaves, efeitos de tela, cores da tela, suavização |
-| Carros | experimental: o carro que você dirige, um cartão com a imagem de cada um (o do próprio jogo, ou uma carroceria feita de um modelo 3D, [docs/CUSTOM-CARS.md](docs/CUSTOM-CARS.md)); troca na hora |
+| Carros | experimental, aparece quando a pasta `cars/` do projeto tem um carro: o carro que você dirige, um cartão com a imagem de cada um (o do próprio jogo, ou uma carroceria feita de um modelo 3D no formato de [cars/README.md](cars/README.md)); troca na hora |
 | Link play | ligar gabinetes numa rede local |
 | Controles | dispositivos, direção, force feedback, a tecla, o botão do controle e do volante de cada comando |
 | Texturas IA | experimental: o que este computador tem para o pacote de texturas em alta resolução, gerar, usar ou apagar o pacote ([docs/HIRES-TEXTURES.md](docs/HIRES-TEXTURES.md)) |

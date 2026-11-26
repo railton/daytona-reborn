@@ -470,8 +470,11 @@ msgstr "Original do jogo"
 msgid "The Hornet, as at the arcade"
 msgstr "O Hornet, como no fliperama"
 
-msgid "Each car is a folder in %scars (docs/CUSTOM-CARS.md); its picture is preview.png in it."
-msgstr "Cada carro é uma pasta em %scars (docs/CUSTOM-CARS.md); a imagem dele é o preview.png dentro dela."
+msgid "Each car is a folder in %s, in the format of docs/CUSTOM-CARS.md; its picture is preview.png in it."
+msgstr "Cada carro é uma pasta em %s, no formato do docs/CUSTOM-CARS.md; a imagem dele é o preview.png dentro dela."
+
+msgid "Left out, not in that format (the log says why): %s"
+msgstr "Deixados de fora, fora desse formato (o log diz por quê): %s"
 
 msgid "Experimental: this feature is being tested. It may fail or change; if it does, the log below helps us fix it."
 msgstr "Experimental: esta funcionalidade está em testes. Ela pode falhar ou mudar; se falhar, o registro abaixo nos ajuda a corrigir."
@@ -1603,3 +1606,6 @@ msgstr "O jogo não está lendo os dados recebidos."
 
 msgid "Invalid data from another player: is everyone on the same version of the game?"
 msgstr "Dados inválidos de outro jogador: todos estão com a mesma versão do jogo?"
+
+# Plus utilisés (no longer used):
+#~ msgid "Each car is a folder in %scars (docs/CUSTOM-CARS.md); its picture is preview.png in it."

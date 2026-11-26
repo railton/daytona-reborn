@@ -56,7 +56,7 @@ struct Config {
     bool crt_filter = false;         // the display: an arcade monitor's scanlines, grille and corners
     bool smooth_2d = false;          // the menus, HUD and text magnified smooth (GpuRenderer::set_smooth_2d)
     bool hires_textures = false;     // draw the high-resolution texture pack (HiresMaker::pack_path)
-    std::string player_car;          // experimental: a body from <pref dir>/cars/NAME/ for the player's car ("" the game's)
+    std::string player_car;          // a body from the project's cars/NAME/ for the player's car ("" the game's)
     bool hires_processor = false;    // make that pack on the processor (slow) instead of the graphics card
     int bloom_strength = 35;         // the glow added, percent (10..100)
     int crt_strength = 100;          // the monitor's look, percent (20..100)

@@ -8,7 +8,7 @@ rule 14); each version has its section here.
 
 ### A custom body for the player's car (experimental)
 
-Settings > Cars draws a body from the data folder's
+Settings > Cars draws a body from the project's
 `cars/NAME/` (or `M2_PLAYER_BODY=FOLDER`) in place of the player's car body,
 with the hardware renderer (docs/CUSTOM-CARS.md). Only the look changes; the
 game's wheels, light, shadow and physics stay, and online the others see
@@ -47,6 +47,15 @@ the game's car.
   start. M2_PLAYER_BODY still wins. The game's car's card shows
   `cars/game-car.png` when the player made one (never shipped: it is the
   game's art).
+- The cars live in the project's `cars/` folder, as the ROM set in
+  `roms/` (found beside the build folder, or in the working folder; git
+  ignores all but its README, which gives the format). The Cars tab shows
+  only when a folder there is a car that loads: `bodies.m2car` and
+  `liveries.rgba` are checked with the renderer's own reader (cached until
+  a file changes). A folder in another format is left out, named under the
+  cards, its reason in the log (`daytona: cars/NAME left out: ...`). The
+  data folder's `cars/` is no longer read: move its folders to the
+  project's. Test: `custom_cars`.
 - Decal faces: SURFACE 10..19 in bodies.m2car is a face with surface
   SURFACE - 10's texture, drawn in front of the faces it lies on (sorted by
   its nearest corner, 2 cm nearer, instead of its mean depth: a thin strip

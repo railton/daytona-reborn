@@ -13,33 +13,44 @@ The model, its converted files and the conversion scripts stay on the
 working computer, outside the repository (rule 6 for the game's data; the
 model's own licence for the car). The scripts are referred to here by name;
 they live in the local working folder (`planos/carro-foto/ferramentas/`,
-beside the repository): `camaro/` (camaro.py, wheel.py, preview.py),
-`fusca/` (fusca.py, piloto.py, preview.py), `captura/` (shots.sh and its
-inputs).
+beside the repository): `carro/` (the generic converter: `car.py CONFIG
+OUT_DIR`, the library `carlib/`, one config per car in `cars/`, its
+README), `captura/` (shots.sh, game_car_preview.py, ref.py and the
+inputs); the first three cars' own converters, kept as the reference the generic one
+reproduces: `fusca/`, `camaro/`, `escort/`.
 
 ## The path, in short
 
 1. Find an **artist-made 3D model** whose licence allows changing it, in
    glTF (`.glb`). Not a car generated from photos (see "Tried and dropped").
    Gather **reference pictures** of the look wanted (photos, or AI pictures
-   of that model in that style); without them the model's own look
-   (`preview.py`) is the reference.
-2. **Try the look first** with `preview.py` (its colour, before any
-   conversion).
+   of that model in that style); without them the model's own look is the
+   reference.
+2. **Try the look first** with `captura/ref.py GLB OUT_DIR`: the model in
+   its own colours at the game's angles (the select screen's frames 1400
+   to 1760, the start, chase and high views), before any conversion, and
+   the reference to compare the captures with when there are no pictures
+   (the DeLorean). (`fusca/preview.py` does four angles with the Beetle's
+   recolour rule built in.) Not to be confused with the card's picture
+   (`captura/game_car_preview.py`, step 8).
 3. **Decide its size:** at its own size on its own axles (`M2WHEEL2`, the
    Beetle); or at its own proportions, its wheelbase scaled onto the game
    car's, with bigger wheels standing out of the body and the arches cut
    round them (`M2WHEEL2` too, the refined Camaro). Scaling the whole body
    onto the game car's wheels (the first Camaro) looked squat and is not
    done any more.
-4. **Convert** it with the converter nearer the model (`camaro.py`: a paint
-   material of its own, every face a flat colour; `fusca.py`: shared
-   texture atlases), to the
+4. **Convert** it with the generic converter: a config in `carro/cars/`
+   (copied from the nearest: `escort.py` for a model with plain materials,
+   every face a flat colour; `fusca.py` for a model whose look is in
+   shared texture atlases, baked; `delorean.py` for a dense model whose
+   nodes are kinds of material, each face's colour read from its texture)
+   and, for what is one-off, a short hook
+   module; `carro/README.md` lists the fields. Build to the
    finished standard below: details cut into the skin, small black parts
    as their own faces, lamps and the plate on their own texture cells, the
    textures only paint and large areas.
-5. **Its wheel:** the model's own (`wheel.py`) or one made in the converter
-   (the Beetle's sport wheel).
+5. **Its wheel:** the model's own or one made in the converter (a
+   revolved profile, spokes and dish), the config's `WHEEL`.
 6. **Check it** in every standard shot, the select screen's full turn and
    the cockpit, next to the reference; measure the smudges and the frame
    time (the performance protocol below).
@@ -48,10 +59,29 @@ inputs).
    review of every planned item against the plan and the previous
    versions: a round can silently remove a part (the Beetle lost its front
    bumper that way).
-8. **Use it:** copy the folder to the data folder's `cars/NAME/` and pick it
-   in Settings > Cars (it changes at once), or `M2_PLAYER_BODY=FOLDER`.
-   Give it a `preview.png` for its card (the select screen's frame of it,
-   the blue backdrop made transparent) and a `name=` in `car.ini`.
+8. **Use it:** copy the game's files (`bodies.m2car`, `liveries.rgba`,
+   `wheel.m2car`, `car.ini`, the credits, `preview.png`; not the review
+   sheets) to the project's `cars/NAME/` and pick it in Settings > Cars (it
+   changes at once; the tab shows once a folder there loads), or
+   `M2_PLAYER_BODY=FOLDER`.
+   Give it a `name=` in `car.ini`, a credits file whose first line (title
+   and author) the card shows, links left out, and a `preview.png`: the
+   select screen's chosen car (frame 1720, the left half) through
+   `captura/game_car_preview.py FRAME OUT` (an exact key on the backdrop's
+   (0, 0, 255), the edge pixels unmixed, about 800 px wide). Check the
+   card: `M2_CAPTURE_SETTINGS_TAB=7 build-daytona/daytona --profile capture
+   --settings --capture-home OUT.bmp` from the repository (every profile
+   reads the same `cars/`); a folder left out is named under the cards and
+   in the log (`daytona: cars/NAME left out: ...`).
+9. **Clean up** once the car is accepted: keep the downloaded model, the
+   converted folder the proof compares with (`modelo/`), the converter's
+   code and config, the notes, the final sheet and the card's capture,
+   the benchmark and proof logs; delete the rest (the shots of every
+   round, the comparison sheets, reference renders, build outputs,
+   `trabalho/generico/`, discarded variants, and any tool, model cache or
+   Docker image of an approach that was dropped). A car's rounds leave
+   hundreds of megabytes; the photo-to-3D trial left 15 GB. Then run every
+   `prove.sh` once more: all must print PROOF OK.
 
 ## The finished standard
 
@@ -64,25 +94,75 @@ are in "Problems met" and in the Beetle's history further down.
 | --- | --- | --- |
 | Paint, large areas | the planar textures (256 x 128 a surface), baked from the full model (the Beetle); or, when the model has a paint material of its own, every face a flat colour from a palette, nothing baked (the refined Camaro) | the only thing the textures render well; flat colours cannot smudge at all |
 | Panel lines (wings, doors, lids), window rubbers, stripes, vents, slats, emblems | **cut into the skin** (`inlay()`): the band is cut out of the triangles it crosses, the pieces take a flat colour | drawn in a texture they blur and smear on curves; laid over the skin (even as decals) they lose to the game's per-face depth order |
-| Panel lines: which ones | only the model's own open panel edges on the exterior paint, one 2 cm line per seam, the ones the reference has | lines from the texture's noise are wobbly and unfaithful |
+| Panel lines: which ones | the ones the reference has, one 2 cm line per seam, from the model's geometry: its open panel edges on the exterior paint when the skin is made of panels (the Beetle); when the skin is one welded piece with the seams modelled as grooves (the Escort), its sharp creases (over 50 degrees, away from the glass, arches and sills), each groove's two creases merged into one centre line resampled every 5 cm, the band extruded along the axis it is seen along (side x, top y, ends z) | lines from the texture's noise are wobbly and unfaithful; a band built on the skin's own normal across a groove reads hairy, with black wedges |
 | Small black parts (handles, mirrors, piping, running boards) | their own faces in a flat colour, kept out of the bake | baked, they smear the paint behind them |
-| Headlamps, tail lamps, auxiliary lamps | their own texture cells (surface 8, 128 x 128 a kind); new geometry where the model's shape differs from the reference | baked into the front texture a lamp gets about 20 texels |
-| Plate | its own quad, its picture in surface 7's free half | sharp letters |
+| Headlamps, tail lamps, auxiliary lamps | their own texture cells (surface 8, 128 x 128 a kind); new geometry where the model's shape differs from the reference; a cluster behind a grid: its picture taken from the model (an orthographic bake of lens, reflector and grid) on one flat panel. Lenses are often thin shells with half their faces wound inward: keep the outward ones. A transparent lens material dropped leaves a silver reflector: apply the lens's tint to it | baked into the front texture a lamp gets about 20 texels; reduced, a grid and its lenses become loose triangles |
+| Plate | its own quad (a decal when a bumper or lid face could cover it), its picture in surface 7's free half; a palette car has whole surfaces free, a plate each at 256 x 92; letters drawn with a font file kept beside the converter (DejaVu Sans Bold) | sharp letters |
+| Wing flares | the skin cut open on a circle (the arch radius plus the flare's width); the flare a revolved strip from the cut edge (its \|x\| read per angle from the cut) out to the tyre's face, a dark liner drum inside, rivets inlaid into the flare's own faces | the model has none; repainting cannot make a shape |
+| Tyres standing out, nothing over them | no flare (`flares(lip=False)`, `flare_w=0`): the skin cut at the arch's radius, the liner drawn on both sides, a dark ring from just behind the cut edge to the liner | flares down past the axle and proud of the tyre hid the tyres from behind; a cut wider than the liner showed the backdrop round the tyre; a ring in front of the edge showed as teeth |
+| Lowering | build everything unlowered and subtract the drop when writing the body; the wheel centre used for the arches is then ground + radius + drop | lowering part way through moves the arches off the wheels |
 | Bumpers, splitter, diffuser, ducktail | rebuilt as new geometry to the reference when the model's differ | repainting keeps the wrong shape |
 | Glass | flat tint (surface 6), a black rubber inlaid along its edge, `glass_opacity=0.75` when there is an interior | the join between glass and body is jagged |
-| Interior | kept when seen through the glass, each face a flat colour from a palette; reduced (about 2,500 faces) | a see-through car with nothing inside looks hollow |
+| Interior | kept when seen through the glass, each face a flat colour from a palette; reduced (about 2,500 faces); what the model lacks is made (cushions, a rear bench, the parcel shelf, side panels, the windows' inner sides, a steering wheel: the Escort had only a black shell) | a see-through car with nothing inside looks hollow, the select screen's blue showing through |
+| Driver | `piloto.py` (the converter's `DRIVER`): needs the car's steering wheel (centre, facing, radius), the cushion's top and the backrest; the seat may have to slide forward for the arms to reach (reach 0.89); scaled to the car's height (1.52 m in the 1.14 m high DeLorean) | the Beetle's copy finds them in hard-coded Beetle coordinates; at 1.72 m the DeLorean's helmet went through the roof |
+| A dense model (each node a kind of material, hundreds of pieces over a colour atlas) | each face's colour read from the texture (swatches, flat colours: nothing baked); the never-seen test made on the full-detail model, with points by area; reduced piece by piece, the faces shared by seen area, cables kept round (one colour a cable); a fine wire on a panel a decal; pieces under 2 cm and wires under 8 mm left out; meshes with holes (perforated grilles) dropped | a node is not a part there; a test with a fixed number of points a face lets everything show through a wide panel; a mesh drawn without its holes greys what lies behind |
+| Paint colour | a red of (212, 18, 20) rather than (234, 28, 22): a little deeper than the reference's sunlit paint, the game's light shading it | a bright value reads flat and orange in the select screen |
 | Wheels | the model's own, or one built in the converter (revolved profile), on the car's axles; check each profile segment's normal and close every gap; the tread split into strips across its width; a dark band under the bead | a crude or wobbling wheel spoils the close shots; a full-width tread face is drawn over the body (mean depth); the gap between rim lip and bead shows the backdrop |
 | Bigger wheels standing out | the size set in the body's converter (written to its JSON, read by `wheel.py`); the arch cut as a circle (tyre radius + 2 cm, 48 sides) through the paint faces only, after the inlays; a dark liner drum inside, its edge 2 cm in from the cut | cut before the inlays, stripes end ragged; cutting every material took the exhausts' faces |
 | Seams, gaps, trim bits left in the textures | painted over: every thin dark texel next to the paint takes the paint's colour, except where a small black part lies | read as dirt |
 
+### The drawing order inside the car
+
+There is no depth buffer inside a car: the game draws its faces in the
+order of each face's mean depth. Any two faces that overlap on screen and
+lie within a few centimetres of each other will fight at some angle of the
+select screen's turn. About half the Escort's refinement time went here,
+a quarter of the DeLorean's (the rules were written by then). The rules
+that worked:
+
+1. **Skin under another part** (a bumper, a spoiler) takes that part's
+   colour, cut along the part's outline: whichever is drawn last looks the
+   same. Removing that skin instead leaves holes where the part does not
+   cover its whole outline.
+2. Or **replace the model's layered part with one made shell** (the
+   Escort's bumpers).
+3. **A decal only over faces of about its own size.** On a wide face (the
+   third brake light on the spoiler) the wide face's mean depth can be
+   nearer than the decal's nearest corner minus 2 cm: cut the detail into
+   the face instead and remove the hidden skin behind it.
+4. **Glass lying on a dark band:** make the glass the decal (surface 16).
+5. **A wide skin face next to a small part** is drawn over the part's edge:
+   subdivide the skin beside it.
+6. **A cable or clip lying on a panel:** make it a decal and put the panel
+   in small faces under it (cutting the skin round each cable cost the
+   DeLorean 9,700 faces).
+7. **Cabin parts and the driver right behind a flat panel** are drawn over
+   it: the panel in faces of 16 cm or less, and leave out what only shows
+   that way (the inner door panels below the windows, the driver's feet).
+   A model's inner shell behind the panels (the DeLorean's black one) is
+   dropped for the same reason.
+
 ### Budget
 
-The body under about 22,000 faces, each wheel under about 2,000; game +
-renderer CPU median under about 9 ms in the benchmark (the game has 17.4 ms
-a frame). The Beetle: 20,862 faces, a 660-face wheel, 6.88 ms (23,121 with
-the driver and bumper, +0.6 to +0.9 ms). The refined Camaro with its big
-wheels: 17,574 faces, a 1,512-face wheel, 7.29 ms (3440 x 1440, everything
-on). Pay for details by reducing the interior and the paint first.
+One number: the body, driver and interior included, **under about 22,000
+faces**, up to about 30,000 for a model whose detail is the point when the
+median stays under 9 ms (the DeLorean, 26,483: below 24,645 its canisters
+turned into spikes); each wheel under about 2,000; game + renderer CPU median under
+about 9 ms in the benchmark (the game has 17.4 ms a frame). A face costs
+about 0.3 microseconds a frame (the Escort measured a little less: 5.6 ms
+over the game's car for 21,712 + 4 x 596 faces). Measured, 3440 x 1440,
+everything on:
+
+| Car | Body faces | Wheel faces | Median |
+| --- | --- | --- | --- |
+| The game's car | | | 1.20 ms |
+| Beetle (driver, bumper) | 23,121 | 660 | 7.40 ms |
+| Camaro, refined, big wheels | 17,574 | 1,512 | 7.29 ms |
+| Escort (driver) | 21,712 | 596 | 6.84 ms |
+| Escort, round 9 | 21,684 | 636 | 6.91 ms |
+| DeLorean time machine (driver, cabin) | 26,483 | 495 | 7.74 ms |
+
+Pay for details by reducing the interior and the paint first.
 
 ### Performance protocol
 
@@ -103,11 +183,19 @@ A car is finished when all hold:
 4. **No smudges:** the converter's ACCEPTANCE line, the thin dark blobs (6
    texels or more, up to 4 wide) left in the paint textures over the
    texels the faces use, outside the meant details: 0 on every surface.
+   Meaningful only for a baked car: on a palette car it passes by
+   construction, and criterion 5 is the check.
 5. **In the game,** the deciding check: in every standard shot, every angle
    of the select screen's turn (both cars, the one not chosen dimmed) and
    the cockpit view, set next to the reference, every feature of the
    reference that the model can carry is there and nothing reads as dirt,
    blur or a misplaced part.
+6. **Reviewed item by item:** a table of every part of the reference (and
+   of the plan), each with present, correct, and the frames it was checked
+   in (S select screen, D dimmed, R rolling start, C chase, H high, K
+   cockpit), made again after every round. The Escort's found a third
+   brake light broken at three angles after the car otherwise looked
+   finished; the Beetle's, a lost half plate.
 
 ### Refinement rounds with an agent
 
@@ -118,7 +206,7 @@ capture the standard shots and the select screen's turn, and to
 benchmark; the acceptance criterion; the budget; and the rules (change only
 the local converter, keep a backup copy first, no git, nothing installed on
 the host, the model never in the repository, install the result into the
-data folders' `cars/NAME/`, a comparison sheet of the game's frames next to
+project's `cars/NAME/`, a comparison sheet of the game's frames next to
 the reference at the end, a report of what still differs). Changes the
 game itself would need are described, not made, and reviewed afterwards.
 
@@ -148,10 +236,32 @@ shots. Start from a model a person modelled.
   locally, credited (`CREDITOS.txt` in its folder), never committed or
   shared. A model whose licence allows sharing could be distributed as a
   car folder; nothing derived from the game's ROM ever is.
+- **Its origin:** a licence is only worth something if the uploader made
+  the model. Signs of one extracted from a commercial game: a game's name
+  in its tags (`csr2`, `forza`, `nfs`, `gta`), node and material names in a
+  game's pattern (`LOD_A_..._mm_...`, `..._Geo_lodA_...`, `(Clone)`,
+  `_rootJoint`), a car from a film. Such a model may be used on one's own
+  computer at one's own risk and is never published, not even converted.
+  `python3 -I` reading the `.glb`'s JSON chunk prints the node and
+  material names, and its `asset.extras` the author, licence and source.
 - **What makes a model easy:** separate materials (paint, glass, chrome,
   lamps, tyres, rims, interior), the paint as one material, real-world
   scale, no baked-in background. Detail does not need to be low: the
   converter reduces it (a 60,000-triangle model is fine).
+- **Check before converting:** is the skin made of panels or one welded
+  piece (the panel lines' recipe differs)? Are the lenses wound outward
+  (the Escort's auxiliary lamps faced inward, invisible until flipped)?
+  Has it an interior, or only a shell? Is a detail only in the texture (the
+  Escort's pinstripe was in its paint texture: its path read from there and
+  inlaid)? Which way are its axes: the tyres' centres give the axles, the
+  headlamp glass the front, the steering wheel the car's left (the Escort:
+  front +z, +x the car's left, so x mirrored and winding reversed; real
+  scale; the Camaro needed x100 from its root node).
+- **A quick look at the written files** before any game capture: a small
+  rasteriser of `bodies.m2car` with back-face culling (`escort/view.py`)
+  found the inward lenses, the seat and the driver's pose. A converter run
+  is a few seconds and a full set of captures about 15 s, so the game
+  stays the judge.
 
 ## 2. The game's car, measured
 
@@ -236,7 +346,9 @@ stages, and why each is there:
    | 8 | grille mesh, chin spoiler (matte) |
    | 9 | bonnet (top, in more detail) |
    The tops (2, 5, 9) must stay planar over x and z: the cockpit view
-   paints the game's bonnet from them.
+   paints the game's bonnet from them. A palette car still needs surface 9
+   holding the bonnet seen from above (with its vents drawn in), or the
+   cockpit's bonnet is one texel.
 6. **The livery** (the "79" variant): the paint recoloured, stripes and
    lower panels added, numbers drawn in a font. A number on a door is drawn
    mirrored in the texture so that it reads right on the car; on the roof
@@ -269,26 +381,35 @@ shadows). The shots that found every problem so far:
 | Shot | Inputs | Frames |
 | --- | --- | --- |
 | Rolling start, the car from ahead, close | repository `scripts/inputs/attract_long.txt` | 2160..2260 |
-| Mission select, the full turn of both cars (the one not chosen dimmed) | `captura/in_vr2.txt` | 1400..1780, every 10 |
+| Mission select, the full turn of both cars (the one not chosen dimmed) | `captura/in_vr2.txt` | 1400..1760, every 10 (1770 on is an empty blue screen) |
 | Race, normal chase | `captura/in_vr4.txt` | 2400..2700 |
-| Race, high chase camera | `captura/in_vr4.txt` | after 2760 |
-| Cockpit view (VR2) | `captura/in_vr2.txt` | after 2760 |
+| Race, high chase camera | `captura/in_vr4.txt` | 2800, 2900, 3000 |
+| Cockpit view (VR2) | `captura/in_vr2.txt` | 2800, 2900, 3000 |
 
-Look at each next to the same frame with the game's car (`none`), and zoom
-on the wheels and arches, the glass, the numbers and the shadow.
+In a select-screen frame (1984 wide) the chosen car is the left half
+(about x 60..960, y 740..1100), the dimmed one the right half (x
+1040..1940, on a red backdrop once chosen). In a 1984 x 1536 race frame
+the car is about x 560..1300, y 760..1260 in the chase view and x
+700..1180, y 740..1120 in the high one. `shots.sh` deletes its output
+folder first: one folder per shot, never a shared one. Look at each next
+to the same frame with the game's car (`none`), and zoom on the wheels and
+arches, the glass, the numbers and the shadow. Yellow or green patches on
+the paint at the start are its reflections of the scenery (a capture
+without `--car-reflections` tells).
 
-Then the frame time, with the heaviest settings:
+Then the frame time, with the heaviest settings (about 19 s a run; check
+first that no other `m2gpushot` runs, `pgrep -x m2gpushot`, or the
+timings mix):
 
     M2_PLAYER_BODY=FOLDER build-daytona/m2gpushot build-daytona/rom_cache/daytona 3600 \
-      --dump OUT --every 100000 --nvram NVRAM --inputs captura/in_vr4.txt \
+      --dump OUT --every 100000 --nvram captura/nvram --inputs captura/in_vr4.txt \
       --aspect 21:9 --pixels 3440x1440 --msaa 4 --aniso 16 --smooth-cars \
       --car-reflections --car-shadows --bloom --crt --bench
 
-The game has 17.4 ms a frame. The first Camaro (20,869 faces, four
-1,679-face wheels): game + renderer CPU median 7.9 ms, p99 11.4 ms (the
-game's car: 1.2 ms); the refined one (17,574 faces, 1,512-face wheels):
-7.29 ms, p99 9.81 ms. Every face costs the processor about 0.3 microseconds a frame:
-keep the body under about 20,000 faces and the wheel under about 2,000.
+The number to read is the line "game + renderer CPU per frame: median
+...". The game has 17.4 ms a frame. The first Camaro (20,869 faces, four
+1,679-face wheels): median 7.9 ms, p99 11.4 ms (the game's car: 1.2 ms);
+the other cars are in "Budget" above.
 In the game, the log's line "the race ran at N frames/s with this image
 quality" appears only when a race fell short of full speed.
 
@@ -559,23 +680,81 @@ finished.
   whole wheel scaled), a steered front wheel may touch the arch's edge
   (2 cm clearance).
 
+## The third car: a sporty Escort, the process validated (history)
+
+A 1986 Ford Escort XR3 (Sketchfab, CC BY 4.0, 37,000 faces, 15 plain
+materials, one welded skin), converted by an agent that followed this
+document as the recipe and recorded its gaps (folded in above), matched to
+two pictures of a widened version: wing flares with rivets, deep-dish
+six-spoke wheels, black splitter, bumpers and ducktail, fog lamps, a
+pinstripe, plates front and rear.
+
+- **Method:** the refined Camaro's flat palette (nothing baked); seams
+  from the skin's grooves; flares, bumpers, splitter, valance, exhaust, a
+  made wheel and the cabin's missing parts as new geometry; the driver
+  through an adapted `piloto.py`. Real size on its own axles (wheelbase
+  2.383), body lowered 50 mm, wheels out to |x| 0.965 (`M2WHEEL2 1.1989
+  -1.1844 0.6500`), a 9 cm dish.
+- **Time:** about 63 minutes from the first reading to the installed car
+  (9 rounds), 26 of them waiting for conversions, captures and the
+  benchmarks. Half the refinement time went to the drawing order (the
+  section above).
+- **Result:** 21,684 faces (driver 1,473), a 636-face wheel, median
+  6.91 ms (6 interleaved runs each; the Beetle 7.40). Left unlike the
+  pictures: flat lamps, no diffuser shape, a dark plain interior, the body
+  not as low.
+- **Round 10:** the flares removed at the player's request (the tyres hidden from behind), the
+  tyres standing out of the cut arches, then narrowed (0.315 to 0.255 wide, outer face
+  |x| 0.905): 21,481 faces.
+
+## The fourth car: a DeLorean, the first made with the generic converter (history)
+
+A DeLorean DMC-12 time machine (461,595 triangles, 43 nodes, 30
+materials), converted by an agent with the generic converter from the
+start, kept on the working computer only: its tags and node names say it
+was taken from a commercial game (section 1). No reference pictures: the
+model itself, rendered at the game's angles (`captura/ref.py`), was the
+reference.
+
+- **Method:** the palette path, but each node was a kind of material
+  ("Coloured", "Engine", "Interior") holding 700 to 1,100 pieces over a
+  colour atlas, so a node could not be a part: the library gained a
+  dense-model path (`carlib/dense.py`: colour from the texture face by
+  face, the never-seen test on the full model, reduction in chunks keeping
+  cables round, pictures baked from the model for the lamp clusters).
+  Real size on its own axles (`M2WHEEL2 1.2242 -1.2097 0.6500`), one
+  wheel size between the model's front and rear (radius 0.312), the
+  model's turbine rim made into a 495-face wheel; the stainless panels one
+  flat light grey with the game's reflections; the model's own thin panel
+  gaps kept (widening them on this path is not in the library yet).
+- **Time:** 56 minutes in all, 47 to the installed car (the Escort: 63),
+  about 13 rounds, 26 minutes waiting.
+- **Result:** 26,483 faces (driver 1,210, cabin 2,264), median 7.74 ms.
+  Left out: badges and lettering, the perforated meshes, the glow layers,
+  callipers, seat belts; marks smaller than a reduced face (the reactor's
+  yellow ticks) take the face's average colour.
+- **The converter:** a 170-line config and a 57-line hook; the library's
+  additions are shared, and the three earlier cars' proofs stayed
+  byte-identical.
+
 ## For the next car
 
 1. Follow "The path, in short" and build to "The finished standard" from
    the first conversion; do not start from the texture-only approach.
-2. Copy the converter nearer the model and adapt it: the axes (which way
-   is the front, which side the right) first; the material names
-   (`camaro.py`: a paint material, flat colours) or the colour rules
-   (`fusca.py`: shared atlases, baked paint); the size (its own on
-   `M2WHEEL2`, or its proportions with bigger wheels standing out); the
-   style (paint, livery, the reference's details).
-3. Reuse the finished parts: `inlay()` for every line and stripe, the
-   lamp cells, the plate, the small black parts as faces, the interior
-   palette, the cleanup, the sport wheel, the ACCEPTANCE line (`fusca.py`);
-   the arch cut round bigger wheels and the revolved rim with its picture
-   (`camaro.py`, `wheel.py`); the seated driver (`piloto.py`).
+2. Copy the nearest config in `carro/cars/` (`escort.py`, `fusca.py` or
+   `delorean.py`, as in "The path" step 4) and work down it (its
+   README's "A new car, step by step"): the axes first, then a one-part
+   build that already runs in the game, then the parts and their
+   reduction targets, the skin's details, the cuts and made parts, the
+   pictures, the wheel, the driver, the files.
+3. Keep car-specific code in the hook module, as small as it can be; a
+   step two cars need goes into the library, and `prove.sh` for every
+   finished car must still print PROOF OK (the rebuilt files
+   byte-identical to the installed ones).
 4. Run the shots, the select screen's turn, the cockpit and the benchmark;
    refine (or brief a refinement agent) until the acceptance criterion
-   holds.
-5. Write its `CREDITOS.txt` (author, link, licence, what was changed) and
-   install it into `cars/NAME/`.
+   holds, the item-by-item review included.
+5. Write its credits file (author, link, licence, what was changed), make
+   its `preview.png`, install it into `cars/NAME/`, check its card, and
+   add it to the README's table with its `prove.sh` line.
+6. Clean up ("The path" step 9) and run the proofs again.

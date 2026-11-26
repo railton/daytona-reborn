@@ -9,10 +9,15 @@ game's car.
 How a car was made from a downloaded 3D model, what was tried and dropped,
 and the problems met: [CUSTOM-CAR-WORKFLOW.md](CUSTOM-CAR-WORKFLOW.md).
 
-A body is a folder in the game's data folder, `cars/NAME/` (on Linux
-`~/.local/share/daytona-recomp/daytona/cars/NAME/`), holding two files. The
-Cars tab shows a card for every such folder (and one for the game's own
-car): its picture is `preview.png` in the folder (optional, any size, a
+A body is a folder in the project's `cars/` folder, `cars/NAME/` (beside
+`roms/`: the game looks beside its build folder, then in the working
+folder), holding two files ([cars/README.md](../cars/README.md) sums up
+the format). The Cars tab is shown only when at least one folder there is
+a car that loads, and has a card for every such folder (and one for the
+game's own car). A folder is checked with the renderer's own reader
+(`bodies.m2car`, the size of `liveries.rgba`) and left out when it fails,
+its name under the cards and the reason in the log (`daytona: cars/NAME
+left out: ...`). A card's picture is `preview.png` in the folder (optional, any size, a
 transparent background reads best), its name `car.ini`'s `name=` (else the
 folder's), its credit the first line of `CREDITS.txt` (or `CREDITOS.txt`),
 links left out. The game's own car's card shows `cars/game-car.png` when
@@ -23,7 +28,8 @@ renderer loads the folder again between two frames. `M2_PLAYER_BODY=FOLDER`
 uses another folder for one run and wins over the tab.
 
 Third-party models stay on your computer: a body made from someone else's
-model follows that model's licence, and none is part of this repository.
+model follows that model's licence, and none is part of this repository
+(git ignores everything in `cars/` but its README).
 
 ## The files
 
@@ -54,8 +60,9 @@ model follows that model's licence, and none is part of this repository.
   x and z), as a top-down projection gives.
 - Cost: every face is work for the processor each frame, about 0.3
   microseconds (a 20,000-face body with four 1,700-face wheels: about 5 ms
-  a frame, against 0.3 ms with the game's car). Keep the body under about
-  20,000 faces and the wheel under about 2,000.
+  a frame, against 0.3 ms with the game's car). Keep the body (driver and
+  interior included) under about 22,000 faces (up to about 30,000 for a
+  very detailed model, measured first) and the wheel under about 2,000.
 
 `liveries.rgba`: exactly 3 x 10 x (256 x 128 + 128 x 64 + 64 x 32 + 32 x 16)
 RGBA pixels (5,222,400 bytes): per body, per surface, the 256 x 128 texture

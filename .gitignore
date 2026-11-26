@@ -24,6 +24,9 @@ platform/mobile/android/app/.cxx/
 # your ROM set: everything in roms/ but its README
 roms/*
 !roms/README.md
+# your custom cars (third-party models' licences; game-car.png is the game's art): all but its README
+cars/*
+!cars/README.md
 .tools/
 windows-build.log
 macos-build.log

@@ -1,6 +1,7 @@
 #include "app/launcher.h"
 #include "app_version.h" // generated: cmake/app_version.cmake
 #include "app/i18n.h"
+#include "app/custom_cars.h"
 #include "app/gpu/quality_probe.h"
 #include "app/neon_ui.h"
 #include "app/rom_file.h"
@@ -583,41 +584,20 @@ const Launcher::Preview &Launcher::preview(const std::string &png) {
     return p;
 }
 
-void Launcher::draw_cars_tab(float scale) {
-    struct Car { std::string folder, name, credit; };
-    static std::vector<Car> cars;
+namespace {
+// the project's cars/ folder, listed again now and then (Settings > Cars: the
+// tab is shown only when a car there loads)
+const CustomCarList &custom_cars_now() {
+    static CustomCarList list;
     static double listed = -1;
-    const std::string root = Config::pref_dir() + "cars";
-    if (ImGui::GetTime() - listed > 2.0 || listed < 0) { // the folder, again now and then
-        listed = ImGui::GetTime();
-        cars.clear();
-        std::error_code ec;
-        for (const auto &e : std::filesystem::directory_iterator(std::filesystem::u8path(root), ec)) {
-            if (!e.is_directory(ec) || !std::filesystem::exists(e.path() / "bodies.m2car", ec)) continue;
-            const auto u8 = e.path().filename().u8string(); // the folder's name as UTF-8 (accents on Windows)
-            const std::string folder(u8.begin(), u8.end());
-            Car c{folder, folder, {}};
-            // car.ini's name=, and the first line of its credits file
-            if (std::ifstream ini(e.path() / "car.ini"); ini)
-                for (std::string line; std::getline(ini, line);) {
-                    if (!line.empty() && line.back() == '\r') line.pop_back();
-                    if (line.rfind("name=", 0) == 0 && line.size() > 5) c.name = line.substr(5);
-                }
-            for (const char *credits : {"CREDITS.txt", "CREDITOS.txt"})
-                if (std::ifstream f(e.path() / credits); f) {
-                    std::getline(f, c.credit);
-                    if (!c.credit.empty() && c.credit.back() == '\r') c.credit.pop_back();
-                    // the links left out: the card has room for the title and the author
-                    for (size_t at; (at = c.credit.find(" (http")) != std::string::npos;) {
-                        const size_t end = c.credit.find(')', at);
-                        c.credit.erase(at, end == std::string::npos ? std::string::npos : end - at + 1);
-                    }
-                    break;
-                }
-            cars.push_back(std::move(c));
-        }
-        std::sort(cars.begin(), cars.end(), [](const Car &a, const Car &b) { return a.name < b.name; });
-    }
+    if (listed < 0 || ImGui::GetTime() - listed > 2.0) listed = ImGui::GetTime(), list = list_cars(cars_dir());
+    return list;
+}
+} // namespace
+
+void Launcher::draw_cars_tab(float scale) {
+    const CustomCarList &list = custom_cars_now();
+    const std::string root = cars_dir();
     const bool hardware = cfg_.renderer == "hardware";
     ImGui::TextWrapped("%s", TX("Pick the car you drive. It changes at once, also during a race; only its look changes "
                                 "(the game's handling stays), and other players online see the game's car."));
@@ -644,7 +624,7 @@ void Launcher::draw_cars_tab(float scale) {
         const ImVec2 p0(at.x + pad, at.y + pad), p1(at.x + card_w - pad, at.y + pad + pic_h - pad);
         // the game's car: cars/game-car.png when the player made one (it is the
         // game's own art, so it never ships: rule 6), else a plain card
-        const Preview &pv = preview(root + "/" + (folder.empty() ? std::string("game-car.png") : folder + "/preview.png"));
+        const Preview &pv = preview(root + (folder.empty() ? std::string("game-car.png") : folder + "/preview.png"));
         if (pv.tex) { // the picture fitted in the card, its proportions kept
             const float bw = p1.x - p0.x, bh = p1.y - p0.y, s_ = std::min(bw / float(pv.w), bh / float(pv.h));
             const float iw = pv.w * s_, ih = pv.h * s_;
@@ -667,13 +647,23 @@ void Launcher::draw_cars_tab(float scale) {
     };
     ImGui::BeginDisabled(!hardware);
     card("", TX("The game's car"), TX("The Hornet, as at the arcade"));
-    for (const auto &c : cars) card(c.folder, c.name, c.credit);
+    for (const auto &c : list.cars) card(c.folder, c.name, c.credit);
     ImGui::EndDisabled();
     ImGui::Spacing();
+    std::error_code ec;
+    const auto abs = std::filesystem::absolute(std::filesystem::u8path(root), ec).lexically_normal().u8string();
+    const std::string shown = ec ? root : std::string(abs.begin(), abs.end());
     char where[1200];
-    std::snprintf(where, sizeof where, TX("Each car is a folder in %scars (docs/CUSTOM-CARS.md); its picture is preview.png in it."),
-                  Config::pref_dir().c_str());
+    std::snprintf(where, sizeof where, TX("Each car is a folder in %s, in the format of docs/CUSTOM-CARS.md; its picture is preview.png in it."),
+                  shown.c_str());
     ImGui::TextDisabled("%s", where);
+    if (!list.skipped.empty()) {
+        std::string names;
+        for (const std::string &s_ : list.skipped) names += (names.empty() ? "" : ", ") + s_.substr(0, s_.find(':'));
+        char left[1200];
+        std::snprintf(left, sizeof left, TX("Left out, not in that format (the log says why): %s"), names.c_str());
+        ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.3f, 1.0f), "%s", left);
+    }
 }
 
 void Launcher::draw_hires_tab(float scale) {
@@ -1341,7 +1331,8 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
         // ---- Link play: cabinets linked directly, without the relay (advanced: the
         // Online mode in the home menu covers racing over the Internet)
 #ifndef M2_MOBILE
-        if (ImGui::BeginTabItem(TX("Cars"), nullptr, tab_flags(7))) {
+        // only when the project's cars/ folder holds a car that loads
+        if (!custom_cars_now().cars.empty() && ImGui::BeginTabItem(TX("Cars"), nullptr, tab_flags(7))) {
             draw_cars_tab(scale);
             ImGui::EndTabItem();
         }

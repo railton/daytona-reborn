@@ -27,6 +27,7 @@
 // toggles fullscreen. Controls are set in the launcher and saved.
 
 #include "app/config.h"
+#include "app/custom_cars.h"
 #include "app/i18n_mark.h"
 #include "app/gpu_device.h"
 #include "app/hdr10_choice.h"
@@ -1046,9 +1047,10 @@ int main(int argc, char **argv) {
     app::GpuRenderer gpu;
     const char *shadows_env = std::getenv("M2_DXR_SHADOWS");
     const bool shadows_asked = shadows_env ? shadows_env[0] == '1' : cfg.sun_shadows;
-    // the player's car (experimental, Settings > Enhancements): a body from
-    // <pref dir>/cars/NAME/, read at the start
-    if (!cfg.player_car.empty()) gpu.set_player_body(app::Config::pref_dir() + "cars/" + cfg.player_car);
+    // the player's car (Settings > Cars): a body from the project's
+    // cars/NAME/ (app/custom_cars.h), read at the start
+    const std::string cars_dir = app::cars_dir();
+    if (!cfg.player_car.empty() && !cars_dir.empty()) gpu.set_player_body(cars_dir + cfg.player_car);
     if (!gpu.init(dev, SDL_GPU_TEXTUREFORMAT_B8G8R8A8_UNORM, shadows_asked ? 1 : cfg.msaa))
         std::fprintf(stderr, "daytona: hardware renderer unavailable: %s\n", gpu.error().c_str());
     else if (cfg.renderer == "hardware" && (cfg.msaa > 1 || cfg.aniso > 1))
@@ -1974,8 +1976,7 @@ int main(int argc, char **argv) {
         gpu.set_car_textures(cfg.sharp_car_textures);
         gpu.set_smooth_2d(cfg.smooth_2d);
         // Settings > Cars: the player's car changed at once, no restart (M2_PLAYER_BODY wins)
-        static const std::string cars_dir = app::Config::pref_dir() + "cars/";
-        gpu.change_player_body(cfg.player_car.empty() ? std::string() : cars_dir + cfg.player_car);
+        gpu.change_player_body(cfg.player_car.empty() || cars_dir.empty() ? std::string() : cars_dir + cfg.player_car);
 #ifndef M2_MOBILE
         if (!hires_from_env && gpu.ok()) { // Settings > AI textures: the pack made on this computer
             const uint64_t version = launcher.hires_pack_version();
