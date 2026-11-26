@@ -13,8 +13,9 @@ The model, its converted files and the conversion scripts stay on the
 working computer, outside the repository (rule 6 for the game's data; the
 model's own licence for the car). The scripts are referred to here by name;
 they live in the local working folder (`planos/carro-foto/ferramentas/`,
-beside the repository): `camaro/` (camaro.py, wheel.py), `fusca/`
-(fusca.py, preview.py), `captura/` (shots.sh and its inputs).
+beside the repository): `camaro/` (camaro.py, wheel.py, preview.py),
+`fusca/` (fusca.py, piloto.py, preview.py), `captura/` (shots.sh and its
+inputs).
 
 ## The path, in short
 
@@ -25,10 +26,15 @@ beside the repository): `camaro/` (camaro.py, wheel.py), `fusca/`
    (`preview.py`) is the reference.
 2. **Try the look first** with `preview.py` (its colour, before any
    conversion).
-3. **Decide its size:** on the game car's wheels (scaled, arches cut) or at
-   its own size on its own axles (`M2WHEEL2`).
+3. **Decide its size:** at its own size on its own axles (`M2WHEEL2`, the
+   Beetle); or at its own proportions, its wheelbase scaled onto the game
+   car's, with bigger wheels standing out of the body and the arches cut
+   round them (`M2WHEEL2` too, the refined Camaro). Scaling the whole body
+   onto the game car's wheels (the first Camaro) looked squat and is not
+   done any more.
 4. **Convert** it with the converter nearer the model (`camaro.py`: a paint
-   material of its own; `fusca.py`: shared texture atlases), to the
+   material of its own, every face a flat colour; `fusca.py`: shared
+   texture atlases), to the
    finished standard below: details cut into the skin, small black parts
    as their own faces, lamps and the plate on their own texture cells, the
    textures only paint and large areas.
@@ -56,7 +62,7 @@ are in "Problems met" and in the Beetle's history further down.
 
 | Detail | How it is made | Why |
 | --- | --- | --- |
-| Paint, large areas | the planar textures (256 x 128 a surface), baked from the full model | the only thing they render well |
+| Paint, large areas | the planar textures (256 x 128 a surface), baked from the full model (the Beetle); or, when the model has a paint material of its own, every face a flat colour from a palette, nothing baked (the refined Camaro) | the only thing the textures render well; flat colours cannot smudge at all |
 | Panel lines (wings, doors, lids), window rubbers, stripes, vents, slats, emblems | **cut into the skin** (`inlay()`): the band is cut out of the triangles it crosses, the pieces take a flat colour | drawn in a texture they blur and smear on curves; laid over the skin (even as decals) they lose to the game's per-face depth order |
 | Panel lines: which ones | only the model's own open panel edges on the exterior paint, one 2 cm line per seam, the ones the reference has | lines from the texture's noise are wobbly and unfaithful |
 | Small black parts (handles, mirrors, piping, running boards) | their own faces in a flat colour, kept out of the bake | baked, they smear the paint behind them |
@@ -65,15 +71,18 @@ are in "Problems met" and in the Beetle's history further down.
 | Bumpers, splitter, diffuser, ducktail | rebuilt as new geometry to the reference when the model's differ | repainting keeps the wrong shape |
 | Glass | flat tint (surface 6), a black rubber inlaid along its edge, `glass_opacity=0.75` when there is an interior | the join between glass and body is jagged |
 | Interior | kept when seen through the glass, each face a flat colour from a palette; reduced (about 2,500 faces) | a see-through car with nothing inside looks hollow |
-| Wheels | the model's own, or one built in the converter (revolved profile), on the car's axles; check each profile segment's normal and close every gap | a crude or wobbling wheel spoils the close shots |
+| Wheels | the model's own, or one built in the converter (revolved profile), on the car's axles; check each profile segment's normal and close every gap; the tread split into strips across its width; a dark band under the bead | a crude or wobbling wheel spoils the close shots; a full-width tread face is drawn over the body (mean depth); the gap between rim lip and bead shows the backdrop |
+| Bigger wheels standing out | the size set in the body's converter (written to its JSON, read by `wheel.py`); the arch cut as a circle (tyre radius + 2 cm, 48 sides) through the paint faces only, after the inlays; a dark liner drum inside, its edge 2 cm in from the cut | cut before the inlays, stripes end ragged; cutting every material took the exhausts' faces |
 | Seams, gaps, trim bits left in the textures | painted over: every thin dark texel next to the paint takes the paint's colour, except where a small black part lies | read as dirt |
 
 ### Budget
 
 The body under about 22,000 faces, each wheel under about 2,000; game +
 renderer CPU median under about 9 ms in the benchmark (the game has 17.4 ms
-a frame). The Beetle: 20,862 faces, a 660-face wheel, 6.88 ms. Pay for
-details by reducing the interior and the paint first.
+a frame). The Beetle: 20,862 faces, a 660-face wheel, 6.88 ms (23,121 with
+the driver and bumper, +0.6 to +0.9 ms). The refined Camaro with its big
+wheels: 17,574 faces, a 1,512-face wheel, 7.29 ms (3440 x 1440, everything
+on). Pay for details by reducing the interior and the paint first.
 
 ### Performance protocol
 
@@ -169,9 +178,11 @@ The ROM object numbers are Revision A's.
 
 ## 3. Converting the body (`camaro.py`)
 
-The first converter's stages (the Camaro before its refinement; the
-finished standard above adds the inlaid details, the parts as faces and
-the cleanup). `camaro.py GLB HORNET_JSON PARTS_TXT OUT_DIR`, in a Docker image with
+The first converter's stages, kept as the reference for loading, placing,
+reducing and the surfaces (the Camaro before its refinement: the current
+`camaro.py` works as "The first car refined" below describes; the finished
+standard above adds the inlaid details, the parts as faces and the
+cleanup). `camaro.py GLB HORNET_JSON PARTS_TXT OUT_DIR`, in a Docker image with
 Python, numpy, scipy, trimesh, pymeshlab and Pillow (about 3 minutes). It
 writes the model's own paint and the "79" livery as two folders. Its
 stages, and why each is there:
@@ -273,9 +284,10 @@ Then the frame time, with the heaviest settings:
       --aspect 21:9 --pixels 3440x1440 --msaa 4 --aniso 16 --smooth-cars \
       --car-reflections --car-shadows --bloom --crt --bench
 
-The game has 17.4 ms a frame. The Camaro (20,869 faces, four 1,679-face
-wheels): game + renderer CPU median 7.9 ms, p99 11.4 ms (the game's car:
-1.2 ms). Every face costs the processor about 0.3 microseconds a frame:
+The game has 17.4 ms a frame. The first Camaro (20,869 faces, four
+1,679-face wheels): game + renderer CPU median 7.9 ms, p99 11.4 ms (the
+game's car: 1.2 ms); the refined one (17,574 faces, 1,512-face wheels):
+7.29 ms, p99 9.81 ms. Every face costs the processor about 0.3 microseconds a frame:
 keep the body under about 20,000 faces and the wheel under about 2,000.
 In the game, the log's line "the race ran at N frames/s with this image
 quality" appears only when a race fell short of full speed.
@@ -303,6 +315,9 @@ quality" appears only when a race fell short of full speed.
 | Lines laid over the skin showed in pieces, even as decals | the game draws faces in the order of each face's mean depth | cut into the skin instead: nothing lies over anything |
 | Thin dark marks on the clean paint | the model's seams, gaps and trim baked into the textures | every thin dark texel next to the paint takes the paint's colour, the small black parts as their own faces |
 | The car looked hollow at the select screen | see-through glass with too little behind it | glass 75 % covered, the interior kept |
+| Black teeth beside the bigger tyre | the tread's full-width faces sorted by mean depth, drawn over the wing | the tread split into 4 strips |
+| The backdrop showing between rim and tyre | a gap between the rim's lip and the bead | a dark band under the bead, the rear disc doubled |
+| Stripes ending ragged at the arches; exhaust pipes lost faces | the arch cut made before the inlays, and through every material | cut after the inlays, through the paint only |
 
 ## The second car: a Beetle at its real size (history)
 
@@ -509,17 +524,56 @@ the last items below and "The finished standard" above.
   Lesson: after every refinement round, review the whole car item by item
   against the plan and the previous versions, not only what was asked.
 
+## The first car refined: the Camaro (history)
+
+The first Camaro (sections 3 and 4) was rebuilt to the Beetle's standard
+by a refinement agent, then given bigger wheels; the user accepted it as
+finished.
+
+- **To the standard.** At its own proportions (the first one was narrowed
+  by 7 % and scaled onto the game car's wheels), its wheelbase scaled onto
+  the game car's axles, its own wheels on `M2WHEEL2`. Nothing baked by
+  projection: every face a flat colour from a palette (paint, chrome,
+  aluminium, black), since this model has a paint material of its own.
+  The "79" livery's blue lower panels and stripes, the panel lines and the
+  rocker mouldings are cut into the skin (`inlay()`); what needs a picture
+  (the numbers, the grille with its lamps, the tail lamps, the badges, the
+  louvres and vents) has its own texture cell at a few millimetres a
+  texel, drawn or baked from the model's own geometry. The wheel: the
+  model's Rally rim as a revolved profile carrying a picture of it. The
+  select screen's turning car refined with it. 16,990 faces.
+- **Bigger wheels standing out.** The game car's tyre radius (0.408, from
+  0.334), 0.35 wide (from 0.25), the outer face at |x| 0.99: the tyres
+  stand 7 cm out of the body at the front, 5 cm at the rear (the body
+  keeps its real width, so less than the first Camaro's 9 cm; `WHEEL_OUT`
+  and `WHEEL_W` in `camaro.py` push them further, the game's shadow
+  reaching |x| 1.0). The converter sets the size and writes it to its JSON,
+  `wheel.py` reads it; the wheel's centre rises, standing on the same
+  ground. The arches are cut as circles (tyre + 2 cm) through the paint
+  after the inlays, a dark liner drum inside. Two defects of the wheel
+  fixed on the way (black teeth beside the tyre, the backdrop between rim
+  and bead: see "Problems met"). Outside the arches every face and texture
+  stayed byte-identical to the accepted version, checked face by face.
+  17,574 faces, a 1,512-face wheel; median +0.35 ms (7 interleaved runs
+  each). Left as they are: the rim large against a thin tyre wall (the
+  whole wheel scaled), a steered front wheel may touch the arch's edge
+  (2 cm clearance).
+
 ## For the next car
 
 1. Follow "The path, in short" and build to "The finished standard" from
    the first conversion; do not start from the texture-only approach.
 2. Copy the converter nearer the model and adapt it: the axes (which way
    is the front, which side the right) first; the material names
-   (`camaro.py`) or the colour rules (`fusca.py`); the size (game wheels or
-   `M2WHEEL2`); the style (paint, livery, the reference's details).
-3. Reuse `fusca.py`'s parts: `inlay()` for every line and stripe, the
+   (`camaro.py`: a paint material, flat colours) or the colour rules
+   (`fusca.py`: shared atlases, baked paint); the size (its own on
+   `M2WHEEL2`, or its proportions with bigger wheels standing out); the
+   style (paint, livery, the reference's details).
+3. Reuse the finished parts: `inlay()` for every line and stripe, the
    lamp cells, the plate, the small black parts as faces, the interior
-   palette, the cleanup, the sport wheel, the ACCEPTANCE line.
+   palette, the cleanup, the sport wheel, the ACCEPTANCE line (`fusca.py`);
+   the arch cut round bigger wheels and the revolved rim with its picture
+   (`camaro.py`, `wheel.py`); the seated driver (`piloto.py`).
 4. Run the shots, the select screen's turn, the cockpit and the benchmark;
    refine (or brief a refinement agent) until the acceptance criterion
    holds.

@@ -15,7 +15,10 @@ Cars tab shows a card for every such folder (and one for the game's own
 car): its picture is `preview.png` in the folder (optional, any size, a
 transparent background reads best), its name `car.ini`'s `name=` (else the
 folder's), its credit the first line of `CREDITS.txt` (or `CREDITOS.txt`),
-links left out. A click changes the car at once, also during a race: the
+links left out. The game's own car's card shows `cars/game-car.png` when
+there is one; being a picture of the game's art it is never shipped: make
+it from your own game (the select screen's frame, the blue backdrop made
+transparent). A click changes the car at once, also during a race: the
 renderer loads the folder again between two frames. `M2_PLAYER_BODY=FOLDER`
 uses another folder for one run and wins over the tab.
 

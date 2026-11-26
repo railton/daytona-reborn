@@ -642,7 +642,9 @@ void Launcher::draw_cars_tab(float scale) {
         const ImU32 edge = chosen ? IM_COL32(255, 196, 40, 255) : hovered ? IM_COL32(200, 200, 210, 255) : IM_COL32(90, 90, 100, 255);
         dl->AddRectFilled(at, ImVec2(at.x + card_w, at.y + card_h), IM_COL32(24, 24, 30, 230), 6.f * scale);
         const ImVec2 p0(at.x + pad, at.y + pad), p1(at.x + card_w - pad, at.y + pad + pic_h - pad);
-        const Preview &pv = folder.empty() ? previews_["##none"] : preview(root + "/" + folder + "/preview.png");
+        // the game's car: cars/game-car.png when the player made one (it is the
+        // game's own art, so it never ships: rule 6), else a plain card
+        const Preview &pv = preview(root + "/" + (folder.empty() ? std::string("game-car.png") : folder + "/preview.png"));
         if (pv.tex) { // the picture fitted in the card, its proportions kept
             const float bw = p1.x - p0.x, bh = p1.y - p0.y, s_ = std::min(bw / float(pv.w), bh / float(pv.h));
             const float iw = pv.w * s_, ih = pv.h * s_;

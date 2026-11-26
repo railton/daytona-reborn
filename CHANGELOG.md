@@ -44,7 +44,9 @@ the game's car.
   own first; a click changes the car at once, also during a race (the
   renderer loads the bodies again between two frames, its atlas buffer
   made anew), where the setting in Enhancements took effect at the next
-  start. M2_PLAYER_BODY still wins.
+  start. M2_PLAYER_BODY still wins. The game's car's card shows
+  `cars/game-car.png` when the player made one (never shipped: it is the
+  game's art).
 - Decal faces: SURFACE 10..19 in bodies.m2car is a face with surface
   SURFACE - 10's texture, drawn in front of the faces it lies on (sorted by
   its nearest corner, 2 cm nearer, instead of its mean depth: a thin strip
