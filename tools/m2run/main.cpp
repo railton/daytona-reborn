@@ -495,6 +495,10 @@ int main(int argc, char **argv) {
         // with no new data, 2+ a skip (the other car would stall or jump).
         uint64_t rx_steps[4] = {};
         int rx_previous = -1;
+        // every other car's data, not only the one just ahead in the ring: slot k
+        // (k + 1 places behind) as steps 0, 1, 2, 3+ between race frames
+        uint64_t car_steps[7][4] = {};
+        int car_previous[7] = {-1, -1, -1, -1, -1, -1, -1};
         // M2_TEST_AGE_LOG=FILE: in the race, each frame: wall ms (steady), this
         // cabinet's tick counter and the 8 received slots' (comm RAM 0x200a and
         // 0x21c0 + k * 0x1c0 + 0x0a), to work out each other car's data age
@@ -617,8 +621,14 @@ int main(int argc, char **argv) {
                     const int rx = game.board().comm_ram()[0x21c0 + 0x0a];
                     if (rx_previous >= 0) ++rx_steps[std::min(3, (rx - rx_previous) & 0xff)];
                     rx_previous = rx;
+                    for (int k = 0; k < 7; ++k) {
+                        const int tick = game.board().comm_ram()[0x21c0 + k * 0x1c0 + 0x0a];
+                        if (car_previous[k] >= 0) ++car_steps[k][std::min(3, (tick - car_previous[k]) & 0xff)];
+                        car_previous[k] = tick;
+                    }
                 } else {
                     rx_previous = -1;
+                    std::fill(std::begin(car_previous), std::end(car_previous), -1);
                 }
                 if (race_mode == 22 && previous_race_mode != 22)
                     std::printf("m2run: race %d at frame %" PRIu64 ", course %d, gearbox %s\n", ++races_seen, game.frames(),
@@ -791,6 +801,19 @@ int main(int argc, char **argv) {
                 std::printf("  relay data in the race: %.1f%% steps of 1, %.1f%% no new data, %.1f%% skips (of %" PRIu64 " frames)\n",
                             100.0 * rx_steps[1] / rx_total, 100.0 * rx_steps[0] / rx_total,
                             100.0 * (rx_steps[2] + rx_steps[3]) / rx_total, rx_total);
+            // each other car of the room (1, 2, ... places behind in the ring): its steps of 1, the worst too
+            if (const int others = relay->status().size - 1; rx_total && others > 1) {
+                std::printf("  relay data by car (places behind):");
+                double worst = 100.0;
+                for (int k = 0; k < others && k < 7; ++k) {
+                    const uint64_t n = car_steps[k][0] + car_steps[k][1] + car_steps[k][2] + car_steps[k][3];
+                    const double one = n ? 100.0 * car_steps[k][1] / n : 0.0;
+                    worst = std::min(worst, one);
+                    std::printf(" %d: %.1f%% (%.1f%% none, %.1f%% skips)", k + 1, one, n ? 100.0 * car_steps[k][0] / n : 0.0,
+                                n ? 100.0 * (car_steps[k][2] + car_steps[k][3]) / n : 0.0);
+                }
+                std::printf("; worst %.1f%%\n", worst);
+            }
             if (const rt::CommBoard *cb = game.board().comm_board())
                 std::printf("  link reserve: %d at the end, %d changes\n", cb->reserve(), cb->reserve_changes());
             std::printf("  relay UDP: %llu messages delivered first by UDP\n", (unsigned long long)relay->udp_first());

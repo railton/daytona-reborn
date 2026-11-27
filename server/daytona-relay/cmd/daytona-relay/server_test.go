@@ -533,3 +533,69 @@ func TestNewestGame(t *testing.T) {
 		t.Fatalf("an older race lowered it: %q", s.info())
 	}
 }
+
+// Star mode: a car's slots reach another player in order, one per block,
+// though they arrive at its own rate and leave at the sender's.
+func TestStarHistory(t *testing.T) {
+	s := newTestServer(t)
+	s.star = true
+	a, b, c := fakeClient("A"), fakeClient("B"), fakeClient("C")
+	s.join(a, proto.Hello{Op: "create", Room: "hist", Game: "8"})
+	s.join(b, proto.Hello{Op: "join", Room: "hist", Game: "8"})
+	s.join(c, proto.Hello{Op: "join", Room: "hist", Game: "8"})
+	s.begin(a)
+	_, epoch := lastStatus(t, a)
+	lastStatus(t, b)
+	lastStatus(t, c)
+	// ring A, B, C: B's blocks go to C, C's to A; A's slot 1 holds B's data, put by the relay
+	block := func(tick byte) []byte {
+		f := make([]byte, 1+8*linkcodec.Slot)
+		for i := 0; i < linkcodec.Slot; i++ {
+			f[1+i] = tick
+		}
+		return f
+	}
+	var encB, encC, dec linkcodec.Codec
+	sendB := func(tick byte) {
+		s.forward(b, proto.Frame{Type: proto.TypeData, Epoch: epoch, Payload: encB.Encode(nil, block(tick))})
+		<-c.out
+	}
+	// what A gets in B's slot when C sends
+	sendC := func() byte {
+		s.forward(c, proto.Frame{Type: proto.TypeData, Epoch: epoch, Payload: encC.Encode(nil, block(99))})
+		got := <-a.out
+		frame, err := dec.Decode(got.Payload)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return frame[1+linkcodec.Slot+tickOffset]
+	}
+	sendB(1)
+	if got := sendC(); got != 1 {
+		t.Fatalf("first: %d, want 1", got)
+	}
+	sendB(2)
+	sendB(3) // two of B's between two of C's
+	if got := sendC(); got != 2 {
+		t.Fatalf("after two: %d, want 2 (in order)", got)
+	}
+	if got := sendC(); got != 3 {
+		t.Fatalf("then: %d, want 3", got)
+	}
+	if got := sendC(); got != 3 {
+		t.Fatalf("none new: %d, want 3 again", got)
+	}
+	for tick := byte(4); tick <= 9; tick++ { // six behind: only historyKeep kept behind the newest
+		sendB(tick)
+	}
+	if got := sendC(); got != 9-defaultHistoryKeep {
+		t.Fatalf("far behind: %d, want %d", got, 9-defaultHistoryKeep)
+	}
+	// off (DAYTONA_STAR_HISTORY=0): the latest, as before
+	s.historyKeep = 0
+	sendB(10)
+	sendB(11)
+	if got := sendC(); got != 11 {
+		t.Fatalf("history off: %d, want the latest, 11", got)
+	}
+}

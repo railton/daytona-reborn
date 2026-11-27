@@ -298,7 +298,10 @@ void RelayLink::poll() {
                 start_connect();
             }
         }
-        std::lock_guard<std::mutex> lock(connect_->mu);
+        // a reference of our own: connect_.reset() below must not destroy the
+        // mutex this lock holds (the connect thread may have let go of it)
+        const std::shared_ptr<Connect> attempt = connect_;
+        std::lock_guard<std::mutex> lock(attempt->mu);
         if (!connect_->done) return;
         if (connect_->sock < 0) {
             if (reconnecting_) { // try again shortly, until the deadline
@@ -417,6 +420,9 @@ void RelayLink::receive() {
         if (in_.size() - pos < online::kHeader + len) break;
         const uint32_t epoch = uint32_t(p[1]) << 24 | uint32_t(p[2]) << 16 | uint32_t(p[3]) << 8 | p[4];
         frame(p[0], epoch, in_.substr(pos + online::kHeader, len));
+        // the frame may have lost the connection (a ping's answer flushed, the send failed):
+        // lost() emptied in_ for the next one, so nothing more of it is read
+        if (sock_ < 0) return;
         pos += online::kHeader + len;
     }
     if (state_ != State::Failed) in_.erase(0, pos);

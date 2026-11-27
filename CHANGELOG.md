@@ -4,6 +4,60 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`). The
 fork's version is in `VERSION`, raised with every code change (rules.md
 rule 14); each version has its section here.
 
+## 0.23.0 (2026-11-26)
+
+Online: the fix is the relay's (`server/daytona-relay`): a game of 0.22.0
+gets it once its server is updated, and plays in the same rooms as 0.23.0
+(the game's online version stays 11).
+
+### Online: every car's data in order through the relay
+
+- In star mode the relay composes each player's block when that player's
+  predecessor in the ring sends, and filled every other car's slot with
+  that car's latest data at that moment. Each car's data arrives at its own
+  game's rate and leaves at the predecessor's, two clocks that drift and
+  jitter: between two sends a car had sent none (it stood still) or two
+  (one was dropped: it jumped). The game's own measure looked only at the
+  car just ahead, which never goes through this. Now the relay keeps each
+  car's last 8 slots (a new tick appended, the same tick again replacing
+  the last) and gives each player each car's slots in order, one a block,
+  at most 2 behind its newest (`DAYTONA_STAR_HISTORY`, 0: the latest as
+  before; `keepOwn`, `slotFor`; test `TestStarHistory`).
+- Measured headless, every car of every cabinet (m2run's new line, below),
+  interleaved races, the old composing against the new:
+
+  | Room | Lines | Worst pair, old -> new | Cars under 95 %, old -> new | Frames standing or jumping (mean), old -> new |
+  | --- | --- | --- | --- | --- |
+  | 3 players | one far (85 ms, spikes) at ring place 1, 2 or 3, the others near | 49 to 53 % -> 98.6 to 98.9 % | 12 of 36 -> 0 | 8.0 to 10.7 % -> 0.62 to 0.66 % |
+  | 8 players | one far at place 1 or 5 | 50 to 61 % -> 98.3 to 98.5 % | 50 of 224 -> 0 | 5.4 to 7.5 % -> 0.71 to 0.80 % |
+  | 8 players | all near | 77.7 % -> 99.2 % | 5 of 112 -> 0 | 1.5 % -> 0.41 % |
+  | 8 players | every line its own, 20 to 230 ms, two with spikes | 49.0 % -> 95.9 % | 93 of 112 -> 0 | 28.2 % -> 1.4 % |
+  | 3 players | 20, 50 and 85 ms (spikes) | 53.0 % -> 97.6 % | 6 of 12 -> 0 | 11.4 % -> 0.96 % |
+
+  The other cars' data is one frame older on average: 150 -> 159 ms with 3
+  players, 196 -> 215 ms with 8 (the age at each cabinet, same-host clock).
+- `m2run` now measures every other car, not only the one just ahead:
+  `relay data by car (places behind): 1: 99.4% (...) 2: 60.4% ...; worst`.
+
+### Online: two reconnection fixes
+
+- A reconnection attempt that failed could free the attempt (and its
+  mutex) while the lock on that mutex was still held; the game now keeps
+  its own reference until the lock is let go.
+- A ping answered while reading could lose the connection and empty the
+  buffer being read; the reading now stops there instead of reading past
+  its end.
+
+### A custom car refused: the log says why
+
+- A body the game refuses names the file, the body, the face and the rule
+  (`daytona: local player body unavailable, keeping the original car:
+  bodies.m2car, body 1 of 3: face 812: 12 corners (3 or 4 only: split it in
+  triangles)`), and so does the Cars tab's "left out" line; a `wheel.m2car`
+  left out (the game's wheels drawn instead) says why too. Before, only
+  "unavailable". `OpponentBodies::error()`, `wheel_error()`; test
+  `custom_cars` (a 5-corner face).
+
 ## 0.22.0 (2026-11-26)
 
 Online: every player of a room needs 0.22.0 (the game's online version is

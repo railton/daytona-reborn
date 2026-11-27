@@ -25,6 +25,8 @@ inglês).
 
 ## Histórico de mudanças
 
+**`2026-11-26`** **0.23.0**: no online, os dados de cada carro passam pelo servidor em ordem: os carros dos outros não param nem saltam mais em salas de 3 a 8 jogadores com redes diferentes (a atualização é do servidor; um jogo 0.22.0 também ganha); duas correções na reconexão; um carro personalizado recusado diz o motivo no log.
+
 **`2026-11-26`** **0.22.0**: **carros personalizados** em **Configurações > Carros** (a pasta `cars/` do projeto; a visão de dentro mostra o capô do próprio carro); no online, os carros dos outros não piscam mais com uma linha longe ou desigual, e o jogo avisa quando ele ou o servidor precisa ser atualizado (todos de uma sala precisam da 0.22.0); a resolução de renderização nunca acima da tela, e uma primeira corrida lenta diz se o gargalo foi o processador ou a placa de vídeo; os logs numa pasta `logs/` ao lado de `roms/`; **Recomeçar** em Configurações > Jogo; um AppImage para Linux; o pacote de texturas em `textures/`.
 
 **`2026-11-25`** **0.21.0**: gere o pacote de texturas em alta resolução em **Configurações > Texturas IA** (Linux com Docker, placa NVIDIA ou processador); a tela inicial avisa quando sai uma [nova versão](#novas-versões); correções do build no Windows; melhorias apontadas por uma revisão gráfica externa (detalhe que surge aos poucos, HUD nas bordas suave, sombras mais estáveis, reconferência do pacote 10 vezes mais rápida).

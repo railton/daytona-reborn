@@ -86,8 +86,12 @@ void GpuRenderer::load_bodies() {
     if (!player_dir.empty()) {
         have_player_ = player_body_.load(player_dir, 32768);
         if (have_player_) player_body_.set_player(OpponentBodies::kPlayerTextureBase); // after the opponents' 3 x 10
-        std::fprintf(stderr, "daytona: local player body %s\n",
-                     have_player_ ? "loaded" : "unavailable, keeping the original car");
+        if (have_player_) std::fprintf(stderr, "daytona: local player body loaded\n");
+        else std::fprintf(stderr, "daytona: local player body unavailable, keeping the original car: %s\n",
+                          player_body_.error().c_str());
+        if (!player_body_.wheel_error().empty())
+            std::fprintf(stderr, "daytona: the custom car's own wheel left out, the game's drawn: %s\n",
+                         player_body_.wheel_error().c_str());
     }
     if (have_opponents_ || have_player_) {
         atlas_cpu_ = have_opponents_ ? opponent_bodies_.atlas() : std::vector<uint8_t>(OpponentBodies::atlas_bytes, 0);

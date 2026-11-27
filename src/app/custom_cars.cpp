@@ -46,7 +46,8 @@ std::string car_problem(const std::string &folder_path) {
     }
     OpponentBodies body; // the renderer's own reader: what it refuses, the list leaves out
     if (!body.load(folder_path, 32768))
-        return "bodies.m2car is not three bodies of 1 to 32768 faces (docs/CUSTOM-CARS.md)";
+        return body.error().empty() ? "bodies.m2car is not three bodies of 1 to 32768 faces (docs/CUSTOM-CARS.md)"
+                                    : body.error() + " (docs/CUSTOM-CARS.md)";
     return {};
 }
 

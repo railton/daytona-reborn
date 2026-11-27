@@ -14,14 +14,30 @@
 namespace app {
 
 // One body's faces from the stream: the count (1..max_faces), then each face.
-static bool read_faces(std::istream &in, int max_faces, std::vector<OpponentBodies::Face> &body) {
+// why: what was refused, for the log (the face's number, from 1, and the rule).
+static bool read_faces(std::istream &in, int max_faces, std::vector<OpponentBodies::Face> &body, std::string &why) {
     int face_count;
-    if (!(in >> face_count) || face_count < 1 || face_count > max_faces) return false;
+    if (!(in >> face_count) || face_count < 1 || face_count > max_faces) {
+        why = "a face count of 1 to " + std::to_string(max_faces) + " expected";
+        return false;
+    }
     body.resize(size_t(face_count));
     for (auto &face : body) {
+        const size_t number = size_t(&face - body.data()) + 1;
         int count, surface;
-        if (!(in >> count >> surface >> face.shade) || count < 3 || count > 4 || surface < 0 || surface >= 20 ||
-            !(face.shade >= 0 && face.shade <= 2)) return false;
+        if (!(in >> count >> surface >> face.shade)) {
+            why = "face " + std::to_string(number) + ": unreadable (the file ends or is not numbers)";
+            return false;
+        }
+        if (count < 3 || count > 4) {
+            why = "face " + std::to_string(number) + ": " + std::to_string(count) + " corners (3 or 4 only: split it in triangles)";
+            return false;
+        }
+        if (surface < 0 || surface >= 20 || !(face.shade >= 0 && face.shade <= 2)) {
+            why = "face " + std::to_string(number) + ": surface " + std::to_string(surface) +
+                  " (0 to 19) or shade out of 0 to 2";
+            return false;
+        }
         face.count = uint8_t(count);
         // 10..19: a decal on the skin (a line, a sticker) with surface - 10's texture, drawn in front of
         // the faces it lies on (the game's order is by each face's mean depth: a big face beside a
@@ -31,9 +47,15 @@ static bool read_faces(std::istream &in, int max_faces, std::vector<OpponentBodi
         for (int i = 0; i < count; ++i) {
             auto &v = face.vertices[i];
             for (float &x : v)
-                if (!(in >> x) || !std::isfinite(x)) return false;
+                if (!(in >> x) || !std::isfinite(x)) {
+                    why = "face " + std::to_string(number) + ": a corner unreadable or not finite";
+                    return false;
+                }
             if (std::abs(v[0]) > 3 || std::abs(v[1]) > 3 || std::abs(v[2]) > 3 || v[3] < 0 || v[3] > 1 || v[4] < 0 ||
-                v[4] > 1) return false;
+                v[4] > 1) {
+                why = "face " + std::to_string(number) + ": a corner past 3 model units or its texture past 0..1";
+                return false;
+            }
         }
     }
     return true;
@@ -43,13 +65,24 @@ bool OpponentBodies::load(const std::string &directory, int max_faces) {
     const auto root = std::filesystem::u8path(directory);
     std::ifstream meshes(root / "bodies.m2car");
     meshes.imbue(std::locale::classic());
-    std::string version;
-    if (!(meshes >> version) || version != "M2CAR1") return false;
+    std::string version, why;
+    error_.clear();
+    wheel_error_.clear();
+    if (!(meshes >> version) || version != "M2CAR1") {
+        error_ = meshes ? "bodies.m2car does not start with M2CAR1" : "no bodies.m2car";
+        return false;
+    }
     decltype(bodies_) bodies;
     for (auto &body : bodies)
-        if (!read_faces(meshes, max_faces, body)) return false;
+        if (!read_faces(meshes, max_faces, body, why)) {
+            error_ = "bodies.m2car, body " + std::to_string(&body - bodies.data() + 1) + " of 3: " + why;
+            return false;
+        }
     meshes >> std::ws;
-    if (!meshes.eof()) return false;
+    if (!meshes.eof()) {
+        error_ = "bodies.m2car: more after its three bodies";
+        return false;
+    }
     // optional, the player's car: wheel.m2car, "M2WHEEL1" then one wheel in
     // the game wheel's own space (the hub at 0, the axle along x, the outer
     // face towards +x: a right wheel; mirrored for the left), its textures
@@ -72,7 +105,10 @@ bool OpponentBodies::load(const std::string &directory, int max_faces) {
                  axles.half_track < 1.2f;
             axles.valid = ok;
         }
-        if (ok && read_faces(wheels, max_faces, wheel) && (wheels >> std::ws).eof()) {
+        if (!ok) wheel_error_ = "wheel.m2car: not M2WHEEL1, or M2WHEEL2's axles out of range";
+        else if (!read_faces(wheels, max_faces, wheel, why)) wheel_error_ = "wheel.m2car: " + why;
+        else if (!(wheels >> std::ws).eof()) wheel_error_ = "wheel.m2car: more after its faces";
+        else {
             wheel_ = std::move(wheel);
             wheel_axles_ = axles;
         }
@@ -97,10 +133,16 @@ bool OpponentBodies::load(const std::string &directory, int max_faces) {
         }
 
     std::ifstream image(root / "liveries.rgba", std::ios::binary | std::ios::ate);
-    if (!image || image.tellg() != atlas_bytes) return false;
+    if (!image || image.tellg() != atlas_bytes) {
+        error_ = image ? "liveries.rgba is not " + std::to_string(atlas_bytes) + " bytes" : "no liveries.rgba";
+        return false;
+    }
     std::vector<uint8_t> atlas(atlas_bytes);
     image.seekg(0);
-    if (!image.read(reinterpret_cast<char *>(atlas.data()), atlas.size())) return false;
+    if (!image.read(reinterpret_cast<char *>(atlas.data()), atlas.size())) {
+        error_ = "liveries.rgba unreadable";
+        return false;
+    }
     bodies_ = std::move(bodies);
     atlas_ = std::move(atlas);
     return true;

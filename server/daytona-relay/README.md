@@ -55,6 +55,7 @@ Edit `docker-compose.yml`, or put them in a `.env` file beside it, then
 | `DAYTONA_START` | `master` | `master` (only the room's creator starts a race), `anyone` |
 | `DAYTONA_UDP_REPEAT` | `2` | earlier messages repeated in each datagram: what covers a burst of lost datagrams (fewer: less traffic) |
 | `DAYTONA_STAR` | `1` | `1` star mode (above); `0` the ring of 0.12, for comparisons (no rejoin) |
+| `DAYTONA_STAR_HISTORY` | `2` | star mode: each car's data goes to each player in order, one slot per block, at most this many behind its newest; `0` the latest at each send (0.22's: a car stopped or jumped when its updates and the sender's did not line up) |
 
 The race variables are the **defaults**: the game shows them when its
 player connects to create a room, and the room's creator may change each

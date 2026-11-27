@@ -18,6 +18,10 @@ public:
     // max_faces: per body (the opponents' 1024; the player's car may have
     // more, its one body drawn once)
     bool load(const std::string &directory, int max_faces = 1024);
+    // why load() refused the folder ("" when it loaded): the file, the face and the rule, for the log
+    const std::string &error() const { return error_; }
+    // why wheel.m2car was left out (the game's wheels drawn instead); "" when it loaded or there is none
+    const std::string &wheel_error() const { return wheel_error_; }
     // The player's car instead of the opponents' (M2_PLAYER_BODY, experimental):
     // the first body takes the place of the player's body (0x7d68) and its
     // glass (0x7d94), the wheels, shadow and lights kept; its textures are
@@ -76,6 +80,7 @@ public:
     };
 private:
     std::array<std::vector<Face>, 3> bodies_;
+    std::string error_, wheel_error_;
     std::vector<Face> wheel_; // the player's wheel (wheel.m2car), empty: the game's
     float wheel_radius_ = 0;  // its tyre's radius (the farthest corner from the axle)
     struct WheelAxles { bool valid = false; float front_z = 0, rear_z = 0, half_track = 0; };

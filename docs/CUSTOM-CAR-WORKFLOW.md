@@ -16,7 +16,8 @@ they live in the local working folder (`planos/carro-foto/ferramentas/`,
 beside the repository): `carro/` (the generic converter: `car.py CONFIG
 OUT_DIR`, the library `carlib/`, one config per car in `cars/`, its
 README), `captura/` (shots.sh, caps.sh, bench.sh, closeview.py, sym.py,
-crops.py, game_car_preview.py, ref.py and the inputs); the first three
+autocheck.py, sheet.py, crops.py, game_car_preview.py, ref.py and the
+inputs); the first three
 cars' own converters, kept as the reference the generic one reproduces:
 `fusca/`, `camaro/`, `escort/`.
 
@@ -37,11 +38,10 @@ cars' own converters, kept as the reference the generic one reproduces:
    its own colours at the game's angles (the select screen's frames 1400
    to 1760, the start, chase and high views), before any conversion, and
    the reference to compare the captures with when there are no pictures
-   (the DeLorean). A glTF material's colour factor is linear and `ref.py`
-   reads it as it is: a model coloured by factors alone renders much too
-   dark (the Challenger's chrome 168 for 213) until the factors are turned
-   to sRGB (its copy, `ref_srgb.py`); the palette takes the sRGB values
-   too. (`fusca/preview.py` does four angles with the Beetle's
+   (the DeLorean). A glTF material's colour factor is linear: `ref.py`
+   turns a plain factor to sRGB (before the Challenger it read it as it
+   was, and a model coloured by factors alone rendered much too dark: its
+   chrome 168 for 213); the palette takes the sRGB values too. (`fusca/preview.py` does four angles with the Beetle's
    recolour rule built in.) Not to be confused with the card's picture
    (`captura/game_car_preview.py`, step 8).
 3. **Decide its size:** at its own size on its own axles (`M2WHEEL2`, the
@@ -207,10 +207,14 @@ What no conversion gets round. The builder works inside them, the
 reviewer does not count them as defects once the user has accepted them.
 
 1. **A face has 3 or 4 corners.** One face with more and the game refuses
-   the whole body, saying only `daytona: local player body unavailable,
-   keeping the original car`. The converter writes any count: check after
-   every build, `awk 'NF>6 && ($1<3 || $1>4)' bodies.m2car wheel.m2car |
-   wc -l` prints 0. A round made part is a fan of triangles.
+   the whole body; its log says which (`daytona: local player body
+   unavailable, keeping the original car: bodies.m2car, body 1 of 3: face
+   N: 12 corners (3 or 4 only: split it in triangles)`, and the Cars tab's
+   "left out" line the same). The converter's writer (`carlib/out.py`,
+   `split_faces`) now splits a larger face into a fan of triangles and
+   says how many it split, so a round made part needs nothing more; the
+   check after every build, `awk 'NF>6 && ($1<3 || $1>4)' bodies.m2car
+   wheel.m2car | wc -l` printing 0, stays for files made otherwise.
 2. **The file's bounds:** at most 32,768 faces a body, every coordinate
    within 3 units, surfaces 0 to 19, shade 0 to 2. The budget below is
    much lower.
@@ -421,7 +425,7 @@ briefed on its own ("The briefs" below):
 | 6 | the builder | refines against the reference | 1 |
 | 7 | the reviewer, who did not build the car | the close review (criteria 6 to 10, the fixed checklist): the table with a crop in every cell, the list of defects each with its "done when", fit to ship yes or no; fixes nothing | 2 |
 | 7, fixes | the builder | the reviewer's list, item by item, nothing else | 3 |
-| 7, check | the reviewer | each item against its "done when", new defects at normal size, fit to ship yes or no | 4 |
+| 7, check | a reviewer who did not build the car (may be a lighter one than stage 7's: the list is short and each item has its "done when"), a new task each check | each item against its "done when", new defects at normal size, fit to ship yes or no | 4 |
 | 8 and 9 | the installer | the benchmark, the card's picture, the install, the card and cockpit checks, the proofs, the clean-up: commands with known outputs | 5 |
 
 The reviewer never fixes, so no one passes their own work. Each role
@@ -429,6 +433,25 @@ writes its stage lines to the same progress file. Two fix rounds are the
 most: what is left after the second is close-range only, or a limit the
 coordinator takes to the user, not a third try (the Challenger's third
 round spent three tries on a gap that cannot be closed).
+
+**Spending less on a car.** The Challenger's review cost more than its
+build's first five stages, most of it in pictures looked at, and its rework
+(the wheels decided late, the rounds that made new defects) multiplied
+every check. In order of what it saves:
+
+1. No rework: the decisions settled before stage 1 and the stage 5 stop.
+2. Numbers before pictures: `captura/autocheck.py modelo/jogo_<NAME>
+   SHOTS` after every capture, by the builder and by the reviewer (the
+   faces' corners and budget, the tyre's sides, enclosed backdrop in every
+   select frame with its box, sym.py's unpaired area). Only a FAIL or LOOK
+   line, or a fixed checklist line no number answers, is looked at in a
+   picture.
+3. One sheet a view: `captura/sheet.py OUT.png SHOTS/sel` (and start/,
+   chase/, high/, cockpit/), every frame small with its number, read at its
+   own size; a close crop only where the sheet or autocheck points.
+4. Each check a new task: the check's brief and only the REVIEW.md rows it
+   checks, not the review's whole history; the builder's fix rounds at a
+   lower effort than its build, the list being given.
 
 ### The briefs
 
@@ -598,6 +621,11 @@ Your own captures of the current build (write down bodies.m2car's md5)
   rendered (the builder's reference tool).
 
 How to look
+0. Numbers first: captura/autocheck.py modelo/jogo_<NAME> <your shots>;
+   every FAIL and LOOK line becomes a place to look (or a defect), and
+   the fixed checklist's lines it answers need no picture. Then one sheet
+   a view (captura/sheet.py OUT.png <shots>/sel, and start, chase, high,
+   cockpit), read at its own size.
 1. Normal size first: every frame at its own size, the whole turn, both
    cars. What shows here is what the player sees: rate it race or select.
 2. Then close: criterion 7's scale (1 cm at least 4 px), the same detail
@@ -699,6 +727,11 @@ report or its crops.
 
 Capture the current build (its md5) with the same commands, at the same
 views, as your review, into review/check<N>/. Cut the same boxes.
+First the numbers: captura/autocheck.py modelo/jogo_<NAME>
+review/check<N> (its FAIL and LOOK lines are where to look), then one
+sheet a view (captura/sheet.py); a close crop only for an item or a
+point the numbers or a sheet show. Read only the rows of REVIEW.md this
+round's items name.
 
 1. Item by item against its "done when": done, partly (what is left, and
    where), not done, or worse. One row an item, the pair before and after

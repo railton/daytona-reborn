@@ -73,6 +73,14 @@ type client struct {
 	// the stream composed for it encoded, its latest own slot
 	dec, enc linkcodec.Codec
 	own      []byte
+	// and its last own slots in order (oldest first, at most historyLen;
+	// ownSeq numbers the newest), and per other car the number of that car's
+	// slot last put in this player's stream (compose): each car's data goes
+	// to each player one slot after the other, none skipped nor repeated
+	// while there is one, instead of the latest at the sender's moment
+	ownHist [][]byte
+	ownSeq  uint64
+	sentSeq map[*client]uint64
 
 	key  string // to come back into the race after a drop (op=rejoin)
 	away bool   // dropped from a race, its place kept until resumeGrace (star mode)
@@ -155,6 +163,9 @@ type server struct {
 	// star: the game's rooms get every other car's latest data in one hop
 	// (forward); the helper's rooms stay a plain ring
 	star bool
+	// historyKeep: in star mode each car's slots go to each player in order,
+	// at most this many behind its newest (slotFor); 0 takes the latest
+	historyKeep int
 
 	udpConn    *net.UDPConn       // the UDP side of the port (udp.go); nil: TCP only
 	udpByAddr  map[string]*client // under mu
@@ -172,7 +183,7 @@ func newServer(race settings.Race, password string, maxRooms, maxConns, maxPerIP
 	return &server{rooms: map[string]*room{}, password: password, maxRooms: maxRooms, race: race, now: time.Now,
 		perIP: map[string]int{}, maxConns: maxConns, maxPerIP: maxPerIP,
 		udpByAddr: map[string]*client{}, byKey: map[string]*client{}, failures: map[string]*tries{},
-		udpRepeat: defaultRepeat, maxRoomsPerIP: defaultRoomsPerIP, joinTriesPerMin: defaultJoinTries, roomAlone: defaultRoomAlone, roomIdle: defaultRoomIdle}
+		udpRepeat: defaultRepeat, historyKeep: defaultHistoryKeep, maxRoomsPerIP: defaultRoomsPerIP, joinTriesPerMin: defaultJoinTries, roomAlone: defaultRoomAlone, roomIdle: defaultRoomIdle}
 }
 
 func (s *server) join(c *client, h proto.Hello) error {
@@ -300,6 +311,7 @@ func (s *server) formRing(r *room) {
 		m.dec.Reset()
 		m.enc.Reset()
 		m.own = nil
+		m.ownHist, m.ownSeq, m.sentSeq = m.ownHist[:0], 0, nil
 		m.race.reset()
 	}
 	r.ringSince, r.ringLogged = time.Now(), time.Now()
@@ -608,16 +620,80 @@ func (s *server) compose(r *room, at int, c, next *client, f proto.Frame) proto.
 	}
 	if linkcodec.IsBlock(frame) && len(frame) >= 1+len(r.ring)*linkcodec.Slot {
 		c.own = append(c.own[:0], frame[1:1+linkcodec.Slot]...)
+		s.keepOwn(c)
 		n := len(r.ring)
 		for j := 1; j <= n-2; j++ {
 			src := r.ring[((at-j)%n+n)%n]
-			if len(src.own) == linkcodec.Slot {
-				copy(frame[1+j*linkcodec.Slot:], src.own)
+			if slot := s.slotFor(next, src); slot != nil {
+				copy(frame[1+j*linkcodec.Slot:], slot)
 			}
 		}
 	}
 	f.Payload = next.enc.Encode(nil, frame)
 	return f
+}
+
+// The star mode's per-car history (compose): a car's own slots arrive at
+// its game's rate but go out to each other player at its predecessor's,
+// two clocks that drift and jitter; taking the latest at each send repeats a
+// slot (that car stops) or drops one (it jumps). Each player gets each car's
+// slots in order instead, at most historyBudget behind its newest (then the
+// oldest ones are dropped, the age stays bounded).
+const (
+	historyLen         = 8
+	defaultHistoryKeep = 2 // DAYTONA_STAR_HISTORY: slots a player may be behind a car's newest; 0: the latest (0.21's)
+	tickOffset         = 0x0a
+)
+
+// keepOwn: c's latest own slot (c.own) into its history; the same tick again
+// (a game sending its state twice) replaces the last. Caller holds s.mu.
+func (s *server) keepOwn(c *client) {
+	if s.historyKeep == 0 || len(c.own) != linkcodec.Slot {
+		return
+	}
+	if k := len(c.ownHist); k > 0 && c.ownHist[k-1][tickOffset] == c.own[tickOffset] {
+		copy(c.ownHist[k-1], c.own)
+		return
+	}
+	if len(c.ownHist) == historyLen {
+		first := c.ownHist[0]
+		copy(c.ownHist, c.ownHist[1:])
+		c.ownHist[historyLen-1] = append(first[:0], c.own...)
+	} else {
+		c.ownHist = append(c.ownHist, append([]byte(nil), c.own...))
+	}
+	c.ownSeq++
+}
+
+// slotFor: src's slot to put in dst's next block: the one after the last
+// dst got, or the last again when none came since; not more than
+// historyKeep behind src's newest. nil: src has sent none. Caller holds s.mu.
+func (s *server) slotFor(dst, src *client) []byte {
+	if s.historyKeep == 0 || len(src.ownHist) == 0 {
+		if len(src.own) == linkcodec.Slot {
+			return src.own
+		}
+		return nil
+	}
+	newest, oldest := src.ownSeq, src.ownSeq-uint64(len(src.ownHist))+1
+	if dst.sentSeq == nil {
+		dst.sentSeq = map[*client]uint64{}
+	}
+	want := newest // the first: the latest
+	if last, ok := dst.sentSeq[src]; ok {
+		want = last + 1
+		if want > newest {
+			want = newest // nothing new: the same slot again (the car waits)
+		}
+	}
+	if keep := uint64(s.historyKeep); newest-want > keep {
+		want = newest - keep // too far behind: the older slots go
+	}
+	if want < oldest {
+		want = oldest
+	}
+	dst.sentSeq[src] = want
+	return src.ownHist[want-oldest]
 }
 
 // admit counts a new connection in, or refuses it.
@@ -841,8 +917,12 @@ func main() {
 	log.Printf("limits: %d rooms from one address, a room closed after %v alone or %v without a race, %d failed attempts a minute",
 		s.maxRoomsPerIP, s.roomAlone, s.roomIdle, s.joinTriesPerMin)
 	s.star = os.Getenv("DAYTONA_STAR") != "0"
+	s.historyKeep = envInt("DAYTONA_STAR_HISTORY", defaultHistoryKeep)
+	if s.historyKeep < 0 {
+		s.historyKeep = 0
+	}
 	if s.star {
-		log.Printf("star mode: each player gets every other car's latest data in one hop")
+		log.Printf("star mode: each player gets every other car's data in one hop, in order (at most %d slots behind; DAYTONA_STAR_HISTORY)", s.historyKeep)
 	} else {
 		log.Printf("ring mode (DAYTONA_STAR=0): the cars' data passed from player to player; no rejoin")
 	}

@@ -20,6 +20,8 @@ by alphanu1. What it adds is listed in [CHANGELOG.md](CHANGELOG.md).
 
 ## Change Logs
 
+**`2026-11-26`** **0.23.0**: online, every car's data goes through the server in order: the other cars no longer stop and jump in rooms of 3 to 8 players with different lines (the server's update; a 0.22.0 game gets it too); two reconnection fixes; a custom car refused says why in the log.
+
 **`2026-11-26`** **0.22.0**: **custom cars** in **Settings > Cars** (the project's `cars/` folder; the cockpit view shows the car's own bonnet); online, the other cars no longer flicker on a far or uneven line, and the game says when it or the server needs updating (every player of a room needs 0.22.0); the render resolution never past the screen's, and a slow first race says whether the processor or the graphics card held it back; the logs in a `logs/` folder beside `roms/`; **Start over** in Settings > Game; a Linux AppImage; the texture pack in `textures/`.
 
 **`2026-11-25`** **0.21.0**: make the high-resolution texture pack from **Settings > AI textures** (Linux with Docker, NVIDIA or the processor); the home screen tells when a [new version](#new-versions) is out; Windows build fixes; follow-ups of an external graphics review (detail fading in, smoother edge HUD, steadier shadows, a 10x faster pack refresh).

@@ -27,6 +27,7 @@ services:
       # dropped player may come back within 10 s. 0: the ring of 0.12 (diagnostics).
       DAYTONA_STAR: "${DAYTONA_STAR:-1}"
       DAYTONA_UDP_REPEAT: "${DAYTONA_UDP_REPEAT:-2}"             # earlier messages repeated in each datagram
+      DAYTONA_STAR_HISTORY: "${DAYTONA_STAR_HISTORY:-2}"         # each car's data to each player in order, at most this many behind; 0: the latest
       # Race settings' defaults: the game shows them when creating a room, its creator may change them:
       DAYTONA_CABINET: "${DAYTONA_CABINET:-twin}"                 # twin | uplight | deluxe
       DAYTONA_COUNTRY: "${DAYTONA_COUNTRY:-usa}"                  # usa (English) | jpn (Japanese) | export
