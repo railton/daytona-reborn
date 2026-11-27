@@ -25,7 +25,12 @@ reproduces: `fusca/`, `camaro/`, `escort/`.
    glTF (`.glb`). Not a car generated from photos (see "Tried and dropped").
    Gather **reference pictures** of the look wanted (photos, or AI pictures
    of that model in that style); without them the model's own look is the
-   reference.
+   reference. **Before starting, ask the person who wants the car whether
+   there are more pictures** (other angles, the rear, the wheels, the
+   interior, a detail) or wishes the pictures do not show (colour, plate,
+   badges, flares, tyres): what the pictures leave out is decided by the
+   person, not guessed (the Chevette's pictures carried an AI picture's
+   mistakes: a Ford badge, "BRASILL").
 2. **Try the look first** with `captura/ref.py GLB OUT_DIR`: the model in
    its own colours at the game's angles (the select screen's frames 1400
    to 1760, the start, chase and high views), before any conversion, and
@@ -80,8 +85,9 @@ reproduces: `fusca/`, `camaro/`, `escort/`.
    round, the comparison sheets, reference renders, build outputs,
    `trabalho/generico/`, discarded variants, and any tool, model cache or
    Docker image of an approach that was dropped). A car's rounds leave
-   hundreds of megabytes; the photo-to-3D trial left 15 GB. Then run every
-   `prove.sh` once more: all must print PROOF OK.
+   hundreds of megabytes; the photo-to-3D trial left 15 GB. Run every
+   `prove.sh` before the clean-up (all must print PROOF OK): the proofs
+   rebuild into `trabalho/generico/`, which the clean-up then deletes.
 
 ## The finished standard
 
@@ -99,7 +105,8 @@ are in "Problems met" and in the Beetle's history further down.
 | Headlamps, tail lamps, auxiliary lamps | their own texture cells (surface 8, 128 x 128 a kind); new geometry where the model's shape differs from the reference; a cluster behind a grid: its picture taken from the model (an orthographic bake of lens, reflector and grid) on one flat panel. Lenses are often thin shells with half their faces wound inward: keep the outward ones. A transparent lens material dropped leaves a silver reflector: apply the lens's tint to it | baked into the front texture a lamp gets about 20 texels; reduced, a grid and its lenses become loose triangles |
 | Plate | its own quad (a decal when a bumper or lid face could cover it), its picture in surface 7's free half; a palette car has whole surfaces free, a plate each at 256 x 92; letters drawn with a font file kept beside the converter (DejaVu Sans Bold) | sharp letters |
 | Wing flares | the skin cut open on a circle (the arch radius plus the flare's width); the flare a revolved strip from the cut edge (its \|x\| read per angle from the cut) out to the tyre's face, a dark liner drum inside, rivets inlaid into the flare's own faces | the model has none; repainting cannot make a shape |
-| Tyres standing out, nothing over them | no flare (`flares(lip=False)`, `flare_w=0`): the skin cut at the arch's radius, the liner drawn on both sides, a dark ring from just behind the cut edge to the liner | flares down past the axle and proud of the tyre hid the tyres from behind; a cut wider than the liner showed the backdrop round the tyre; a ring in front of the edge showed as teeth |
+| Short flares with the tyres in view | the flare's lip well inside the tyre's face (6 cm on the Chevette, the tyre 11 cm out of the wings), ending at the axle line with tapered ends, the cut skin below its ends closed; checked in the chase view from behind | the chase camera looks down from behind: a tyre shows only by what stands out of the body and the flare in plan; a flare 4 mm inside the tyre's face, ending at the axle, still hid the tyres completely |
+| Tyres standing out, nothing over them | no flare (`flares(lip=False)`, `flare_w=0`): the skin cut at the arch's radius, the liner drawn on both sides, a dark ring from just behind the cut edge to the liner; `min_x` above the sill's tucked-under edge | flares down past the axle and proud of the tyre hid the tyres from behind; a cut wider than the liner showed the backdrop round the tyre; a ring in front of the edge showed as teeth, and so did a liner built below the axle where the sill tucks under (its edge's \|x\| falls, 0.75 to 0.63 on the Chevette) |
 | Lowering | build everything unlowered and subtract the drop when writing the body; the wheel centre used for the arches is then ground + radius + drop | lowering part way through moves the arches off the wheels |
 | Bumpers, splitter, diffuser, ducktail | rebuilt as new geometry to the reference when the model's differ | repainting keeps the wrong shape |
 | Glass | flat tint (surface 6), a black rubber inlaid along its edge, `glass_opacity=0.75` when there is an interior | the join between glass and body is jagged |
@@ -139,9 +146,15 @@ that worked:
 7. **Cabin parts and the driver right behind a flat panel** are drawn over
    it: the panel in faces of 16 cm or less, and leave out what only shows
    that way (the inner door panels below the windows, the driver's feet).
-   A model's inner shell behind the panels (the DeLorean's black one) is
-   dropped for the same reason.
+   A model's inner shell behind the panels (the DeLorean's black one) and
+   a headliner right under the roof (the Chevette's) are dropped for the
+   same reason. Faces of 16 cm or less cost: 3,300 faces on the Chevette,
+   15 % of the budget.
 
+Rule 1 also covers chrome bumpers standing off a painted valance (the
+band bounded in z, or it shows past the bumper's ends), rule 6 window
+frames and wipers lying on the skin, and made blocks on a bumper are
+decals.
 ### Budget
 
 One number: the body, driver and interior included, **under about 22,000
@@ -161,6 +174,7 @@ everything on:
 | Escort (driver) | 21,712 | 596 | 6.84 ms |
 | Escort, round 9 | 21,684 | 636 | 6.91 ms |
 | DeLorean time machine (driver, cabin) | 26,483 | 495 | 7.74 ms |
+| Chevette GT (driver, cabin), after the close review | 21,992 | 636 | 6.89 ms |
 
 Pay for details by reducing the interior and the paint first.
 
@@ -171,6 +185,9 @@ floor first; one change at a time; control and candidate run interleaved,
 at least 6 runs each, medians (and p95, p99) compared; accepted only if it
 beats both neighbouring control runs and nothing regresses by more than
 about 3 %; each attempt, kept or dropped, appended to a local ledger.
+`pgrep -x m2gpushot` guards against another capture only: look at the
+control's p99 too (the game's car about 2.1 ms on a quiet machine) and run
+again a round where it is high (the Chevette's sixth round: 3.15 ms).
 
 ### Acceptance criterion
 
@@ -190,12 +207,40 @@ A car is finished when all hold:
    the cockpit view, set next to the reference, every feature of the
    reference that the model can carry is there and nothing reads as dirt,
    blur or a misplaced part.
-6. **Reviewed item by item:** a table of every part of the reference (and
-   of the plan), each with present, correct, and the frames it was checked
-   in (S select screen, D dimmed, R rolling start, C chase, H high, K
-   cockpit), made again after every round. The Escort's found a third
-   brake light broken at three angles after the car otherwise looked
-   finished; the Beetle's, a lost half plate.
+6. **Reviewed item by item, side by side, at close range:** a table with
+   one row for every part of the reference and of the plan, and one row
+   for each panel line (bonnet front, bonnet rear, bonnet sides, each
+   door's front and rear, boot lid sides, boot lid rear), each frame,
+   trim, lamp, badge, vent and row of rivets. Columns: left, right (or
+   front, rear), correct, and the close crop each was checked in (S select
+   screen, D dimmed, R rolling start, C chase, H high, K cockpit).
+   "Present" is what the crop shows, never what the config says; a
+   feature on both sides has both cells filled from two different crops;
+   a cell without a crop is "not checked", not "yes". Made again after
+   every round. The Escort's found a third brake light broken at three
+   angles after the car otherwise looked finished; the Beetle's, a lost
+   half plate; the Chevette's first review passed a bonnet line missing on
+   one side, door lines never drawn and a plate's letters wider than the
+   plate, all of them in its own frames, too small to see.
+7. **Close range means** the detail cut out of the frame and enlarged until
+   1 cm of the car is at least 4 px, with the same detail cut from the
+   reference picture beside it. In a select-screen frame the car is about
+   470 px long (a 1.4 cm line is 1.6 px, a plate 45 px): a whole frame, or
+   a sheet of frames, decides nothing about a line, a letter or a lamp.
+   Lettering and plates carry two measured ratios (the letters' height to
+   the plate's, the row's width to the plate's) from the game's crop and
+   from the picture's, within about 10 % of each other and of the real
+   thing where there is one (a Mercosul plate: 400 x 130 mm, letters 65 mm).
+8. **Left against right by numbers:** `captura/sym.py BODY_DIR 0.008 3`
+   lists every colour's faces that have no partner mirrored in x. Outside
+   the cabin the list holds only differences that are meant (a badge on
+   one side, the exhaust, the wipers), each named in the notes.
+9. **Every outline accounted for:** the converter's panel-line report
+   (edges found, placed on the skin, dropped) shows no dropped run longer
+   than 5 cm that the notes do not explain ("114 edges, 66 placed" was
+   printed and not read), and every rule that picks pieces by face count
+   matched at least one piece (the Chevette's doors' rule matched none,
+   silently).
 
 ### Refinement rounds with an agent
 
@@ -209,6 +254,46 @@ the host, the model never in the repository, install the result into the
 project's `cars/NAME/`, a comparison sheet of the game's frames next to
 the reference at the end, a report of what still differs). Changes the
 game itself would need are described, not made, and reviewed afterwards.
+
+A conversion runs in nine stages, and the agent reports each one as it
+starts and as it ends ("Stage 3 of 9: parts and colours, started" ...
+"done, 14 min, what was found"), in a progress file beside its notes, so
+that whoever waits knows where it is:
+
+1. Reading and inspecting the model (nodes, materials, axes, origin), and
+   the pictures: what they show, what they miss, what to ask the person.
+2. The first config: a plain body that builds and shows in the game.
+3. Parts and colours: the palette, glass, cabin and driver.
+4. The skin's details, lamps and plates (bands, cells, pictures).
+5. Made parts and the wheel (flares, bumpers, spoilers, the stance).
+6. Refinement rounds against the reference, every standard shot.
+7. The close review: the close views, `sym.py`, the outline report, the
+   table of criterion 6 with a crop for every cell; its fixes; the
+   close-up sheet.
+8. The A/B benchmark, the card's picture, the install and its card.
+9. The proofs of every car, the notes, the clean-up and the final review.
+
+The brief says it in words: the review is made on close crops, each side
+on its own (criteria 6 to 9); a row is not "present" until a crop shows
+it. (The Chevette's first review, all ten rounds and its table, took 4
+minutes and missed a dozen defects; the close review that found them took
+27.)
+
+**Who does which stage.** The one who builds a car is the worst judge of
+it: the Chevette's dozen defects were found by a second agent that had not
+built it. So the stages are split between three agents, each briefed on
+its own:
+
+| Stages | Agent | Its job |
+| --- | --- | --- |
+| 1 to 6 | the builder: a capable model at high effort | reads the model, writes the config and the hook, makes the parts, refines against the reference |
+| 7 | the reviewer: the most capable model, a separate agent that did not build the car | the close review (criteria 6 to 9): the table with a crop in every cell and the list of defects; it fixes nothing |
+| 7, fixes | the builder again | fixes the reviewer's list, item by item |
+| 7, check | the reviewer again | looks again at the fixed items only, from the same crops |
+| 8 and 9 | a small, fast model | the benchmark, the card's picture, the install, the proofs, the clean-up: commands with known outputs |
+
+The reviewer never fixes, so no one passes their own work. Each agent
+writes its stage lines to the same progress file.
 
 ## Tried and dropped: a car generated from photos
 
@@ -256,7 +341,13 @@ shots. Start from a model a person modelled.
   inlaid)? Which way are its axes: the tyres' centres give the axles, the
   headlamp glass the front, the steering wheel the car's left (the Escort:
   front +z, +x the car's left, so x mirrored and winding reversed; real
-  scale; the Camaro needed x100 from its root node).
+  scale; the Camaro needed x100 from its root node). Is it centred on x = 0
+  (the Chevette stood at x 0.08..1.68: placed by its tyres,
+  `AXES wheelbase='model'`)? Do its node names survive the export (two of
+  the Chevette's hold broken characters and must be written as they read)?
+  What is its badge really (the Chevette's is the "Chevette" script, not a
+  bowtie)? `ref.py GLB OUT_DIR textures` also dumps each material's texture,
+  where such details and texture-only vents show.
 - **A quick look at the written files** before any game capture: a small
   rasteriser of `bodies.m2car` with back-face culling (`escort/view.py`)
   found the inward lenses, the seat and the driver's pose. A converter run
@@ -345,10 +436,10 @@ stages, and why each is there:
    | 7 | wheel wells, underside (matte) |
    | 8 | grille mesh, chin spoiler (matte) |
    | 9 | bonnet (top, in more detail) |
-   The tops (2, 5, 9) must stay planar over x and z: the cockpit view
-   paints the game's bonnet from them. A palette car still needs surface 9
-   holding the bonnet seen from above (with its vents drawn in), or the
-   cockpit's bonnet is one texel.
+   The cockpit view draws the car's own bonnet (its skin seen from above,
+   ahead of the windscreen, set at the game's bonnet's rear edge and
+   height); the painting of the game's bonnet from the tops (2, 5, 9,
+   planar over x and z) stays only for a body with nothing to draw there.
 6. **The livery** (the "79" variant): the paint recoloured, stripes and
    lower panels added, numbers drawn in a font. A number on a door is drawn
    mirrored in the texture so that it reads right on the car; on the roof
@@ -389,13 +480,33 @@ shadows). The shots that found every problem so far:
 In a select-screen frame (1984 wide) the chosen car is the left half
 (about x 60..960, y 740..1100), the dimmed one the right half (x
 1040..1940, on a red backdrop once chosen). In a 1984 x 1536 race frame
-the car is about x 560..1300, y 760..1260 in the chase view and x
-700..1180, y 740..1120 in the high one. `shots.sh` deletes its output
+the car is about x 500..1500, y 800..1500 in the chase view (the
+bumper, diffuser and tyres reach y 1450) and x 700..1180, y 740..1120 in
+the high one. The chase view from behind is the one that decides whether
+the flares leave the tyres in view. `shots.sh` deletes its output
 folder first: one folder per shot, never a shared one. Look at each next
 to the same frame with the game's car (`none`), and zoom on the wheels and
 arches, the glass, the numbers and the shadow. Yellow or green patches on
 the paint at the start are its reflections of the scenery (a capture
 without `--car-reflections` tells).
+
+The close views, which the review (criteria 6 to 9) is made in:
+
+| Close view | From | Shows |
+| --- | --- | --- |
+| The front from the car's left | rolling start, 2160..2260 every 10 (2250: the car 900 px wide) | the only frames of the set with the front seen from that side |
+| The front from the car's right | select 1720, 1760, the car cut out, x4 | bonnet lines, lamps, grille, plate |
+| The rear, and the rear from each side | select 1540; 1480 (right), 1600 (left), cut out, x4 | lid lines, lamps, plate, badges |
+| Each side | select 1400 (right), 1640 (left), cut out, x4 | door lines, stripe, frames, vents, rivets |
+| Any detail from any angle, both sides | `captura/closeview.py BODY_DIR OUT` | 20 views of the built files in the game's drawing order, 30 s; each left/right pair side by side, one flipped, the difference in red |
+
+The select screen's turn shows the front only from the car's right, the
+rolling start only from its left: a front detail is looked at in both.
+`closeview.py` is for finding; the game's frames decide. The final sheet
+has a close-up page: front, rear, each side and each plate, picture and
+game cut to the same detail (`captura/closeups.py`; `captura/crops.py`
+cuts the chosen car out of select frames). `captura/caps.sh` runs the
+standard shots and `captura/bench.sh` the interleaved benchmark.
 
 Then the frame time, with the heaviest settings (about 19 s a run; check
 first that no other `m2gpushot` runs, `pgrep -x m2gpushot`, or the
@@ -427,6 +538,7 @@ quality" appears only when a race fell short of full speed.
 | The car not chosen at the mission select was bright | one light fit for both cars | each car lit by its own fit over the brightest's |
 | Numbers read backwards | texture projection seen from the other side | drawn mirrored on the doors, turned 180 degrees on the bonnet |
 | Cockpit view showed the game car's bonnet | a separate model, the camera inside the car | that bonnet painted with the body's top surfaces; the dashboard kept |
+| Cockpit view kept the game bonnet's shape (seen on the Challenger) | the painting above | the body's own bonnet drawn there: its top skin only (what lies under it sorted over it, the view has no depth test), slid and raised to the game's bonnet's rear edge, drawn before the dashboard |
 | Black teeth at the front wing | arch cut removing whole faces | faces crossing the arch split, then rounded onto the circle |
 | A glitch and 46.9 frames/s in a race | about 42,000 polygons a frame for the car; the renderer's per-corner grouping | smaller mesh and wheel; corners sorted, the body's made once at load; turned-away faces only when facing the sun |
 | Yellow triangles on the rear window after reducing | paint under the glass and trims reduced into it | paint near the glass and trims kept at their targets |
@@ -735,6 +847,35 @@ reference.
   yellow ticks) take the face's average colour.
 - **The converter:** a 170-line config and a 57-line hook; the library's
   additions are shared, and the three earlier cars' proofs stayed
+  byte-identical.
+
+## The fifth car: a Chevette GT, the workflow validated (history)
+
+A Chevrolet Chevette SL 76 (Sketchfab, CC BY 4.0, 53,839 triangles, loose
+body panels, the trim one node of 70 pieces over an atlas), restyled after
+two pictures (olive paint, a GT stripe, short riveted flares, the Escort's
+six-spoke wheel, chrome bumpers with black overriders, fog lamps, a boot
+spoiler, a diffuser), converted by an agent that followed this document
+stage by stage and reported each stage as it went.
+
+- **Time:** 37 minutes in all, 29 to the installed car (the Escort 63, the
+  DeLorean 47), about 13 of them waiting; four of the drawing-order rules
+  applied as written.
+- **Result:** 21,729 faces (driver 1,277, cabin 2,413), a 636-face wheel
+  (`M2WHEEL2 1.1911 -1.1766 0.6400`), median 6.70 ms, below the Escort's in
+  all six pairs. The tyres show from behind: the flares' lip 6 cm inside
+  the tyre's face.
+- **The close review:** the user then found, in a close front view, a
+  bonnet line missing on one side and the plate's letters too large; a
+  second agent's close review (criteria 6 to 9, written after it) found a
+  dozen defects of the same kinds (door lines never drawn, the bonnet's
+  rear line, the boot lid's outline, a lock drawn over the spoiler, an
+  askew diffuser) and fixed them in 37 minutes: 21,992 faces, 6.89 ms.
+- **The converter:** a copy of the Escort's config kept for its frame
+  (stance, palettes, wheel, driver, files); the parts, bands and made faces
+  are the model's own. 55 library lines (a model off centre, some faces of
+  a node as a part, one mirror mirrored, panel lines for a by-node model of
+  panels, tapered flares); the five earlier cars' proofs stayed
   byte-identical.
 
 ## For the next car
