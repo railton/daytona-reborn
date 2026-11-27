@@ -180,7 +180,7 @@ struct RelayLink::Connect {
 RelayLink::RelayLink(const std::string &server, const online::Hello &hello)
     : server_(server), room_(hello.room), hello_(online::hello_line(hello)), hello_struct_(hello) {
     // all on by default; each switch, set to 0, turns one off (diagnostics,
-    // docs/ONLINE_PROTOCOL_STUDY.md)
+    // docs/ONLINE-PROTOCOL.md, "Switches for diagnostics")
     if (const char *v = std::getenv("M2_PROTO_COALESCE")) coalesce_ = *v != '0';
     if (const char *v = std::getenv("M2_PROTO_RECONNECT")) may_reconnect_ = *v != '0';
     if (const char *v = std::getenv("M2_PROTO_UDP_REPEAT")) udp_repeat_ = std::max(0, std::atoi(v));

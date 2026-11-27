@@ -38,7 +38,7 @@ flowchart LR
         RAM <--> Z
         Z <--> REG
     end
-    N(("Next and previous cabinet<br/>a cable, or the relay")):::net
+    N(("The other cabinets<br/>at the arcade: a cable<br/>here: the relay")):::net
     G <-->|"writes its car,<br/>reads the others"| RAM
     G <-->|"starts the board,<br/>polls FG"| REG
     Z <-->|"LinkTransport"| N
@@ -214,9 +214,10 @@ sequenceDiagram
             and
                 S->>R: D: its block, by TCP and UDP
             end
-            R-->>M: D: every other car's latest data
-            R-->>S: D: every other car's latest data
+            R-->>M: D: each other car's next slot, in order
+            R-->>S: D: each other car's next slot, in order
         end
+        Note over M,S: a block late past 35 ms: the relay sends the others theirs on its own
     end
 ```
 
@@ -295,8 +296,8 @@ each pass is a round trip: with 8 players, the car behind you arrives up to
 
 **The solution.** In **star mode** the relay decodes every block it
 receives, keeps each player's own slot, and composes for each player a
-block where every other car's slot is that car's **latest** data: one hop
-old, whatever its place.
+block where every other car's slot is that car's **next** data, in order:
+one hop old, whatever its place.
 
 ```mermaid
 flowchart LR
@@ -307,7 +308,7 @@ flowchart LR
     end
     subgraph Star["Star: always 1 hop"]
         direction LR
-        B1(("P1")):::game <--> X(("Relay<br/>each car's<br/>latest slot")):::net
+        B1(("P1")):::game <--> X(("Relay<br/>each car's slots,<br/>in order")):::net
         B2(("P2")):::game <--> X
         X <--> B3(("P3")):::game
         X <--> B4(("P4")):::game
@@ -342,7 +343,26 @@ player, not only the late one. Past `DAYTONA_STAR_PACE_MS` (35 ms) the relay
 sends the player their next block itself, once a frame, with every car's
 next slot (the late one's the same again), and then takes the late car's
 backlog into its history without sending it, so the player never gets a
-burst (`pace.go`). Measured in rooms of 4 and 6 with one player's line
+burst (`pace.go`).
+
+```mermaid
+sequenceDiagram
+    participant A as Player 2 (late line)
+    participant R as Relay
+    participant B as Player 3 (after it in the ring)
+    A->>R: D: tick 100
+    R-->>B: D: every car's next slot (built when 2 sends)
+    A-xR: D: tick 101, lost: TCP resends it 250 to 350 ms later
+    Note over R: 35 ms with nothing from player 2
+    loop once a frame, until player 2 is back
+        R-->>B: D: every car's next slot, player 2's the same again
+    end
+    A->>R: D: ticks 101 to 118 at once
+    Note over R: player 2's backlog goes into its history,<br/>never sent to player 3 as a burst
+    R-->>B: D: player 2's next slots again, one a block
+```
+
+Measured in rooms of 4 and 6 with one player's line
 losing packets in bursts: the other cars 92 to 96 % smooth without it,
 97 to 98 % with it, the longest stall 0.7 to 0.8 s down to 0.35 s; with no
 loss, no difference.
@@ -432,9 +452,9 @@ to cover the gaps. The reserve adapts to the line.
 ```mermaid
 flowchart LR
     N["Network<br/>bursts and gaps"]:::net --> Q[["Queue<br/>reserve: 2 blocks to start"]]:::board --> F["Game<br/>exactly one block a frame"]:::ok
-    Q -.->|"every 300 frames"| A{"How many frames<br/>went without a block?"}:::step
+    Q -.->|"every 300 race frames<br/>(the start's wait not counted)"| A{"How many frames<br/>went without a block?"}:::step
     A -->|"2 or more"| U["reserve + 1, up to 6<br/>(17 ms more delay)"]:::bad
-    A -->|"none, and one always to spare"| D["reserve - 1<br/>(17 ms less delay)"]:::ok
+    A -->|"none, one always to spare,<br/>3 windows in a row (15 s)"| D["reserve - 1, not below 1<br/>(17 ms less delay)"]:::ok
     A -->|"otherwise"| K["unchanged"]:::step
     classDef game fill:#dbeafe,stroke:#2563eb,color:#0f172a
     classDef board fill:#ede9fe,stroke:#7c3aed,color:#0f172a
@@ -474,6 +494,22 @@ never backwards. With its data on time it is the game's pose exactly. The
 picture only: the game's poses, collisions and what it sends are
 untouched, so the protocol is the same; the setting is "Online: the other
 players' cars smooth", on by default.
+
+```mermaid
+flowchart LR
+    T{"Each tick, for each<br/>other player's car"}:::step
+    T -->|"its data on time"| E["drawn at the game's pose,<br/>exactly"]:::ok
+    T -->|"no data: the game holds it"| C["carried on along its last motion<br/>up to 24 ticks, then slowing to a stop"]:::board
+    C --> B["its data comes: back to the game's pose<br/>over a few ticks, never backwards"]:::board
+    B --> E
+    T -->|"over 15 units off (a crash, a reset)"| J["put at the game's pose at once"]:::step
+    classDef game fill:#dbeafe,stroke:#2563eb,color:#0f172a
+    classDef board fill:#ede9fe,stroke:#7c3aed,color:#0f172a
+    classDef net fill:#ffedd5,stroke:#ea580c,color:#0f172a
+    classDef ok fill:#dcfce7,stroke:#16a34a,color:#0f172a
+    classDef bad fill:#fee2e2,stroke:#dc2626,color:#0f172a
+    classDef step fill:#f1f5f9,stroke:#475569,color:#0f172a
+```
 
 ## 7. Everyone at the same moment: coordination
 
@@ -604,6 +640,27 @@ cars moved, the reserve, messages a second, what UDP brought first. The
 relay logs each race's players every minute and at its end: messages in and
 out, latency, its longest send queue, drops and returns. Both are matched
 by room, name and time.
+
+## Switches for diagnostics
+
+Every part above is on by default; each switch turns one off again (or
+changes it), to compare or to find a fault. The relay's are environment
+variables of the server (`docker-compose.yml`), the game's and `m2run`'s
+of the game.
+
+| Switch | Turns off or sets | Read by |
+| --- | --- | --- |
+| `DAYTONA_STAR=0` | star mode: the ring's data passed from player to player again | relay |
+| `DAYTONA_STAR_HISTORY=N` | how far behind its newest a car's slot may be sent (2; 0: the latest, as before 0.23) | relay |
+| `DAYTONA_STAR_PACE_MS=N` | the relay's own pace (35 ms; 0 off) | relay |
+| `DAYTONA_UDP_REPEAT=N` | the messages repeated in each datagram towards the games (2) | relay |
+| `M2_PROTO_UDP=0` | UDP: TCP only (the hello without `udp=1`) | game |
+| `M2_PROTO_UDP_REPEAT=N` | the messages repeated in each datagram towards the relay (2) | game |
+| `M2_PROTO_COALESCE=0` | one send a frame: the block and the token sent apart | game, `m2run` |
+| `M2_PROTO_RECONNECT=0` | the rejoin after a drop | game |
+| `M2_PROTO_ADAPTIVE=0` | the adaptive reserve (always on in the game) | `m2run` |
+| `M2_PROTO_BARRIER_TUNE=0` | the start barrier's timing from the latencies (always on in the game) | `m2run` |
+| `M2_TEST_SMOOTH_REMOTE=0/1` | the other cars drawn smoothly, and its measurement | `m2run` |
 
 ## Where the code is
 

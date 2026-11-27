@@ -196,8 +196,8 @@ after another has closed is expected.
   at once from the room (no numbering round the ring) and the games' link
   is paced against jitter, with a reserve of blocks that grows and shrinks
   with the line, so rooms of 4 across continents run at full speed. See
-  `../../docs/ONLINE_FRAME_SYNC.md` and `../../docs/ONLINE_PROTOCOL_STUDY.md`
-  (the measurements).
+  `../../docs/ONLINE-PROTOCOL.md` (how it works, the measurements and the
+  switches for diagnostics).
 - The connection is not encrypted (no TLS): the race data is not sensitive,
   but a server password travels in clear.
 - Traffic: the game compresses its link data (`src/app/link_codec.h`): a

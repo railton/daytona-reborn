@@ -17,7 +17,21 @@ rule 14); each version has its section here.
   documents: the relay README's greeting no longer lists `op=auto`;
   `docs/ONLINE-PROTOCOL.md` has the hello at `v=12`, the local network,
   the reserve learning from the race only and the other cars drawn
-  smoothly. Rule 23: every platform
+  smoothly.
+- `docs/ONLINE-PROTOCOL.md`'s diagrams brought up to date: the relay sends
+  each car's slots in order (0.23), the adaptive reserve's rules (15 s of
+  calm before one block fewer, never below 1, the race's frames only), the
+  arcade's cable no longer a choice; two new ones, the relay's own pace
+  and the other cars drawn smoothly. All 11 checked with mermaid-cli. The
+  switches for diagnostics are listed there now.
+- Documents that were out of date or said again elsewhere removed (the
+  history keeps them): the beta 0.10 install guides and release notes
+  (EN, FR), the French plans for a modern scene and their review, the
+  frame-sync measurements (superseded, with their evidence), the 0.13
+  protocol study (in ONLINE-PROTOCOL.md and this file now) and the root
+  `HANDOFF.md`. The README's "Original project documentation" became
+  "Documentation", with the guides that are kept. `docs/issues.md` stays:
+  the design document cites its force-feedback and sound findings. Rule 23: every platform
   builds from the release commit before its tag; rule 13: a change to
   what a screenshot shows takes it again in the same commit.
 

@@ -55,14 +55,14 @@ inglês).
 
 Tudo, com medições e limitações conhecidas: [CHANGELOG.md](CHANGELOG.md) (em inglês).
 
-## Documentação do projeto original
+## Documentação
 
-Do Daytona Reborn beta 0.10, mantida neste repositório:
+Em inglês:
 
-- Instalar e jogar: [English](docs/INSTALLATION-EN.md) · [Français](docs/INSTALLATION-FR.md)
-- Notas da versão beta 0.10: [English](docs/NOTES-BETA-EN.md) · [Français](docs/NOTES-BETA-FR.md)
-- Guia de instalação: [docs/getting-started.md](docs/getting-started.md), e a
-  [solução de problemas](docs/getting-started.md#troubleshooting)
+- Instalação, configurações e [solução de problemas](docs/getting-started.md#troubleshooting): [docs/getting-started.md](docs/getting-started.md)
+- Compilar no Windows, macOS e Linux: [docs/BUILDING.md](docs/BUILDING.md)
+- Jogar online, passo a passo: [docs/PLAYING-ONLINE.md](docs/PLAYING-ONLINE.md); como funciona: [docs/ONLINE-PROTOCOL.md](docs/ONLINE-PROTOCOL.md)
+- Carros personalizados: [docs/CUSTOM-CARS.md](docs/CUSTOM-CARS.md); as texturas IA: [docs/HIRES-TEXTURES.md](docs/HIRES-TEXTURES.md)
 
 ## Destaques
 

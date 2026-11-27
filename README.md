@@ -50,14 +50,12 @@ by alphanu1. What it adds is listed in [CHANGELOG.md](CHANGELOG.md).
 
 Everything, with measurements and known limits: [CHANGELOG.md](CHANGELOG.md).
 
-## Original project documentation
+## Documentation
 
-From Daytona Reborn beta 0.10, kept in this repository:
-
-- Install and play: [English](docs/INSTALLATION-EN.md) · [Français](docs/INSTALLATION-FR.md)
-- Beta 0.10 release notes: [English](docs/NOTES-BETA-EN.md) · [Français](docs/NOTES-BETA-FR.md)
-- Setup guide: [docs/getting-started.md](docs/getting-started.md), and its
-  [troubleshooting](docs/getting-started.md#troubleshooting)
+- Setup, settings and [troubleshooting](docs/getting-started.md#troubleshooting): [docs/getting-started.md](docs/getting-started.md)
+- Building on Windows, macOS and Linux: [docs/BUILDING.md](docs/BUILDING.md)
+- Playing online, step by step: [docs/PLAYING-ONLINE.md](docs/PLAYING-ONLINE.md); how it works: [docs/ONLINE-PROTOCOL.md](docs/ONLINE-PROTOCOL.md)
+- Custom cars: [docs/CUSTOM-CARS.md](docs/CUSTOM-CARS.md); the AI textures: [docs/HIRES-TEXTURES.md](docs/HIRES-TEXTURES.md)
 
 ## Highlights
 

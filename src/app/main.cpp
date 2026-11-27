@@ -1312,7 +1312,7 @@ int main(int argc, char **argv) {
                 // blocks arriving out of step must not cost the game its logic ticks
                 game->board().set_link_paced(true, rt::online::kLinkReserve);
                 // a SLAVE's token sent with its answer (one send a frame), the
-                // reserve grown and shrunk with the line (docs/ONLINE_PROTOCOL_STUDY.md)
+                // reserve grown and shrunk with the line (docs/ONLINE-PROTOCOL.md)
                 game->board().set_link_options(true, true);
                 online_game = true;
                 online_epoch = online_link->epoch();
