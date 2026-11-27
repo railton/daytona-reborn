@@ -266,7 +266,8 @@ blocked), the games start the race together and keep the game's speed when
 the network jitters, and a player whose connection drops comes back to the
 race on their own within 10 s. 4 players from Brazil through a server in
 Europe: the farthest car about 0.4 s old instead of 1 s; with 1% packet
-loss on a test line the other cars move smoothly in 99% of the frames.
+loss on a test line the other cars move smoothly in 99% of the frames. When a player's line stalls, their car is drawn carrying on along its way and back to its place
+(Settings > Enhancements > Smoothing, "the other players' cars smooth", on by default).
 How it works, with diagrams: [docs/ONLINE-PROTOCOL.md](docs/ONLINE-PROTOCOL.md).
 The server's settings and byte formats:
 [server/daytona-relay/README.md](server/daytona-relay/README.md).

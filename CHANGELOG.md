@@ -6,6 +6,38 @@ rule 14); each version has its section here.
 
 ## Unreleased
 
+### Online: the other players' cars drawn smoothly
+
+- A player's car comes from their data, which arrives unevenly: a tick with
+  no new data then two at once, or a stall of a few hundred milliseconds
+  when their line loses a burst of packets. The game carries a fast car on
+  by itself without data but holds a slow one still, and puts the car where
+  the data says when it comes: a stop, then a jump. Now each such car is
+  drawn at a pose of its own (`Geo::smooth_remote_cars`): carried on along
+  its last motion while the game holds it without data (up to 24 ticks,
+  then slowing to a stop), and brought back to the game's pose over a few
+  ticks when the data comes, never backwards (at most half its own step a
+  tick when the game is behind). With its data on time it is the game's
+  pose exactly, its own jumps (a crash) too. The picture only: the game's
+  poses, collisions and what it sends are untouched.
+- Its data's step per tick is read from comm RAM (each other player's tick
+  byte) and told a tick late: the game moves the car a tick after its data
+  lands (measured: a 21-tick backlog landed in one tick, the car jumped 12
+  units the next).
+- Settings: "Online: the other players' cars smooth", on by default
+  (Hardware renderer and the double buffer). The replay of the scene with
+  the game's poses is byte for byte the game's own picture (5 frames).
+- Measured headless (`m2run --relay`, `M2_TEST_SMOOTH_REMOTE=1`, rooms of 4
+  and 6 through a local relay, one player with burst loss; stops and jumps
+  of the drawn car against the game's, moving ticks):
+
+  | Room, who looks | Stops | Jumps |
+  | --- | ---: | ---: |
+  | 6, the lossy car | 124 -> 7 | 43 -> 12 |
+  | 6, the lossy car | 78 -> 4 | 30 -> 9 |
+  | 4, the lossy car | 135 -> 11 | 24 -> 16 |
+  | 6 without loss, every car | no worse | no worse, drawn off p95 0.00 |
+
 ### Building: a word on zig-setup.ps1
 
 - `docs/BUILDING.md` says that `zig-setup.ps1`, which came with the fork

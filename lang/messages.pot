@@ -1111,6 +1111,15 @@ msgid ""
 "Applies the next time the game starts."
 msgstr ""
 
+msgid "Online: the other players' cars smooth"
+msgstr ""
+
+msgid ""
+"When a player's data comes late, their car carries on along its way instead of stopping, then\n"
+"joins the game's place for it. The picture only: the race itself is the same.\n"
+"Needs the Hardware renderer and the double buffer."
+msgstr ""
+
 msgid "Cars"
 msgstr ""
 

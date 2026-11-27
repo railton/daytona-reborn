@@ -1155,6 +1155,18 @@ msgstr ""
 "Images intermédiaires entre celles du jeu. Demande le rendu Matériel et le double tampon.\n"
 "Pris en compte au prochain lancement du jeu."
 
+msgid "Online: the other players' cars smooth"
+msgstr "En ligne : les voitures des autres joueurs fluides"
+
+msgid ""
+"When a player's data comes late, their car carries on along its way instead of stopping, then\n"
+"joins the game's place for it. The picture only: the race itself is the same.\n"
+"Needs the Hardware renderer and the double buffer."
+msgstr ""
+"Quand les données d'un joueur arrivent en retard, sa voiture poursuit sa route au lieu de s'arrêter,\n"
+"puis rejoint la place que le jeu lui donne. L'image seulement : la course elle-même ne change pas.\n"
+"Nécessite le rendu Matériel et le double tampon."
+
 msgid "Cars"
 msgstr "Voitures"
 

@@ -129,6 +129,12 @@ public:
     const std::vector<GeoPoly> *present_pose_scene(uint64_t now_ns, uint64_t delay_ns) {
         return geo_->present_pose_scene(now_ns, delay_ns);
     }
+    // Online play: the other players' cars drawn smoothly (Geo::smooth_remote_cars).
+    void smooth_remote_cars(std::span<const int8_t> steps, int frames, std::vector<Geo::RemoteCarReport> *report = nullptr) {
+        geo_->smooth_remote_cars(steps, frames, report);
+    }
+    const std::vector<GeoPoly> *present_remote_cars() { return geo_->present_remote_cars(); }
+    void reset_remote_cars() { geo_->reset_remote_cars(); }
 
     Video &video() { return *video_; }
     // Widescreen (enhancement): pixels added to each side; 0 = the original screen.

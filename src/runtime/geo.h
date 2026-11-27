@@ -20,6 +20,7 @@
 #include "runtime/rom_source.h"
 
 #include <array>
+#include <span>
 #include <cstdint>
 #include <cstdio>
 #include <stdexcept>
@@ -254,6 +255,46 @@ public:
     const std::vector<GeoPoly> *present_pose_scene(uint64_t now_ns, uint64_t delay_ns);
     void discard_pose_history();
 
+    // Online play: the other players' cars drawn smoothly (enhancement, the
+    // picture only: the game's own poses, its collisions and the data it
+    // sends are untouched). A linked car's pose comes from its player's data,
+    // which arrives unevenly: a frame without new data then two at once, or
+    // a stall of a few hundred milliseconds when its line loses a burst of
+    // packets (each message then waits for TCP's retransmission). The game
+    // carries a fast car on by itself while no data comes, but holds a slow
+    // one still, and when the data comes it puts the car where its player's
+    // says, a jump. Each such car is drawn at a pose of its own: carried on
+    // along its last motion (its step per tick of its player's, in its own
+    // frame, measured when data came) while the game holds it without data,
+    // for up to kRemoteCarCarry ticks, and else on the game's pose, a jump
+    // after late data drawn as a catching up over a few ticks (at once
+    // within kRemoteCarExact of it, or further than kRemoteCarSnap). With
+    // its data on time the car is the game's, its own jumps (a crash) too. Its parts (wheels, driver) and the objects drawn at its
+    // chassis go with it.
+    //
+    // Called once a tick after stamp_pose_scene (pose presentation enabled),
+    // with steps[i] for each car record i (MobileIdentity::slot_count): -1
+    // for a car that is not a linked player's (a computer car, the own),
+    // else how many of its player's ticks its data advanced since the
+    // previous call (0: none). frames: the game's ticks since then (only 1
+    // keeps the poses; more, as a camera cut, starts again from the game's).
+    struct RemoteCarReport {
+        unsigned slot = 0;        // car record
+        int step = 0;             // its data's step this tick
+        double game_step = 0;     // how far the game's pose moved this tick (scenery's motion taken off), units
+        double shown_step = 0;    // how far the drawn pose moved
+        double error = 0;         // drawn pose to the game's, units
+    };
+    static constexpr int kRemoteCarCarry = 24;           // ticks carried on at most (417 ms)
+    static constexpr double kRemoteCarExact = 0.02;      // units: closer, the game's pose exactly
+    static constexpr double kRemoteCarSnap = 15.0;       // units: further, the game's pose at once
+    static constexpr double kRemoteCarBlend = 0.3;       // share of the way back each tick (90 % in 7 ticks)
+    void smooth_remote_cars(std::span<const int8_t> steps, int frames, std::vector<RemoteCarReport> *report = nullptr);
+    // The scene with those poses, or nullptr when every car is at the game's
+    // (draw the game's own polygons).
+    const std::vector<GeoPoly> *present_remote_cars();
+    void reset_remote_cars();
+
     // This frame's output.
     std::vector<GeoPoly> polys;       // kept polygons, in the order added
     std::vector<uint32_t> pushed;     // every word handed to the rasterizer
@@ -397,6 +438,17 @@ private:
         bool before_valid = false;
     };
     std::optional<PosePair> older_pair_;
+    struct RemoteCar {
+        bool valid = false;
+        uint32_t generation = 0;
+        std::array<double, 12> shown{}, step{}; // drawn pose, its motion a tick (own frame)
+        std::array<double, 12> game{};         // the game's pose the tick before
+        int stall = 0;                                  // ticks without data
+    };
+    std::array<RemoteCar, MobileIdentity::slot_count> remote_cars_{};
+    std::vector<std::array<float, 12>> remote_matrices_;
+    std::vector<GeoPoly> remote_polys_;
+    bool remote_adjusted_ = false, remote_replayed_ = false;
     bool presenting_older_ = false; // M2_POSE_TRACE writes its alpha minus 1
     void swap_pose_pair(PosePair &pair);
     void rotate_pose_frame(); // a new tick: the current pair becomes the older one

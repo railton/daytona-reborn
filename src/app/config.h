@@ -44,6 +44,7 @@ struct Config {
     int draw_distance = 0;     // scenery: 0 = the game's own, -2..+2 (rt::Enhance)
     bool scenery_3d = false;   // fir trees in volume, filled stands, Dinosaur Canyon piers (next start)
     bool interpolate = false;  // pose smoothing between game frames, as --interpolate-poses (next start)
+    bool smooth_online_cars = true; // online: the other players' cars drawn smoothly (Geo::smooth_remote_cars)
     bool cars_near_model = false; // every opponent drawn with its near model (next start)
     int msaa = 1;  // the hardware renderer's antialiasing: 1 (off), 2, 4, 8 samples (next start)
     int aniso = 1; // its texture filtering: 1 the game's own, 2..16 anisotropic

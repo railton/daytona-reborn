@@ -1392,6 +1392,12 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
                 ImGui::EndDisabled();
                 hint(TX("In-between frames between the game's. Needs the Hardware renderer and the double buffer.\n"
                         "Applies the next time the game starts."));
+                ImGui::BeginDisabled(cfg_.renderer != "hardware" || cfg_.draw_mode != 0);
+                if (ImGui::Checkbox(TX("Online: the other players' cars smooth"), &cfg_.smooth_online_cars)) cfg_.save();
+                ImGui::EndDisabled();
+                hint(TX("When a player's data comes late, their car carries on along its way instead of stopping, then\n"
+                        "joins the game's place for it. The picture only: the race itself is the same.\n"
+                        "Needs the Hardware renderer and the double buffer."));
             });
             ImGui::EndTabItem();
         }

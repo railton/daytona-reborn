@@ -64,6 +64,7 @@
 #include "app/relay_link.h"
 #include "app/selection_steer.h"
 #include "runtime/online_settings.h"
+#include "runtime/remote_cars.h"
 
 #include <algorithm>
 #include <array>
@@ -508,6 +509,25 @@ int main(int argc, char **argv) {
             const char *p = std::getenv("M2_TEST_AGE_LOG");
             return p && *p ? std::fopen(p, "w") : nullptr;
         }();
+        // M2_TEST_SMOOTH_REMOTE=1: the other players' cars drawn smoothly
+        // (Geo::smooth_remote_cars), measured: per car, the ticks its pose
+        // stood still or jumped, in the game and as drawn, and how far the
+        // drawn pose was from the game's. M2_TEST_SMOOTH_TRACE=FILE: each tick.
+        const bool smooth_remote = [] { const char *v = std::getenv("M2_TEST_SMOOTH_REMOTE"); return v && v[0] == '1'; }();
+        std::FILE *smooth_trace = [] {
+            const char *p = std::getenv("M2_TEST_SMOOTH_TRACE");
+            return p && *p ? std::fopen(p, "w") : nullptr;
+        }();
+        if (smooth_remote && relay && !game.board().enable_pose_presentation())
+            std::printf("m2run: smooth remote cars unavailable (program revision)\n");
+        rt::online::RemoteCarSteps remote_steps;
+        std::vector<rt::Geo::RemoteCarReport> remote_report;
+        struct RemoteStats {
+            uint64_t frames = 0, game_stops = 0, shown_stops = 0, game_jumps = 0, shown_jumps = 0;
+            double speed = 0; // the game's step at its data's pace, smoothed
+            std::vector<double> errors;
+        };
+        std::array<RemoteStats, rt::MobileIdentity::slot_count> remote_stats{};
         uint64_t relay_sends_from = 0, relay_messages_from = 0, relay_race_ms = 0, relay_race_from_ms = 0;
         rt::online::StartBarrier relay_barrier_state; // as the app: everyone starts the race together
         bool relay_holding = false;
@@ -619,6 +639,28 @@ int main(int argc, char **argv) {
                         for (int k = 0; k < 8; ++k) std::fprintf(age_log, ",%d", int(cr[0x21c0 + k * 0x1c0 + 0x0a]));
                         std::fputc('\n', age_log);
                     }
+                    if (smooth_remote) {
+                        if (auto stamp = rt::completed_snapshot_stamp(game.frames(), now_ms * 1000000ull, game.board().video().instance()))
+                            game.board().stamp_pose_scene(*stamp);
+                        const auto &steps = remote_steps.update(game.board(), relay->status().position, relay->status().size);
+                        game.board().smooth_remote_cars(steps, 1, &remote_report);
+                        for (const auto &r : remote_report) {
+                            RemoteStats &st = remote_stats[r.slot];
+                            // a stop: under a quarter of the car's pace; a jump: over 1.75 times it (moving cars only)
+                            if (st.speed > 0.3) {
+                                ++st.frames;
+                                st.game_stops += r.game_step < 0.25 * st.speed;
+                                st.shown_stops += r.shown_step < 0.25 * st.speed;
+                                st.game_jumps += r.game_step > 1.75 * st.speed;
+                                st.shown_jumps += r.shown_step > 1.75 * st.speed;
+                                st.errors.push_back(r.error);
+                            }
+                            if (r.step == 1 && r.game_step < 4.0) st.speed += (r.game_step - st.speed) * 0.1;
+                            if (smooth_trace)
+                                std::fprintf(smooth_trace, "%" PRIu64 ",%u,%d,%d,%.3f,%.3f,%.3f\n", game.frames(), r.slot,
+                                             rt::online::linked_car(game.board(), r.slot), r.step, r.game_step, r.shown_step, r.error);
+                        }
+                    }
                     const int rx = game.board().comm_ram()[0x21c0 + 0x0a];
                     if (rx_previous >= 0) ++rx_steps[std::min(3, (rx - rx_previous) & 0xff)];
                     rx_previous = rx;
@@ -635,6 +677,7 @@ int main(int argc, char **argv) {
                 } else {
                     rx_previous = -1;
                     std::fill(std::begin(car_previous), std::end(car_previous), -1);
+                    if (smooth_remote) remote_steps.reset(), game.board().reset_remote_cars();
                 }
                 if (race_mode == 22 && previous_race_mode != 22)
                     std::printf("m2run: race %d at frame %" PRIu64 ", course %d, gearbox %s\n", ++races_seen, game.frames(),
@@ -821,6 +864,17 @@ int main(int argc, char **argv) {
                 }
                 std::printf("; worst %.1f%%\n", worst);
             }
+            if (smooth_remote) // each other player's car, by its CAR NUMBER: stops and jumps in the game and as drawn
+                for (unsigned slot = 0; slot < remote_stats.size(); ++slot) {
+                    RemoteStats &st = remote_stats[slot];
+                    if (!st.frames) continue;
+                    std::sort(st.errors.begin(), st.errors.end());
+                    const auto at = [&](double q) { return st.errors[std::min(st.errors.size() - 1, size_t(q * double(st.errors.size())))]; };
+                    std::printf("  smooth remote car %d (record %u, %" PRIu64 " moving ticks): stops %" PRIu64 " -> %" PRIu64
+                                ", jumps %" PRIu64 " -> %" PRIu64 "; drawn off the game's pose p50 %.2f, p95 %.2f, max %.2f units\n",
+                                rt::online::linked_car(game.board(), slot), slot, st.frames, st.game_stops, st.shown_stops,
+                                st.game_jumps, st.shown_jumps, at(0.5), at(0.95), st.errors.back());
+                }
             if (const rt::CommBoard *cb = game.board().comm_board())
                 std::printf("  link reserve: %d at the end, %d changes\n", cb->reserve(), cb->reserve_changes());
             std::printf("  relay UDP: %llu messages delivered first by UDP\n", (unsigned long long)relay->udp_first());

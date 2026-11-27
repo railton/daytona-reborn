@@ -60,6 +60,7 @@
 #include "runtime/rom_import.h"
 #include "runtime/race_request.h"
 #include "runtime/checked_trace_file.h"
+#include "runtime/remote_cars.h"
 
 #include "backends/imgui_impl_sdl3.h"
 #include "backends/imgui_impl_sdlgpu3.h"
@@ -1258,6 +1259,8 @@ int main(int argc, char **argv) {
     uint64_t online_tags_at = 0;          // the last presented frame they were placed for
     std::unique_ptr<rt::GameLoop> game;
     bool pose_session = false, last_render_was_pose = false;
+    bool remote_session = false;            // online: the other players' cars drawn smoothly (cfg.smooth_online_cars)
+    rt::online::RemoteCarSteps remote_steps; // their data's steps, each tick
     uint64_t pose_interval_ns = 0;
     double pose_lag_mean = 0, pose_lag_dev = 0; // snapshot availability after its due instant, ns
     double pose_sample_ns = 0;          // the drawn instant, on its own steady clock
@@ -1857,6 +1860,22 @@ int main(int argc, char **argv) {
                     if (in_race) online_stats.frame(game->board(), now);
                     else if (online_stats.active()) online_stats.end(*online_link, game->board(), "ended");
                     if (in_launcher) online_stats.menu(17'384'000); // a frame of 1/57.524 s, behind the menu
+                    // The other players' cars drawn smoothly (Geo::smooth_remote_cars): each
+                    // tick of the race, the scene stamped (the camera's motion) and each car's
+                    // data step; the solo 120 frames/s smoothing, when on, comes first.
+                    if (in_race && cfg.smooth_online_cars && cfg.renderer == "hardware" && cfg.draw_mode == 0 && !pose_session) {
+                        if (!remote_session) remote_session = game->board().enable_pose_presentation();
+                        if (remote_session) {
+                            if (auto stamp = rt::completed_snapshot_stamp(game->frames(), SDL_GetTicksNS(),
+                                                                         game->board().video().instance()))
+                                game->board().stamp_pose_scene(*stamp);
+                            const auto &room = online_link->status();
+                            game->board().smooth_remote_cars(remote_steps.update(game->board(), room.position, room.size), 1);
+                        }
+                    } else if (remote_session) {
+                        remote_steps.reset();
+                        game->board().reset_remote_cars();
+                    }
 #endif
                     online_race_logged = in_race;
                 }
@@ -2090,6 +2109,8 @@ int main(int argc, char **argv) {
             pose_polys = game->board().present_pose_scene(uint64_t(std::max(pose_sample_ns, 0.0)), 0);
             if (!pose_polys) ++pose_fallbacks; // the game's own latest tick instead
         }
+        if (!pose_polys && remote_session && game && hardware && !in_launcher && cfg.draw_mode == 0)
+            pose_polys = game->board().present_remote_cars(); // nullptr: every car at the game's pose
         const bool hardware_rasterized = hardware && (new_frame || pose_polys || last_render_was_pose);
 #else
         const bool hardware_rasterized = hardware && new_frame;

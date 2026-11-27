@@ -590,6 +590,9 @@ add_test(NAME selection_steer COMMAND test_selection_steer)
 add_executable(test_car_tags tests/test_car_tags.cpp)
 target_include_directories(test_car_tags PRIVATE src)
 add_test(NAME car_tags COMMAND test_car_tags)
+add_executable(test_remote_cars tests/test_remote_cars.cpp)
+target_include_directories(test_remote_cars PRIVATE src)
+add_test(NAME remote_cars COMMAND test_remote_cars)
 
 # Wheel and pedal bindings against SDL virtual joysticks.
 if(TARGET SDL3::SDL3-static)

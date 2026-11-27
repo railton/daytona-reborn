@@ -1760,6 +1760,153 @@ const std::vector<GeoPoly> *Geo::present_pose_scene(uint64_t now_ns, uint64_t de
 	return present_pose_pair(now_ns, delay_ns);
 }
 
+void Geo::reset_remote_cars() {
+	for (auto &car : remote_cars_) car.valid = false;
+	remote_adjusted_ = false;
+}
+
+void Geo::smooth_remote_cars(std::span<const int8_t> steps, int frames, std::vector<RemoteCarReport> *report) {
+	remote_adjusted_ = remote_replayed_ = false;
+	if (report) report->clear();
+	// The camera's motion from the previous tick: without it (a cut, a tick
+	// not stamped, two ticks at once) every car starts again at the game's pose.
+	const bool moving = pose_presentation_ && frames == 1 && background_motion_ && current_stamp_ &&
+	                    current_stamp_->tick == tick_;
+	// Each car record's chassis this tick (one object, else none).
+	std::array<int, MobileIdentity::slot_count> chassis;
+	chassis.fill(-1);
+	for (size_t i = 0; i < current_scene_.size(); ++i) {
+		const auto &object = current_scene_[i];
+		if (!is_opponent_body_part(object.key.part) || is_camera_space_overlay(object.geometry)) continue;
+		if (const auto slot = MobileIdentity::slot_index(object.key.slot)) {
+			int &c = chassis[*slot];
+			c = c == -1 ? int(i) : -2; // two: ambiguous
+		}
+	}
+	const Pose d = moving ? background_motion_->transform : pose_detail::identity();
+	const auto distance = [](const Pose &a, const Pose &b) { return std::hypot(a[9] - b[9], a[10] - b[10], a[11] - b[11]); };
+	const auto finite = [](const Pose &m) { return std::ranges::all_of(m, [](double v) { return std::isfinite(v); }); };
+	// A fraction of a step (rigid_power): a step of next to nothing is no
+	// motion (its angle's logarithm divides by next to nothing: a NaN pose,
+	// measured, a car slowing to a stop after a long stall).
+	const auto part = [&](const Pose &m, double s) {
+		if (std::hypot(m[9], m[10], m[11]) < 0.005) return pose_detail::identity();
+		const Pose r = rigid_power(m, s);
+		return finite(r) ? r : pose_detail::identity();
+	};
+	std::array<const Pose *, MobileIdentity::slot_count> drawn{}; // the adjusted cars' drawn chassis poses
+	for (unsigned slot = 0; slot < MobileIdentity::slot_count; ++slot) {
+		RemoteCar &car = remote_cars_[slot];
+		const int ci = chassis[slot];
+		const int step = slot < steps.size() ? steps[slot] : -1;
+		if (step < 0 || ci < 0) {
+			car.valid = false;
+			continue;
+		}
+		const SceneObject &object = current_scene_[size_t(ci)];
+		const Pose &game = object.geometry.model_view;
+		if (!car.valid || !moving || car.generation != object.key.generation || !rigid_background_delta(game)) {
+			car.valid = rigid_background_delta(game);
+			car.generation = object.key.generation;
+			car.shown = car.game = game;
+			car.step = pose_detail::identity();
+			car.stall = 0;
+			continue;
+		}
+		const Pose shown_moved = compose(d, car.shown), game_before = compose(d, car.game);
+		// the game's motion this tick, in the car's own frame
+		const Pose rel = compose(inverse(game_before), game);
+		const double moved = std::hypot(rel[9], rel[10], rel[11]);
+		const double pace = std::hypot(car.step[9], car.step[10], car.step[11]);
+		// Held: no data, and the game holds the car where it was (it carries a
+		// fast car on by itself, measured: 0.75 units a tick without data for 16
+		// ticks; a slow one it holds). A car stopping in a crash has data.
+		const bool held = step == 0 && pace > 0.02 && moved <= std::max(0.1 * pace, 0.005);
+		// its motion a tick of its player's, from the game's when data came
+		if (step > 0 && moved <= 3.0 * step) car.step = step == 1 ? rel : part(rel, 1.0 / step);
+		Pose shown;
+		if (held) {
+			// carried on; past kRemoteCarCarry, slowing to a stop
+			if (++car.stall > kRemoteCarCarry) car.step = part(car.step, 0.85);
+			shown = compose(shown_moved, car.step);
+		} else {
+			car.stall = 0;
+			const Pose predicted = compose(shown_moved, car.step);
+			const double error = distance(predicted, game);
+			// Data on time and the car drawn at the game's pose: the game's own
+			// motion, a jump included (a crash, a model change), as it is.
+			const bool on_time = step == 1 && distance(car.shown, car.game) <= kRemoteCarExact;
+			if (on_time || error <= kRemoteCarExact || error > kRemoteCarSnap) {
+				shown = game;
+			} else {
+				// Back to the game's pose. The game behind (its data coming in
+				// faster than a tick's worth): by at most half the car's own step
+				// a tick, or the car would go backwards. The game ahead: also by
+				// up to 0.15 of the way a tick (a slow car 12 units behind took
+				// a second at half its step, measured).
+				const double now_pace = std::hypot(car.step[9], car.step[10], car.step[11]);
+				double ahead = 0; // the game's pose along the car's way
+				for (int a = 0; a < 3; ++a) ahead += (game[9 + a] - predicted[9 + a]) * (predicted[9 + a] - shown_moved[9 + a]);
+				const double limit = std::max({0.5 * now_pace, 0.05, ahead > 0 ? 0.15 * error : 0.0});
+				shown = interp(predicted, game, std::min(kRemoteCarBlend, limit / error));
+			}
+		}
+		if (!finite(shown) || distance(shown, game) <= kRemoteCarExact) shown = game;
+		if (!finite(car.step)) car.step = pose_detail::identity();
+		if (report)
+			report->push_back({slot, step, distance(game, game_before), distance(shown, shown_moved), distance(shown, game)});
+		car.shown = shown;
+		car.game = game;
+		if (shown != game) drawn[slot] = &car.shown, remote_adjusted_ = true;
+	}
+	if (!remote_adjusted_) return;
+	remote_matrices_.resize(current_scene_.size());
+	for (size_t i = 0; i < current_scene_.size(); ++i) {
+		const auto &mv = current_scene_[i].geometry.model_view;
+		for (unsigned j = 0; j < 12; ++j) remote_matrices_[i][j] = float(mv[j]);
+	}
+	// A part's pose (a wheel, the driver, the chassis itself) moved with its car's.
+	const auto carry = [&](size_t i, unsigned slot) {
+		const Pose &native = current_scene_[size_t(chassis[slot])].geometry.model_view;
+		const Pose carried = compose(*drawn[slot], compose(inverse(native), current_scene_[i].geometry.model_view));
+		for (unsigned j = 0; j < 12; ++j) remote_matrices_[i][j] = float(carried[j]);
+	};
+	for (size_t i = 0; i < current_scene_.size(); ++i) {
+		const auto &object = current_scene_[i];
+		if (is_camera_space_overlay(object.geometry)) continue;
+		if (object.key.part) {
+			const auto slot = MobileIdentity::slot_index(object.key.slot);
+			if (slot && drawn[*slot] && object.key.generation == remote_cars_[*slot].generation) carry(i, *slot);
+			continue;
+		}
+		// Unkeyed objects drawn at a chassis' exact position belong to that
+		// car (present_pose_pair: oba 0x91 with the near bodies, 0x10a with the
+		// mid ones): they go with it.
+		const auto &mv = object.geometry.model_view;
+		for (unsigned slot = 0; slot < MobileIdentity::slot_count; ++slot) {
+			if (!drawn[slot]) continue;
+			const auto &native = current_scene_[size_t(chassis[slot])].geometry.model_view;
+			if (std::abs(native[9] - mv[9]) <= 1e-4 && std::abs(native[10] - mv[10]) <= 1e-4 &&
+			    std::abs(native[11] - mv[11]) <= 1e-4) {
+				carry(i, slot);
+				break;
+			}
+		}
+	}
+}
+
+const std::vector<GeoPoly> *Geo::present_remote_cars() {
+	if (!remote_adjusted_ || remote_matrices_.size() != current_scene_.size()) return nullptr;
+	if (!remote_replayed_) { // once a tick, however many times the screen is drawn
+		presented_casters_.clear();
+		if (top_margin_ && behind_casters_on()) replay_casters_ = &presented_casters_;
+		replay_instance_reference(remote_polys_, true, remote_matrices_);
+		replay_casters_ = nullptr;
+		remote_replayed_ = true;
+	}
+	return &remote_polys_;
+}
+
 const std::vector<GeoPoly> *Geo::present_pose_pair(uint64_t now_ns, uint64_t delay_ns) {
 	auto blend = sample_snapshots(*previous_stamp_, *current_stamp_, now_ns, delay_ns);
 	if (!blend.can_interpolate) return nullptr;

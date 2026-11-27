@@ -281,7 +281,8 @@ jogos largam juntos e mantêm a velocidade do jogo quando a rede oscila, e
 um jogador cuja conexão cai volta à corrida sozinho em até 10 s. 4
 jogadores do Brasil por um servidor na Europa: o carro mais distante com
 cerca de 0,4 s de atraso em vez de 1 s; com 1% de perda de pacotes numa
-linha de teste, os outros carros se movem suavemente em 99% dos quadros.
+linha de teste, os outros carros se movem suavemente em 99% dos quadros. Quando a linha de um jogador trava, o carro dele é desenhado seguindo o caminho e voltando ao lugar
+(Configurações > Melhorias > Suavização, "os carros dos outros jogadores suaves", ligado por padrão).
 Como funciona, com diagramas: [docs/ONLINE-PROTOCOL.md](docs/ONLINE-PROTOCOL.md).
 As configurações do servidor e os formatos dos bytes:
 [server/daytona-relay/README.md](server/daytona-relay/README.md).

@@ -1155,6 +1155,18 @@ msgstr ""
 "Quadros intermediários entre os do jogo. Requer o renderizador Hardware e o buffer duplo.\n"
 "Vale a partir da próxima vez que o jogo abrir."
 
+msgid "Online: the other players' cars smooth"
+msgstr "Online: os carros dos outros jogadores suaves"
+
+msgid ""
+"When a player's data comes late, their car carries on along its way instead of stopping, then\n"
+"joins the game's place for it. The picture only: the race itself is the same.\n"
+"Needs the Hardware renderer and the double buffer."
+msgstr ""
+"Quando os dados de um jogador atrasam, o carro dele continua o caminho em vez de parar e depois\n"
+"volta ao lugar que o jogo dá a ele. Só a imagem: a corrida em si é a mesma.\n"
+"Precisa do renderizador Hardware e do buffer duplo."
+
 msgid "Cars"
 msgstr "Carros"
 

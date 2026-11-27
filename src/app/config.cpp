@@ -80,6 +80,7 @@ void Config::read(std::istream &f) {
         else if (k == "draw_distance") draw_distance = std::clamp(std::atoi(v.c_str()), -2, 2);
         else if (k == "scenery_3d") scenery_3d = v == "1";
         else if (k == "interpolate") interpolate = v == "1";
+        else if (k == "smooth_online_cars") smooth_online_cars = v == "1";
         else if (k == "cars_near_model") cars_near_model = v == "1";
         else if (k == "msaa") msaa = std::clamp(std::atoi(v.c_str()), 1, 8);
         else if (k == "aniso") aniso = std::clamp(std::atoi(v.c_str()), 1, 16);
@@ -199,6 +200,7 @@ void Config::write(std::ostream &f) const {
     f << "draw_distance=" << draw_distance << "\n";
     f << "scenery_3d=" << (scenery_3d ? 1 : 0) << "\n";
     f << "interpolate=" << (interpolate ? 1 : 0) << "\n";
+    f << "smooth_online_cars=" << (smooth_online_cars ? 1 : 0) << "\n";
     f << "cars_near_model=" << (cars_near_model ? 1 : 0) << "\n";
     f << "msaa=" << msaa << "\n";
     f << "aniso=" << aniso << "\n";
