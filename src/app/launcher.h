@@ -70,6 +70,8 @@ public:
 #endif
     // Settings' "Detect automatically" was pressed since the last call
     bool take_quality_request() { const bool r = quality_request_; quality_request_ = false; return r; }
+    // Settings > Game > Start over, confirmed: erase this profile's settings and start the game again
+    bool take_reset_request() { const bool r = reset_request_; reset_request_ = false; return r; }
 
 private:
     ImFont *display_font_ = nullptr, *body_font_ = nullptr;
@@ -79,6 +81,7 @@ private:
     bool language_combo(float width);
     bool gate_open_ = false;
     bool quality_request_ = false;
+    bool reset_request_ = false;
     int quality_pick_ = -1; // the level picked in draw_quality, -1 before its result
     static bool capture_gate(); // diagnostic: M2_CAPTURE_ROM_GATE=1
     static void SDLCALL dialog_done(void *self, const char *const *files, int filter);

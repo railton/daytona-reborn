@@ -25,6 +25,8 @@ inglês).
 
 ## Histórico de mudanças
 
+**`2026-11-26`** **0.22.0**: **carros personalizados** em **Configurações > Carros** (a pasta `cars/` do projeto; a visão de dentro mostra o capô do próprio carro); no online, os carros dos outros não piscam mais com uma linha longe ou desigual, e o jogo avisa quando ele ou o servidor precisa ser atualizado (todos de uma sala precisam da 0.22.0); a resolução de renderização nunca acima da tela, e uma primeira corrida lenta diz se o gargalo foi o processador ou a placa de vídeo; os logs numa pasta `logs/` ao lado de `roms/`; **Recomeçar** em Configurações > Jogo; um AppImage para Linux; o pacote de texturas em `textures/`.
+
 **`2026-11-25`** **0.21.0**: gere o pacote de texturas em alta resolução em **Configurações > Texturas IA** (Linux com Docker, placa NVIDIA ou processador); a tela inicial avisa quando sai uma [nova versão](#novas-versões); correções do build no Windows; melhorias apontadas por uma revisão gráfica externa (detalhe que surge aos poucos, HUD nas bordas suave, sombras mais estáveis, reconferência do pacote 10 vezes mais rápida).
 
 **`2026-11-25`** **0.20.0**: **Menus e HUD suaves**: as imagens 2D do jogo com curvas suaves em alta resolução, mantendo as cores e o pontilhado.
@@ -67,7 +69,9 @@ Do Daytona Reborn beta 0.10, mantida neste repositório:
   gabinetes, a largada e a escolha da pista são sincronizadas; os nomes dos
   jogadores e a classificação ao vivo aparecem sobre a corrida, e o nome de
   cada jogador fica acima do carro dele. Não é preciso abrir porta no
-  roteador; uma conexão que cai volta à corrida sozinha. Salas com 8
+  roteador; uma conexão que cai volta à corrida sozinha, e o jogo avisa
+  quando ele (ou o servidor) precisa ser atualizado para jogar com os
+  outros. Salas com 8
   gabinetes ligados já rodaram pelo relay. Veja
   [server/daytona-relay](server/daytona-relay/README.md); como jogar:
   [docs/PLAYING-ONLINE.md](docs/PLAYING-ONLINE.md).
@@ -150,11 +154,17 @@ o `Build Daytona.command`).
 
 | Como | |
 | --- | --- |
-| **Recomendado:** com Docker, sem instalar mais nada: `./scripts/docker-build.sh` | copie a sua ROM para `roms/daytona.zip` antes |
+| **Recomendado:** com Docker, sem instalar mais nada: `./scripts/docker-build.sh` | copie a sua ROM para `roms/daytona.zip` antes; no fim sai `build-daytona/Daytona-x86_64.AppImage`, o jogo num arquivo só (Ubuntu 24.04 e mais novos) |
 | Nativo: `./setup.sh` | instala os pacotes com apt, dnf, pacman ou zypper (sudo) |
 | Um build para o seu próprio PC com Windows: `./scripts/docker-build-windows.sh` | depois do `docker-build.sh`; copie `build-windows/` para o PC |
 
-O jogo: `build-daytona/daytona`.
+O jogo: `build-daytona/Daytona-x86_64.AppImage` (o build com Docker; ou
+`build-daytona/daytona`). O AppImage é o jogo inteiro num arquivo só:
+coloque-o numa pasta com `roms/` (e `cars/`, `textures/`) ao lado, permita
+que ele rode (gerenciador de arquivos: Propriedades > "Executável como
+programa", ou `chmod +x`) e abra com dois cliques; sem FUSE,
+`./Daytona-x86_64.AppImage --appimage-extract-and-run`. Um build nativo
+gera o seu com `./scripts/make-appimage.sh` (Docker).
 
 Passo a passo, com os problemas comuns e as soluções:
 [docs/BUILDING.md](docs/BUILDING.md). Mais detalhes de cada plataforma e
@@ -179,12 +189,13 @@ O jogo Revision A abre na tela inicial. As **Configurações** têm oito abas:
 | Carros | experimental, aparece quando a pasta `cars/` do projeto tem um carro: o carro que você dirige, um cartão com a imagem de cada um (o do próprio jogo, ou uma carroceria feita de um modelo 3D no formato de [cars/README.md](cars/README.md)); troca na hora |
 | Link play | ligar gabinetes numa rede local |
 | Controles | dispositivos, direção, force feedback, a tecla, o botão do controle e do volante de cada comando |
-| Texturas IA | experimental: o que este computador tem para o pacote de texturas em alta resolução, gerar, usar ou apagar o pacote ([docs/HIRES-TEXTURES.md](docs/HIRES-TEXTURES.md)) |
+| Texturas IA | experimental: o que este computador tem para o pacote de texturas em alta resolução, gerar, usar ou apagar o pacote; o pacote fica na pasta `textures/` do projeto, onde um `.zip` com um pacote dentro é conferido e usado ([docs/HIRES-TEXTURES.md](docs/HIRES-TEXTURES.md)) |
 | Som | volume, equilíbrio entre música e efeitos, som nativo |
 
 Quando algo dá errado, o log do jogo conta o que aconteceu: envie o
-**daytona.log** (Configurações > Jogo > **Abrir a pasta de logs**; as cinco
-sessões anteriores também ficam guardadas).
+**daytona-pc-solo.log**, na pasta **logs**, ao lado de **roms** e **cars**
+(Configurações > Jogo > **Abrir a pasta de logs**; as cinco sessões
+anteriores também ficam guardadas).
 
 O idioma é escolhido no canto superior direito. As configurações são
 salvas na hora, na sua pasta de dados do usuário (`launcher.ini`).

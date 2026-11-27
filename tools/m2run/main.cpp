@@ -451,7 +451,12 @@ int main(int argc, char **argv) {
                                         std::getenv("M2_TEST_RELAY_FLAG_ONLY") != nullptr); // 0.11.0's pacing, for comparisons
             {
                 const char *c = std::getenv("M2_PROTO_COALESCE"), *a = std::getenv("M2_PROTO_ADAPTIVE");
-                game.board().set_link_options(!(c && *c == '0'), !(a && *a == '0')); // as the app; 0: off
+                const char *st = std::getenv("M2_PROTO_STEADY"); // =0: 0.12-0.21's adaptive reserve (comparisons)
+                // M2_PROTO_RESERVE_MAX=N, M2_PROTO_CALM=N: the steady policy's ceiling and quiet windows (comparisons)
+                const char *mx = std::getenv("M2_PROTO_RESERVE_MAX"), *cw = std::getenv("M2_PROTO_CALM");
+                game.board().set_link_options(!(c && *c == '0'), !(a && *a == '0'), !(st && *st == '0'),
+                                              mx && *mx ? std::atoi(mx) : rt::CommBoard::kSteadyMax,
+                                              cw && *cw ? std::atoi(cw) : int(rt::CommBoard::kCalmWindows)); // as the app; 0: off
             }
         }
         game.set_frame_skip(frame_skip);

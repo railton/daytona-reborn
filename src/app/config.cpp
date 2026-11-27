@@ -9,6 +9,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 
 namespace app {
@@ -20,6 +21,38 @@ std::string Config::pref_dir() {
     std::string p = base ? std::string(base) : std::string();
     SDL_free(base);
     return p;
+}
+
+std::string Config::log_name() {
+    return profile.empty() ? std::string(M2_ROMSET) : std::string(M2_ROMSET) + "-" + profile;
+}
+
+std::string Config::logs_dir() {
+    namespace fs = std::filesystem;
+    static const std::string dir = [] {
+        const char *base_c = SDL_GetBasePath();
+        const std::string base = base_c ? base_c : "";
+        std::string image; // beside the .AppImage (its runtime sets APPIMAGE): the image itself is read-only
+        if (const char *a = std::getenv("APPIMAGE"); a && *a) {
+            const auto parent = fs::u8path(a).parent_path().u8string();
+            image = std::string(parent.begin(), parent.end()) + "/";
+        }
+        for (const std::string &game : {image, base, base.empty() ? std::string() : base + "../", std::string("./")}) {
+            std::error_code ec;
+            if (game.empty() || !fs::is_directory(fs::u8path(game + "roms/"), ec)) continue;
+            const std::string logs = game + "logs/";
+            fs::create_directories(fs::u8path(logs), ec);
+            // writable? (a game folder under Program Files is not)
+            const std::string probe = logs + ".write-test";
+            if (std::FILE *f = std::fopen(probe.c_str(), "w")) {
+                std::fclose(f);
+                fs::remove(fs::u8path(probe), ec);
+                return logs;
+            }
+        }
+        return pref_dir();
+    }();
+    return dir;
 }
 
 std::string Config::path() { return pref_dir() + "launcher.ini"; }
@@ -87,7 +120,7 @@ void Config::read(std::istream &f) {
         else if (k == "draw_mode") draw_mode = std::clamp(std::atoi(v.c_str()), 0, 2);
         else if (k == "supersampling") {
             if (v == "native") supersampling = kNativeResolution;
-            else if (v == "native-direct") supersampling = kNativeDirect;
+            else if (v == "native-direct") supersampling = kNativeResolution; // the same now: the screen's own resolution
             else supersampling = std::clamp(std::atoi(v.c_str()), 1, 4);
         }
         else if (k == "volume") volume = std::clamp(std::strtof(v.c_str(), nullptr), 0.0f, 1.0f);

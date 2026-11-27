@@ -217,7 +217,9 @@ unmodified game's bytes.
 
 One TCP connection a player. A greeting line
 (`DAYTONA-RELAY 5 op=create|join room=... name=... pass=... v=... [set=key:value,...] [udp=1]`;
-`op=info`, answered by one `I` frame with the defaults; `op=auto players=N`
+`op=info`, answered by one `I` frame with the defaults and, once a race has
+started on this server, `game_online=N`, the newest game online version (`v=`)
+raced with since it started; `op=auto players=N`
 for the helper's fixed-size rooms; `op=rejoin room=... key=...` back to a
 place after a drop, with the key the `S` frame gave, `key=` and `resume=1`), then
 frames `type (1) | epoch (4) | length (2) | data`: `D` one comm-board wire
@@ -225,8 +227,9 @@ frame (compressed by the game, `src/app/link_codec.h`; raw from the helper),
 `S` the room's state (with each player's latency, `lat=` and `wlat=` in ms),
 `P` ping (the server's every 2 s carry an 8-byte time stamp), `O` the
 game's answer to it (the same stamp: the round trip is the latency), `C` the games' own coordination (the MASTER's
-course, to every other player), `G` the owner starting a race, `E` a refusal (`code\ntext`; the game shows its
-own text for the code, in the player's language). The epoch changes whenever
+course, to every other player), `G` the owner starting a race, `E` a refusal (`code\ntext`, then any
+`key=value` lines: `server_protocol=N` with `version`, `room_online=V` with `game_version`; the game shows its
+own text for the code, in the player's language, and says from them which side has to update). The epoch changes whenever
 someone joins or leaves, and an old ring's data is dropped.
 
 A game that says `udp=1` numbers its `D` messages (a 4-byte sequence number

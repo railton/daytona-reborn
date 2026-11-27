@@ -104,6 +104,21 @@ int main() {
     // the server's answer (Race.Info)
     const auto info = parse_info("cabinet=twin\ndifficulty=hard\nbad\n=x\n");
     CHECK(info.size() == 2 && info[0].first == "cabinet" && info[1].second == "hard");
+    // game_online= (the newest version raced on the server); none from an older server
+    CHECK(info_game_online(info) == 0);
+    CHECK(info_game_online(parse_info("cabinet=twin\ngame_online=" + std::to_string(kOnlineVersion + 1) + "\n")) == kOnlineVersion + 1);
+    // who has to update after a refusal (proto.go's ErrorPayload), with the detail lines or an older server's text
+    const std::string me = std::to_string(kOnlineVersion), proto = std::to_string(kRelayProtocol);
+    CHECK(refusal_outdated("game_version\nroom \"a\" is for game online version 99, not " + me + "\nroom_online=99") == Outdated::Game);
+    CHECK(refusal_outdated("game_version\nroom \"a\" is for game online version 1, not " + me + "\nroom_online=1") == Outdated::Room);
+    CHECK(refusal_outdated("game_version\nroom \"a\" is for game online version 99, not " + me) == Outdated::Game);
+    CHECK(refusal_outdated("game_version\nroom \"a\" is for game online version " + me + ", not 1") == Outdated::None);
+    CHECK(refusal_outdated("version\nclient version " + proto + " is not compatible with this server (version 9)\nserver_protocol=9") ==
+          Outdated::Game);
+    CHECK(refusal_outdated("version\nclient version " + proto + " is not compatible with this server (version 9)") == Outdated::Game);
+    CHECK(refusal_outdated("version\nclient version " + proto + " is not compatible with this server (version 1)") == Outdated::Server);
+    CHECK(refusal_outdated("full\nroom \"a\" is full (8 players)") == Outdated::None);
+    CHECK(refusal_outdated("") == Outdated::None);
 
     // status (as the Go server's Status.Encode writes it); offsets the
     // server may not set are dropped

@@ -2,6 +2,7 @@
 #include "app_version.h" // generated: cmake/app_version.cmake
 #include "app/i18n.h"
 #include "app/custom_cars.h"
+#include "app/system_info.h"
 #include "app/gpu/quality_probe.h"
 #include "app/neon_ui.h"
 #include "app/rom_file.h"
@@ -76,10 +77,12 @@ void Launcher::check_rom() {
     rom_ok_ = false;
 #ifndef M2_MOBILE
     if (cfg_.rom_path.empty()) {
-        // none chosen yet: the project's roms/ folder, where the build took it from
-        // (build-daytona/ is beside roms/), or roms/ in the working folder
+        // none chosen yet: roms/ beside the .AppImage, the project's roms/ folder,
+        // where the build took it from (build-daytona/ is beside roms/), or roms/ in the working folder
         const char *base = SDL_GetBasePath();
-        for (const std::string &dir : {std::string(base ? base : "") + "../roms/", std::string("roms/")})
+        const std::string image = beside_appimage(); // roms/ beside the .AppImage when run as one
+        for (const std::string &dir : {image.empty() ? std::string("roms/") : image + "roms/",
+                                       std::string(base ? base : "") + "../roms/", std::string("roms/")})
             for (const char *ext : {".zip", ".7z"}) {
                 std::error_code ec;
                 const std::string candidate = dir + M2_ROMSET + ext;
@@ -350,7 +353,23 @@ Launcher::QualityChoice Launcher::draw_quality(const QualityProbe &probe, float 
         ImGui::PushFont(nullptr, 30.f * scale);
         ImGui::TextUnformatted(TX("Image quality"));
         ImGui::PopFont();
-        ImGui::TextDisabled("%s", probe.gpu_name().empty() ? TX("Graphics card") : probe.gpu_name().c_str());
+        // what the levels are measured for: the screen (never drawn past it), the graphics card, the processor
+        {
+            char about[400];
+            int sw = 0, sh = 0, hz = 0;
+            if (const SDL_DisplayMode *mode = SDL_GetDesktopDisplayMode(SDL_GetPrimaryDisplay()))
+                sw = int(std::lround(mode->w * mode->pixel_density)), sh = int(std::lround(mode->h * mode->pixel_density)),
+                hz = int(std::lround(mode->refresh_rate));
+            const std::string cpu = processor_name();
+            std::snprintf(about, sizeof about, TX("Screen %d x %d at %d Hz  ·  %s  ·  %s, %d threads"), sw, sh, hz,
+                          probe.gpu_name().empty() ? TX("Graphics card") : probe.gpu_name().c_str(),
+                          cpu.empty() ? TX("Processor") : cpu.c_str(), SDL_GetNumLogicalCPUCores());
+            ImGui::TextDisabled("%s", about);
+            ImGui::PushTextWrapPos(0);
+            ImGui::TextDisabled("%s", TX("The graphics card is measured here, at the screen's resolution; the processor in the first race, "
+                                         "which says what to lower if it was slow."));
+            ImGui::PopTextWrapPos();
+        }
         ImGui::Spacing();
         ImGui::PushTextWrapPos(0);
         const char *levels[] = {TX("Original"), TX("Medium"), TX("High"), TX("Maximum")};
@@ -386,7 +405,7 @@ Launcher::QualityChoice Launcher::draw_quality(const QualityProbe &probe, float 
             const char *what[] = {
                 TX("The game's original image, without the enhancements."),
                 TX("Twice the arcade's resolution, antialiasing 2x, anisotropic filtering 4x, smooth car shading and paint reflections."),
-                TX("4 times the arcade's resolution, antialiasing 4x, anisotropic filtering 16x and every car option."),
+                TX("Up to 4 times the arcade's resolution (never past the screen's), antialiasing 4x, anisotropic filtering 16x and every car option."),
                 TX("The screen's own resolution, antialiasing 4x, anisotropic filtering 16x and every car option.")};
             const double ms[] = {-1, t.medium, t.high, t.maximum};
             const Stage stages[] = {Stage::Idle, Stage::Medium, Stage::High, Stage::Maximum};
@@ -774,6 +793,15 @@ void Launcher::draw_hires_tab(float scale) {
     ImGui::SeparatorText(TX("The pack"));
     std::error_code ec;
     const auto size = std::filesystem::file_size(HiresMaker::pack_path(), ec);
+    {
+        std::error_code aec;
+        const auto abs = std::filesystem::absolute(std::filesystem::u8path(HiresMaker::textures_dir()), aec).lexically_normal().u8string();
+        char where[1200];
+        std::snprintf(where, sizeof where,
+                      TX("The pack lives in %s (hires.m2tex). A .zip put there with a pack in it is checked and used at the next start."),
+                      std::string(abs.begin(), abs.end()).c_str());
+        hint(where);
+    }
     if (ec) {
         ImGui::TextDisabled("%s", TX("No pack yet."));
     } else {
@@ -1024,10 +1052,11 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
             ImGui::Spacing();
             ImGui::SeparatorText(TX("Logs"));
             if (ImGui::Checkbox(TX("Generate logs"), &cfg_.write_logs)) cfg_.save();
-            hint(TX("What the game does, and each online race's measurements, kept in daytona.log (and the 5 sessions "
-                    "before it). When something goes wrong, send it. Takes effect at the next start."));
+            hint(TX("What the game does, and each online race's measurements, kept in the logs folder beside roms and cars "
+                    "(this profile's file, and the 5 sessions before it). When something goes wrong, send it. Takes effect "
+                    "at the next start."));
             {
-                const std::string folder = Config::pref_dir();
+                const std::string folder = Config::logs_dir();
                 ImGui::TextDisabled("%s", folder.c_str());
                 if (ImGui::Button(TX("Open the logs folder"), {ImGui::CalcTextSize(TX("Open the logs folder")).x + 40.f * scale, button_h})) {
                     std::string url = "file://";
@@ -1044,6 +1073,29 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
                 hint(TX("Asks GitHub once a day whether a newer version is out, and says so on the home screen. "
                         "Nothing about you or this computer is sent."));
                 if (!cfg_.update_latest.empty()) hint(TX("Latest version: %s"), cfg_.update_latest.c_str());
+            }
+            // start over: this profile's settings erased, the game started again (the first start's checks again)
+            ImGui::Spacing();
+            ImGui::SeparatorText(TX("Start over"));
+            if (ImGui::Button(TX("Erase the settings..."), {ImGui::CalcTextSize(TX("Erase the settings...")).x + 40.f * scale, button_h}))
+                ImGui::OpenPopup("##reset_settings");
+            hint(TX("Every setting of these screens back to how it was at the first start; the game starts again and checks "
+                    "the ROM set and the graphics card again. The records and the cabinet's own settings are kept."));
+            if (ImGui::BeginPopupModal("##reset_settings", nullptr, ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoTitleBar)) {
+                ImGui::PushTextWrapPos(ImGui::GetFontSize() * 28.f);
+                ImGui::TextUnformatted(TX("Erase the settings and start the game again?"));
+                ImGui::Spacing();
+                ImGui::TextDisabled("%s", TX("Image, sound, controls, cars, the online name and server: all back to the first "
+                                             "start's. The game closes and opens again on its own."));
+                ImGui::PopTextWrapPos();
+                ImGui::Spacing();
+                if (ImGui::Button(TX("Erase and restart"), {ImGui::GetFontSize() * 13.f, button_h})) {
+                    reset_request_ = true;
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::SameLine();
+                if (ImGui::Button(TX("Cancel"), {ImGui::GetFontSize() * 13.f, button_h})) ImGui::CloseCurrentPopup();
+                ImGui::EndPopup();
             }
 #endif
             ImGui::EndTabItem();
@@ -1085,16 +1137,32 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
                     cfg_.save();
                 }
                 hint(TX("Software: the 3D is computed by the processor, as on the arcade board. Hardware: by the graphics card; in development, very close but not yet pixel exact."));
-                const char *supersampling[] = {TX("Native 2x"), TX("Disabled"), "2x", "3x", "4x", TX("Native direct")};
+                // each choice with the pixels it draws: never more than the screen's (app/quality.h)
+                int screen_w = 0, screen_h = 0;
+                if (const SDL_DisplayMode *mode = SDL_GetDesktopDisplayMode(SDL_GetPrimaryDisplay()))
+                    screen_w = int(std::lround(mode->w * mode->pixel_density)), screen_h = int(std::lround(mode->h * mode->pixel_density));
+                char labels[5][128];
+                if (screen_w > 0) std::snprintf(labels[0], sizeof labels[0], TX("Native (the screen's %d x %d)"), screen_w, screen_h);
+                else std::snprintf(labels[0], sizeof labels[0], "%s", TX("Native (the screen's resolution)"));
+                std::snprintf(labels[1], sizeof labels[1], TX("Disabled (%d x %d, the arcade's)"), app::kArcadeWidth, app::kArcadeHeight);
+                for (int k = 2; k <= 4; ++k) {
+                    const int drawn = app::arcade_scale_for(k, screen_h);
+                    if (drawn == k)
+                        std::snprintf(labels[k], sizeof labels[k], "%dx (%d x %d)", k, app::kArcadeWidth * k, app::kArcadeHeight * k);
+                    else
+                        std::snprintf(labels[k], sizeof labels[k], TX("%dx: more than the screen, drawn at %dx"), k, drawn);
+                }
+                const char *supersampling[] = {labels[0], labels[1], labels[2], labels[3], labels[4]};
                 ImGui::BeginDisabled(cfg_.renderer != "hardware");
-                int ss = std::clamp(cfg_.supersampling, 0, app::Config::kNativeDirect);
+                int ss = cfg_.uses_native_resolution() ? 0 : std::clamp(cfg_.supersampling, 1, 4);
                 if (combo(TX("Render resolution"), "##supersampling", &ss, supersampling, IM_ARRAYSIZE(supersampling))) {
                     cfg_.supersampling = ss;
                     cfg_.save();
                 }
                 ImGui::EndDisabled();
-                hint(TX("The native modes follow the window under Direct3D 12 and Vulkan.\n"
-                        "2x to 4x enlarge the original resolution."));
+                hint(TX("Native: the screen's own resolution, following the window (Direct3D 12 and Vulkan).\n"
+                        "2x to 4x enlarge the arcade's resolution, never past the screen's: more pixels than the screen shows "
+                        "only cost the graphics card."));
                 const char *draw_modes[] = {TX("Double buffer"), TX("Single buffer"), TX("One frame in three")};
                 int dm = std::clamp(cfg_.draw_mode, 0, 2);
                 if (combo(TX("Draw mode"), "##draw_mode", &dm, draw_modes, 3)) {
@@ -1450,7 +1518,7 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
             }, [&] {
                 hint(TX("The cabinet wheel's motor (recentring, resistance, wheel pulling), on the device assigned to steering; a gamepad rumbles when the car is pushed. Currently: %s.\n"
                         "Wheels and force feedback are not yet tested on real hardware: feedback welcome.\n"
-                        "The log goes to daytona.log, next to launcher.ini under Windows, else to the terminal."), ffb_device_);
+                        "The log goes to the game's log, in the logs folder (Settings > Game > Logs)."), ffb_device_);
 #ifndef _WIN32 // SDL's own Logitech driver is off on Windows already
                 if (ImGui::Checkbox(TX("Legacy Logitech wheel support (restart the game)"), &cfg_.legacy_logitech_wheels)) cfg_.save();
                 hint(TX("Logitech wheels through the system driver: needed for a wheel that is listed but does nothing when assigned (the original Driving Force). Unchecked: SDL's driver, which gives force feedback to recent wheels under macOS. After a change, restart and assign the wheel's controls again."));

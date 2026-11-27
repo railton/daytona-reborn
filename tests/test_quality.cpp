@@ -42,7 +42,8 @@ int main() {
           "original: the enhancements off, the renderer kept");
 
     // the race's check: frames drawn over the window, against the game's rate
-    auto run = [](double drawn_hz, double game_hz, app::SpeedCheck &c) {
+    // waiting: the share of each pass spent waiting (the pacer, the swapchain)
+    auto run = [](double drawn_hz, double game_hz, app::SpeedCheck &c, double waiting = 0) {
         const uint64_t step = uint64_t(1e9 / 240.0); // passes at 240 a second, some drawing
         double owed = 0;
         bool told = false;
@@ -50,6 +51,7 @@ int main() {
             owed += drawn_hz / 240.0;
             const bool drew = owed >= 1.0;
             if (drew) owed -= 1.0;
+            c.wait(uint64_t(double(step) * waiting));
             told |= c.pass(t, drew, game_hz);
         }
         return told;
@@ -57,6 +59,14 @@ int main() {
     app::SpeedCheck fast, slow, interrupted;
     check(!run(57.5, 57.5, fast) && fast.done() && !fast.slow() && fast.fps() > 57.0, "full speed: nothing to tell");
     check(run(45.0, 57.5, slow) && slow.slow() && slow.fps() > 44.0 && slow.fps() < 46.0, "45 frames/s: told, once");
+    // which part held it back: the processor busy all along, or waiting for the graphics card most of the time
+    app::SpeedCheck cpu_bound, gpu_bound;
+    check(run(45.0, 57.5, cpu_bound) && cpu_bound.limit() == app::SpeedCheck::Limit::Processor && cpu_bound.cpu_ms() > 21.0,
+          "busy all along: the processor");
+    check(run(45.0, 57.5, gpu_bound, 0.7) && gpu_bound.limit() == app::SpeedCheck::Limit::GraphicsCard &&
+              gpu_bound.cpu_ms() > 6.0 && gpu_bound.cpu_ms() < 7.5,
+          "waiting 70 % of the time: the graphics card");
+    check(fast.limit() == app::SpeedCheck::Limit::None, "full speed: no limit named");
     interrupted.pass(1, true, 57.5);
     interrupted.pass(4'000'000'000ull, true, 57.5);
     interrupted.interrupt();

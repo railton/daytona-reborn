@@ -18,6 +18,7 @@
 // here at all: M2Board keeps its plain registers and the game sees no link.
 #pragma once
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <deque>
@@ -106,10 +107,23 @@ private:
     bool defer_tokens_ = false, adaptive_ = false;
     uint8_t tokens_owed_ = 0, token_byte_ = 0;
     uint32_t window_ = 0, starved_ = 0, min_depth_ = 255, reserve_changes_ = 0;
+    // steady: the adaptive reserve never below 1 and lowered only after kCalmWindows quiet windows in a row
+    // (each change shows: a raise holds the other cars a frame, a drop skips one); off: 0.12-0.21's policy
+    bool steady_ = true;
+    uint32_t calm_windows_ = 0;
+    uint8_t max_reserve_ = 6;    // the most blocks held back (steady: kSteadyMax)
+    uint32_t calm_needed_ = 1;   // quiet windows in a row before one block fewer (steady: kCalmWindows)
   public:
-    void set_options(bool defer_tokens, bool adaptive) {
+    static constexpr uint8_t kSteadyFloor = 1, kSteadyMax = 6;
+    static constexpr uint32_t kCalmWindows = 3;
+    // steady: 0 the 0.12-0.21 policy; 1 the floor, kCalmWindows and kSteadyMax; diagnostics may set others
+    void set_options(bool defer_tokens, bool adaptive, bool steady = true, int max_reserve = kSteadyMax,
+                     int calm_windows = int(kCalmWindows)) {
         defer_tokens_ = defer_tokens;
         adaptive_ = adaptive;
+        steady_ = steady;
+        max_reserve_ = uint8_t(steady ? std::clamp(max_reserve, int(kSteadyFloor), 6) : 6);
+        calm_needed_ = steady ? uint32_t(std::max(calm_windows, 1)) : 1u;
     }
     int reserve() const { return reserve_; }
     int reserve_changes() const { return int(reserve_changes_); }

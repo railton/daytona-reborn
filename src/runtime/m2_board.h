@@ -169,8 +169,9 @@ public:
         }
     }
     // Paced link options (CommBoard::set_options). After set_link_paced.
-    void set_link_options(bool defer_tokens, bool adaptive) {
-        if (comm_board_) comm_board_->set_options(defer_tokens, adaptive);
+    void set_link_options(bool defer_tokens, bool adaptive, bool steady = true, int max_reserve = CommBoard::kSteadyMax,
+                          int calm_windows = int(CommBoard::kCalmWindows)) {
+        if (comm_board_) comm_board_->set_options(defer_tokens, adaptive, steady, max_reserve, calm_windows);
     }
     // The comm board's 16 KB shared RAM (diagnostics: this cabinet's block at 0x2000).
     const uint8_t *comm_ram() const { return comm_.data(); }

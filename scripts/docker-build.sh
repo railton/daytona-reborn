@@ -1,19 +1,29 @@
 #!/bin/sh
 # Build the Linux game in Docker: nothing but Docker is needed on the host.
 #
-#   scripts/docker-build.sh [setup.py options]
+#   scripts/docker-build.sh [--no-appimage] [setup.py options]
 #
 # Builds the build image (docker/linux-build, tag daytona-builder) the first
 # time, then runs python3 scripts/setup.py in it with the project folder
 # mounted at /src, as your own user, so every file it writes is yours. Put
 # your ROM set at roms/daytona.zip (Revision A) and/or roms/daytona93.zip
-# first. To rebuild the image (e.g. after the Dockerfile changes):
+# first. The game is then also packed as build-daytona/Daytona-x86_64.AppImage
+# (scripts/make-appimage.sh: one file that runs on Ubuntu 24.04 and newer, with
+# roms/, cars/ and textures/ beside it); --no-appimage leaves it out. To rebuild
+# the image (e.g. after the Dockerfile changes):
 #   docker rmi daytona-builder
 # See docs/BUILDING.md.
 set -eu
 cd "$(dirname "$0")/.."
 ROOT=$(pwd)
 IMAGE=daytona-builder
+
+# --no-appimage is ours; every other option goes to setup.py
+APPIMAGE=1
+for arg do
+    shift
+    if [ "$arg" = "--no-appimage" ]; then APPIMAGE=""; else set -- "$@" "$arg"; fi
+done
 
 if ! command -v docker >/dev/null 2>&1; then
     echo "docker-build: docker not found; install Docker first (https://docs.docker.com/engine/install/)" >&2
@@ -44,8 +54,16 @@ docker run --rm $TTY --init \
     -v "$ROOT:/src:z" -w /src \
     "$IMAGE" python3 scripts/setup.py "$@"
 
+# the AppImage of the Revision A build; a failure here leaves the game itself built
+if [ -n "$APPIMAGE" ] && [ -x build-daytona/daytona ]; then
+    echo "== Packing the AppImage"
+    if ! bash scripts/make-appimage.sh build-daytona build-daytona/Daytona-x86_64.AppImage; then
+        echo "docker-build: the AppImage could not be made (the game is built; scripts/make-appimage.sh to try again)" >&2
+    fi
+fi
+
 found=""
-for exe in build-daytona/daytona build/daytona; do
+for exe in build-daytona/Daytona-x86_64.AppImage build-daytona/daytona build/daytona; do
     if [ -x "$exe" ]; then
         [ -z "$found" ] && printf '\n== The game is built. Start it from %s with:\n\n' "$ROOT"
         printf '    %s\n' "$exe"

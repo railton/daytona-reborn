@@ -151,15 +151,24 @@ void CommBoard::write_block(const Block &b) {
 
 void CommBoard::vblank() {
     // adaptive reserve: every 300 frames, more blocks held back if frames went
-    // without one, fewer (one block dropped) if there was always one to spare
+    // without one, fewer (one block dropped) if there was always one to spare;
+    // steady (Online's): not below 1, and fewer only after three such windows
+    // in a row (15 s: each change shows as a hold or a skip of the other cars)
     if (paced_ && adaptive_ && primed_) {
         if (!zfg_shown_) ++starved_;
         if (++window_ >= 300) {
-            if (starved_ >= 2 && reserve_ < 6) {
+            const bool calm = starved_ == 0 && min_depth_ >= 1;
+            calm_windows_ = calm ? calm_windows_ + 1 : 0;
+            if (starved_ >= 2 && reserve_ < max_reserve_) {
                 ++reserve_;
                 primed_ = false; // wait for the larger reserve
                 ++reserve_changes_;
-            } else if (starved_ == 0 && min_depth_ >= 1 && reserve_ > 0) {
+            } else if (steady_ && reserve_ < kSteadyFloor) {
+                ++reserve_; // below the floor (a reserve set lower): raised once
+                primed_ = false;
+                ++reserve_changes_;
+            } else if (calm && reserve_ > (steady_ ? kSteadyFloor : 0) && calm_windows_ >= calm_needed_) {
+                calm_windows_ = 0;
                 --reserve_;
                 if (!pending_.empty()) {
                     consume(pending_.front());

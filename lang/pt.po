@@ -105,6 +105,12 @@ msgstr "Conectando..."
 msgid "No server"
 msgstr "Sem servidor"
 
+msgid "Update needed"
+msgstr "Atualização necessária"
+
+msgid "Server outdated"
+msgstr "Servidor desatualizado"
+
 msgid "Online"
 msgstr "Online"
 
@@ -290,6 +296,12 @@ msgstr "ONLINE PRONTO"
 msgid "NO SERVER"
 msgstr "SEM SERVIDOR"
 
+msgid "UPDATE THE GAME"
+msgstr "ATUALIZE O JOGO"
+
+msgid "SERVER OUTDATED"
+msgstr "SERVIDOR DESATUALIZADO"
+
 msgid "SERVER OFFLINE"
 msgstr "SERVIDOR FORA DO AR"
 
@@ -302,11 +314,23 @@ msgstr "TESTANDO O SERVIDOR"
 msgid "SDR   /   %d × %d"
 msgstr "SDR   /   %d × %d"
 
+msgid "THE RACE WAS SLOW"
+msgstr "A CORRIDA FICOU LENTA"
+
+msgid "ONLINE: UPDATE NEEDED"
+msgstr "ONLINE: ATUALIZAÇÃO NECESSÁRIA"
+
 msgid "NEW VERSION %s"
 msgstr "NOVA VERSÃO %s"
 
+msgid "The Online mode has a newer version, and every player of a room needs the same one. Update your copy of the source (git pull, or download it again) and build the game again."
+msgstr "O modo Online tem uma versão mais nova, e todos os jogadores de uma sala precisam da mesma. Atualize sua cópia do código (git pull, ou baixe de novo) e compile o jogo outra vez."
+
 msgid "Update your copy of the source (git pull, or download it again) and build the game again."
 msgstr "Atualize sua cópia do código-fonte (git pull, ou baixe-o de novo) e compile o jogo de novo."
+
+msgid "Lower the quality"
+msgstr "Baixar a qualidade"
 
 msgid "Release page"
 msgstr "Página da versão"
@@ -362,8 +386,17 @@ msgstr "Idioma"
 msgid "Image quality"
 msgstr "Qualidade da imagem"
 
+msgid "Screen %d x %d at %d Hz  ·  %s  ·  %s, %d threads"
+msgstr "Tela %d x %d a %d Hz  ·  %s  ·  %s, %d threads"
+
 msgid "Graphics card"
 msgstr "Placa de vídeo"
+
+msgid "Processor"
+msgstr "Processador"
+
+msgid "The graphics card is measured here, at the screen's resolution; the processor in the first race, which says what to lower if it was slow."
+msgstr "A placa de vídeo é medida aqui, na resolução da tela; o processador, na primeira corrida, que diz o que baixar se ela ficar lenta."
 
 msgid "Original"
 msgstr "Original"
@@ -407,8 +440,8 @@ msgstr "A imagem original do jogo, sem as melhorias."
 msgid "Twice the arcade's resolution, antialiasing 2x, anisotropic filtering 4x, smooth car shading and paint reflections."
 msgstr "O dobro da resolução do fliperama, antisserrilhamento 2x, filtragem anisotrópica 4x, sombreamento suave e reflexos na pintura dos carros."
 
-msgid "4 times the arcade's resolution, antialiasing 4x, anisotropic filtering 16x and every car option."
-msgstr "4 vezes a resolução do fliperama, antisserrilhamento 4x, filtragem anisotrópica 16x e todas as opções dos carros."
+msgid "Up to 4 times the arcade's resolution (never past the screen's), antialiasing 4x, anisotropic filtering 16x and every car option."
+msgstr "Até 4 vezes a resolução do fliperama (nunca acima da da tela), antisserrilhamento 4x, filtragem anisotrópica 16x e todas as opções de carro."
 
 msgid "The screen's own resolution, antialiasing 4x, anisotropic filtering 16x and every car option."
 msgstr "A própria resolução da tela, antisserrilhamento 4x, filtragem anisotrópica 16x e todas as opções dos carros."
@@ -596,6 +629,9 @@ msgstr "Detalhes em %s"
 msgid "The pack"
 msgstr "O pacote"
 
+msgid "The pack lives in %s (hires.m2tex). A .zip put there with a pack in it is checked and used at the next start."
+msgstr "O pacote fica em %s (hires.m2tex). Um .zip com um pacote dentro, colocado ali, é conferido e usado na próxima abertura."
+
 msgid "No pack yet."
 msgstr "Nenhum pacote ainda."
 
@@ -662,8 +698,8 @@ msgstr "Logs"
 msgid "Generate logs"
 msgstr "Gerar logs"
 
-msgid "What the game does, and each online race's measurements, kept in daytona.log (and the 5 sessions before it). When something goes wrong, send it. Takes effect at the next start."
-msgstr "O que o jogo faz, e as medições de cada corrida online, guardados em daytona.log (e nas 5 sessões anteriores). Quando algo der errado, envie esse arquivo. Vale a partir da próxima vez que o jogo abrir."
+msgid "What the game does, and each online race's measurements, kept in the logs folder beside roms and cars (this profile's file, and the 5 sessions before it). When something goes wrong, send it. Takes effect at the next start."
+msgstr "O que o jogo faz, e as medições de cada corrida online, guardados na pasta logs, ao lado de roms e cars (o arquivo deste perfil, e as 5 sessões anteriores). Quando algo der errado, envie esse arquivo. Vale a partir da próxima vez que o jogo abrir."
 
 msgid "Open the logs folder"
 msgstr "Abrir a pasta dos logs"
@@ -679,6 +715,24 @@ msgstr "Pergunta ao GitHub uma vez por dia se saiu uma versão mais nova, e avis
 
 msgid "Latest version: %s"
 msgstr "Última versão: %s"
+
+msgid "Start over"
+msgstr "Recomeçar"
+
+msgid "Erase the settings..."
+msgstr "Apagar as configurações..."
+
+msgid "Every setting of these screens back to how it was at the first start; the game starts again and checks the ROM set and the graphics card again. The records and the cabinet's own settings are kept."
+msgstr "Todas as configurações destas telas voltam a ser como na primeira abertura; o jogo abre de novo e checa outra vez a ROM e a placa de vídeo. Os recordes e as configurações do próprio gabinete são mantidos."
+
+msgid "Erase the settings and start the game again?"
+msgstr "Apagar as configurações e abrir o jogo de novo?"
+
+msgid "Image, sound, controls, cars, the online name and server: all back to the first start's. The game closes and opens again on its own."
+msgstr "Imagem, som, controles, carros, o nome e o servidor do online: tudo volta ao da primeira abertura. O jogo fecha e abre de novo sozinho."
+
+msgid "Erase and restart"
+msgstr "Apagar e reiniciar"
 
 msgid "Display"
 msgstr "Vídeo"
@@ -722,24 +776,27 @@ msgstr "Renderizador"
 msgid "Software: the 3D is computed by the processor, as on the arcade board. Hardware: by the graphics card; in development, very close but not yet pixel exact."
 msgstr "Software: o 3D é calculado pelo processador, como na placa do arcade. Hardware: pela placa de vídeo; em desenvolvimento, muito próximo, mas ainda não exato pixel a pixel."
 
-msgid "Native 2x"
-msgstr "Nativo 2x"
+msgid "Native (the screen's %d x %d)"
+msgstr "Nativa (a da tela, %d x %d)"
 
-msgid "Disabled"
-msgstr "Desativado"
+msgid "Native (the screen's resolution)"
+msgstr "Nativa (a resolução da tela)"
 
-msgid "Native direct"
-msgstr "Nativo direto"
+msgid "Disabled (%d x %d, the arcade's)"
+msgstr "Desligada (%d x %d, a do fliperama)"
+
+msgid "%dx: more than the screen, drawn at %dx"
+msgstr "%dx: mais que a tela, desenhado em %dx"
 
 msgid "Render resolution"
 msgstr "Resolução de renderização"
 
 msgid ""
-"The native modes follow the window under Direct3D 12 and Vulkan.\n"
-"2x to 4x enlarge the original resolution."
+"Native: the screen's own resolution, following the window (Direct3D 12 and Vulkan).\n"
+"2x to 4x enlarge the arcade's resolution, never past the screen's: more pixels than the screen shows only cost the graphics card."
 msgstr ""
-"Os modos nativos acompanham a janela no Direct3D 12 e no Vulkan.\n"
-"2x a 4x ampliam a resolução original."
+"Nativa: a própria resolução da tela, acompanhando a janela (Direct3D 12 e Vulkan).\n"
+"2x a 4x ampliam a resolução do fliperama, nunca acima da da tela: mais pixels do que a tela mostra só custam à placa de vídeo."
 
 msgid "Double buffer"
 msgstr "Buffer duplo"
@@ -1222,11 +1279,11 @@ msgstr ""
 msgid ""
 "The cabinet wheel's motor (recentring, resistance, wheel pulling), on the device assigned to steering; a gamepad rumbles when the car is pushed. Currently: %s.\n"
 "Wheels and force feedback are not yet tested on real hardware: feedback welcome.\n"
-"The log goes to daytona.log, next to launcher.ini under Windows, else to the terminal."
+"The log goes to the game's log, in the logs folder (Settings > Game > Logs)."
 msgstr ""
 "O motor do volante do arcade (centralização, resistência, volante puxando), no dispositivo atribuído à direção; um controle vibra quando o carro é empurrado. Atualmente: %s.\n"
 "Volantes e force feedback ainda não foram testados em hardware real: opiniões são bem-vindas.\n"
-"O log vai para daytona.log, ao lado de launcher.ini no Windows; senão, para o terminal."
+"O log vai para o log do jogo, na pasta logs (Configurações > Jogo > Logs)."
 
 msgid "Legacy Logitech wheel support (restart the game)"
 msgstr "Suporte legado a volantes Logitech (reiniciar o jogo)"
@@ -1367,11 +1424,23 @@ msgstr "O jogo selecionou outro câmbio."
 msgid "The game did not confirm the start."
 msgstr "O jogo não confirmou a largada."
 
-msgid "The race ran at %.0f frames a second, under the game's 57.5: a lower image quality may help (Settings > Enhancements > Detect automatically)."
-msgstr "A corrida rodou a %.0f quadros por segundo, abaixo dos 57,5 do jogo: uma qualidade de imagem menor pode ajudar (Configurações > Melhorias > Detectar automaticamente)."
+msgid "The race ran at %.0f frames a second, under the game's 57.5: the processor did not keep up (%.0f ms of work a frame, of the %.0f ms a frame has). The custom car and smooth car shading cost it the most."
+msgstr "A corrida rodou a %.0f quadros por segundo, abaixo dos 57,5 do jogo: o processador não deu conta (%.0f ms de trabalho por quadro, dos %.0f ms que um quadro tem). O carro personalizado e a suavização dos carros são o que mais pesa nele."
+
+msgid "The race ran at %.0f frames a second, under the game's 57.5: the graphics card did not keep up with this image quality."
+msgstr "A corrida rodou a %.0f quadros por segundo, abaixo dos 57,5 do jogo: a placa de vídeo não deu conta desta qualidade de imagem."
 
 msgid "First choose the Daytona Revision A ROM set."
 msgstr "Escolha primeiro a ROM do Daytona Revision A."
+
+msgid "The game's own car and flat car shading: lighter for the processor."
+msgstr "O carro do próprio jogo e os carros sem suavização: mais leve para o processador."
+
+msgid "Image quality lowered to Medium; antialiasing applies the next time the game starts."
+msgstr "Qualidade de imagem baixada para Média; o antisserrilhamento vale a partir da próxima vez que o jogo abrir."
+
+msgid "Image quality lowered to Original."
+msgstr "Qualidade de imagem baixada para Original."
 
 msgid "Invalid invite code: copy all of it, it starts with DTN1."
 msgstr "Código de convite inválido: copie o código inteiro, ele começa com DTN1."
@@ -1460,6 +1529,9 @@ msgstr "Conectando a %s..."
 msgid "Type your name above to connect to the server."
 msgstr "Digite seu nome acima para conectar ao servidor."
 
+msgid "This server already races with a newer version of the game: update yours (git pull, or download the source again, and build it again) to play with its players."
+msgstr "Este servidor já tem corridas com uma versão mais nova do jogo: atualize a sua (git pull, ou baixe o código de novo, e compile outra vez) para jogar com os jogadores dele."
+
 msgid "Connected to %s: choose the room's settings."
 msgstr "Conectado a %s: escolha as configurações da sala."
 
@@ -1547,6 +1619,12 @@ msgstr "O servidor está cheio: salas abertas demais."
 msgid "Too many connections to the server from your address."
 msgstr "Conexões demais com o servidor a partir do seu endereço."
 
+msgid "This server runs a newer version of the Online mode: update your game (git pull, or download the source again) and build it again."
+msgstr "Este servidor usa uma versão mais nova do modo Online: atualize o seu jogo (git pull, ou baixe o código de novo) e compile outra vez."
+
+msgid "This server runs an older version of the Online mode: whoever runs it needs to update it."
+msgstr "Este servidor usa uma versão mais antiga do modo Online: quem cuida dele precisa atualizá-lo."
+
 msgid "This server is not compatible with this version of the game."
 msgstr "Este servidor não é compatível com esta versão do jogo."
 
@@ -1573,6 +1651,12 @@ msgstr "A sala foi fechada: ninguém correu nela por muito tempo."
 
 msgid "Disconnected by the server: your game sent too much data."
 msgstr "Desconectado pelo servidor: seu jogo enviou dados demais."
+
+msgid "This room was created by a newer version of the game: update yours (git pull, or download the source again, and build it again) to join it."
+msgstr "Esta sala foi criada por uma versão mais nova do jogo: atualize a sua (git pull, ou baixe o código de novo, e compile outra vez) para entrar nela."
+
+msgid "This room was created by an older version of the game: its creator needs to update to the latest version."
+msgstr "Esta sala foi criada por uma versão mais antiga do jogo: quem a criou precisa atualizar para a versão mais recente."
 
 msgid "This room was created by another version of the game: every player needs the same version."
 msgstr "Esta sala foi criada por outra versão do jogo: todos os jogadores precisam ter a mesma versão."
@@ -1606,6 +1690,3 @@ msgstr "O jogo não está lendo os dados recebidos."
 
 msgid "Invalid data from another player: is everyone on the same version of the game?"
 msgstr "Dados inválidos de outro jogador: todos estão com a mesma versão do jogo?"
-
-# Plus utilisés (no longer used):
-#~ msgid "Each car is a folder in %scars (docs/CUSTOM-CARS.md); its picture is preview.png in it."

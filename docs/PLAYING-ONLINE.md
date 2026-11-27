@@ -23,12 +23,16 @@ walks through it step by step, from the home screen.
 - **The dot and the word**: the server you used last answers (**Online**),
   does not (**Offline**), runs another version (**Other version**), or is
   being asked (**Testing...**). **In a room** once you are in one.
+  **Update needed**: races on that server already use a newer version of
+  the game (a card says how to update); **Server outdated**: the server
+  is the one behind.
 - **Your name**: click it (▾) to change it.
 - **The latency**: the round trip to the server, in milliseconds.
 
 The bottom bar says **ONLINE READY** when you have a name, a server, and
 the server answered; otherwise it says what is missing (**SET A NAME**,
-**NO SERVER**, **SERVER OFFLINE**, **VERSION MISMATCH**).
+**NO SERVER**, **SERVER OFFLINE**, **VERSION MISMATCH**, **UPDATE THE GAME**,
+**SERVER OUTDATED**).
 
 ![ONLINE READY in the bottom bar](images/online/ready.jpg)
 
@@ -105,9 +109,10 @@ When everyone is in, the owner presses **Start the race**.
 
 ## When something goes wrong
 
-Every game keeps a log, **daytona.log** (Settings > Game > Logs, on by
-default; **Open the logs folder** shows it), with the five sessions before
-it as daytona.1.log .. daytona.5.log. Its online lines carry the time in
+Every game keeps a log in the **logs** folder beside **roms** and **cars**
+(Settings > Game > Logs, on by default; **Open the logs folder** shows it):
+**daytona-pc-solo.log** for the PC home, with the five sessions before it as
+daytona-pc-solo.1.log .. .5.log. Its online lines carry the time in
 UTC, and each online race ends with a line of measurements. Send it with a
 description of the problem; the server's log has the same races.
 
@@ -118,6 +123,9 @@ description of the problem; the server's log has the same races.
 | **VERSION MISMATCH** / "not compatible with this version" | Every player and the server need the same version: update and build again. |
 | "This room does not exist" | The code is incomplete, or its creator left: ask for a new code. |
 | "This room was created by another version of the game" | Everyone in a room needs the same game version. |
+| **UPDATE THE GAME**, "created by a newer version", "runs a newer version" | Your game is behind: update the source (git pull, or download it again) and build again. |
+| "created by an older version" | The room's creator is behind: they update, or you create the room. |
+| **SERVER OUTDATED**, "runs an older version" | Whoever runs the server updates it (`docker compose up -d --build` in `server/daytona-relay`). |
 | The other cars jump or lag | Look at the latencies in **Room details...**: a server close to every player helps most. Port 7777 UDP open on the server helps through packet loss. |
 
 More about the server, its settings and the protocol:

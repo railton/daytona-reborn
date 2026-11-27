@@ -42,6 +42,23 @@ PyTorch) downloaded into the game's folder, checked by SHA-256, and removed
 after the pack is made. Until then, a pack can be made by hand with Python
 (see "By hand" below).
 
+## Where the pack lives
+
+In the project's `textures/` folder, beside `roms/` and `cars/` (the game
+looks beside its build folder, then in the working folder;
+[textures/README.md](../textures/README.md)). At each start:
+
+1. `textures/hires.m2tex` is used when it is a valid pack;
+2. else the first `.zip` (or `.7z`) there holding a `.m2tex` file is
+   checked, unpacked as `hires.m2tex` and used, and "Use the
+   high-resolution textures" is turned on (an 84 MB pack is a 38 MB zip,
+   unpacked in under a second); a file that is not a valid pack is left
+   out, its reason in the log (`daytona: high-resolution textures: ...`);
+3. else a pack made before in the game's data folder is moved there;
+4. none: the AI textures tab makes one (below), saved there.
+
+Git ignores everything in `textures/` but its README.
+
 ## Making the pack from the game
 
 Settings > **AI textures**:
@@ -58,13 +75,15 @@ Settings > **AI textures**:
    3. the upscaling: the container downloads the three models (each checked
       against its SHA-256) and upscales every texture with the model for its
       kind;
-   4. the pack is checked and saved as `hires.m2tex` in the game's data folder;
+   4. the pack is checked and saved as `hires.m2tex` in the project's
+      `textures/` folder (beside `roms/` and `cars/`);
    5. after a success only, the tools are removed: the captured textures,
       the models, the `daytona-hires-kit` image, and the base image unless it
       was there before. Docker's build cache may keep some layers:
       `docker builder prune` frees them.
-3. **The pack**: "Use the high-resolution textures" (ticked when a pack is
-   made), its size, "Delete the pack". It needs the Hardware renderer
+3. **The pack**: where it lives, "Use the high-resolution textures"
+   (ticked when a pack is made), its size, "Delete the pack" (a `.zip`
+   left in `textures/` is unpacked again at the next start). It needs the Hardware renderer
    (Display tab); a texture the pack does not have is drawn as before.
 
 `daytona --make-hires-pack` does the same without the window (the profile's
@@ -73,7 +92,7 @@ ROM set; `--profile NAME` for another), printing the progress.
 ### When it fails
 
 The menu says which step failed and names the log:
-`hires-textures.log` in the game's data folder (on Linux
+`hires-textures.log` in the game's data folder (the pack itself is in `textures/`) (on Linux
 `~/.local/share/daytona-recomp/daytona/`, or `daytona-PROFILE/`). It has
 every command run, all their output and the exit codes: send it with the
 report. After a failure the tools are kept, so trying again is quicker.

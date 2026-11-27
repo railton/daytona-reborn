@@ -47,6 +47,8 @@ public:
     const std::string &error() const { return error_; }
     // The server's refusal code (proto.go: "password", "full"...); empty for any other failure.
     const std::string &error_code() const { return error_code_; }
+    // After a "version" or "game_version" refusal: who has to update (online::refusal_outdated).
+    online::Outdated outdated() const { return outdated_; }
     const online::Status &status() const { return status_; } // the last the server sent
     const std::vector<std::pair<std::string, std::string>> &info() const { return info_; }
     // diagnostics: send() calls made, game messages (D frames) sent
@@ -70,6 +72,7 @@ private:
     long long sock_ = -1;
     State state_ = State::Connecting;
     std::string error_, error_code_, server_, room_, hello_;
+    online::Outdated outdated_ = online::Outdated::None;
     online::Status status_;
     std::vector<std::pair<std::string, std::string>> info_;
     uint32_t epoch_ = 0;

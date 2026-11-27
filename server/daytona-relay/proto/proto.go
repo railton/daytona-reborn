@@ -70,15 +70,30 @@ const (
 
 var roomRe = regexp.MustCompile(`^[a-z0-9_-]{1,32}$`)
 
-// Error is a refusal with a code: an E frame's payload is "code\ntext", and
-// the game shows its own text for the code, in the player's language.
+// Error is a refusal with a code: an E frame's payload is "code\ntext",
+// then any "key=value" lines of Detail, and the game shows its own text for
+// the code, in the player's language (a game that does not know a detail
+// line skips it: it reads the code only).
 // Codes: protocol, version, room, players, password, not_found, exists,
 // full, size, server_full, game_version, too_many, settings.
-type Error struct{ Code, Text string }
+// Details: version: server_protocol=N (this server's Version); game_version:
+// room_online=V (the room's game online version), so that the game can say
+// which side has to update.
+type Error struct {
+	Code, Text string
+	Detail     []string
+}
 
 func (e *Error) Error() string { return e.Text }
 
-func Errf(code, format string, a ...any) error { return &Error{code, fmt.Sprintf(format, a...)} }
+func Errf(code, format string, a ...any) error {
+	return &Error{Code: code, Text: fmt.Sprintf(format, a...)}
+}
+
+// ErrDetail: Errf with "key=value" detail lines.
+func ErrDetail(code string, detail []string, format string, a ...any) error {
+	return &Error{Code: code, Text: fmt.Sprintf(format, a...), Detail: detail}
+}
 
 func ErrorPayload(err error) []byte {
 	code := "other"
@@ -86,12 +101,19 @@ func ErrorPayload(err error) []byte {
 	if errors.As(err, &e) {
 		code = e.Code
 	}
-	return []byte(code + "\n" + err.Error())
+	out := code + "\n" + err.Error()
+	if e != nil {
+		for _, d := range e.Detail {
+			out += "\n" + d
+		}
+	}
+	return []byte(out)
 }
 
-// ErrorText: the text of an E frame's payload, without its code.
+// ErrorText: the text of an E frame's payload, without its code or details.
 func ErrorText(payload []byte) string {
 	if _, text, ok := strings.Cut(string(payload), "\n"); ok {
+		text, _, _ = strings.Cut(text, "\n")
 		return text
 	}
 	return string(payload)
@@ -171,7 +193,8 @@ func ParseHello(line string) (Hello, error) {
 		return Hello{}, Errf("protocol", "unknown protocol")
 	}
 	if v, _ := strconv.Atoi(parts[1]); v != Version {
-		return Hello{}, Errf("version", "client version %s is not compatible with this server (version %d)", parts[1], Version)
+		return Hello{}, ErrDetail("version", []string{"server_protocol=" + strconv.Itoa(Version)},
+			"client version %s is not compatible with this server (version %d)", parts[1], Version)
 	}
 	var h Hello
 	for _, kv := range parts[2:] {

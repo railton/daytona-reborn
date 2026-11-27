@@ -100,6 +100,7 @@ private:
     // of its highest face; per surface its texture as a plane over (x, z).
     static constexpr int kTopGridX = 48, kTopGridZ = 96;
     std::vector<int8_t> top_surface_;       // kTopGridX * kTopGridZ, -1: none
+    std::vector<bool> top_face_;            // body 0's faces highest over some cell (the skin seen from above)
     float top_box_[4] = {0, 0, 0, 0};        // x0, z0, x1, z1
     struct Plane { bool valid = false; float u[3], v[3]; }; // u = u0 x + u1 z + u2
     std::array<Plane, 10> top_planes_{};

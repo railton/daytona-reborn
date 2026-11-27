@@ -146,8 +146,12 @@ type server struct {
 	conns              int
 	maxConns, maxPerIP int
 
-	race settings.Race    // the environment's race settings: every room's defaults
-	now  func() time.Time // time.Now; a parameter for tests
+	race settings.Race // the environment's race settings: every room's defaults
+	// the newest game online version (Hello.Game) a race has started with
+	// since this server started, under mu: op=info tells it (game_online=),
+	// so that an older game can say it needs updating before it tries a room
+	newestGame int
+	now        func() time.Time // time.Now; a parameter for tests
 	// star: the game's rooms get every other car's latest data in one hop
 	// (forward); the helper's rooms stay a plain ring
 	star bool
@@ -211,7 +215,8 @@ func (s *server) join(c *client, h proto.Hello) error {
 		r.game = h.Game
 	}
 	if h.Game != "" && h.Game != r.game {
-		return proto.Errf("game_version", "room %q is for game online version %s, not %s", h.Room, r.game, h.Game)
+		return proto.ErrDetail("game_version", []string{"room_online=" + r.game},
+			"room %q is for game online version %s, not %s", h.Room, r.game, h.Game)
 	}
 	if limit := r.capacity(); len(r.members) >= limit {
 		return proto.Errf("full", "room %q is full (%d players)", h.Room, limit)
@@ -250,6 +255,19 @@ func (r *room) inRing(c *client) int { // c's place in the ring, 1-based; 0: not
 	return 0
 }
 
+// info: op=info's answer, the race settings' defaults and, once a race has
+// started here, game_online= (the newest game online version raced with).
+func (s *server) info() string {
+	s.mu.Lock()
+	newest := s.newestGame
+	s.mu.Unlock()
+	out := s.race.Info()
+	if newest > 0 {
+		out += "game_online=" + strconv.Itoa(newest) + "\n"
+	}
+	return out
+}
+
 // begin: the owner starts a race with everyone in the room.
 func (s *server) begin(c *client) {
 	s.mu.Lock()
@@ -259,6 +277,9 @@ func (s *server) begin(c *client) {
 		return
 	}
 	s.formRing(r)
+	if v, err := strconv.Atoi(r.game); err == nil && v > s.newestGame {
+		s.newestGame = v
+	}
 	log.Printf("room %s: race started by %q with %d players", r.code, c.name, len(r.ring))
 }
 
@@ -656,7 +677,7 @@ func (s *server) handle(conn net.Conn) {
 	c.udp = h.UDP
 	if h.Op == "info" { // the defaults the game shows before creating a room
 		conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
-		proto.WriteFrame(conn, proto.Frame{Type: proto.TypeInfo, Payload: []byte(s.race.Info())})
+		proto.WriteFrame(conn, proto.Frame{Type: proto.TypeInfo, Payload: []byte(s.info())})
 		return
 	}
 

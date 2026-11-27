@@ -9,6 +9,18 @@ namespace app {
 
 enum class QualityLevel { Original, Medium, High, Maximum };
 
+// The arcade's raster (496 x 384) enlarged `requested` times (1..4), but
+// never past the screen: the largest factor whose height is at most the
+// screen's (10 % over allowed: 3x, 1152 lines, on a 1080-line screen).
+// Drawing more lines than the screen shows only costs the graphics card.
+constexpr int kArcadeHeight = 384, kArcadeWidth = 496;
+constexpr int arcade_scale_for(int requested, int screen_height) {
+    int fit = 1;
+    while (fit < 4 && kArcadeHeight * (fit + 1) * 10 <= screen_height * 11) ++fit;
+    const int want = requested < 1 ? 1 : requested > 4 ? 4 : requested;
+    return screen_height > 0 && want > fit ? fit : want;
+}
+
 // GPU milliseconds a frame of each level's stand-in (GpuRenderer::draw_benchmark), < 0 not measured.
 struct QualityTimes {
     double maximum = -1, high = -1, medium = -1;
@@ -29,7 +41,8 @@ constexpr QualityLevel pick_quality(const QualityTimes &t) {
 }
 
 // The settings of a level. native_modes: the screen's own resolution exists
-// (Direct3D 12, Vulkan); else Maximum draws at 4 times the arcade's.
+// (Direct3D 12, Vulkan); else Maximum draws at 4 times the arcade's. The
+// arcade multiples are drawn at most at the screen's size (arcade_scale_for).
 // Original turns the image enhancements off; the renderer stays as it is.
 // The screen effects (bloom, CRT) are a matter of taste: never touched.
 inline void apply_quality(Config &cfg, QualityLevel level, bool native_modes) {

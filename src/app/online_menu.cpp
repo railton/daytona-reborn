@@ -53,6 +53,7 @@ OnlineMenu::~OnlineMenu() = default;
 void OnlineMenu::connected(const Config &cfg, const std::vector<std::pair<std::string, std::string>> &defaults) {
     const auto options = room_options();
     choice_.assign(options.size(), 0);
+    newer_online_ = online::info_game_online(defaults) > online::kOnlineVersion;
     auto pick = [&](const std::string &key, const std::string &value) {
         for (size_t i = 0; i < options.size(); ++i) {
             if (key != options[i].key) continue;
@@ -214,12 +215,17 @@ OnlineMenu::Action OnlineMenu::draw_settings(Config &cfg, const RelayLink *link,
         probe_.reset();
     }
     {
-        char status[256];
+        char status[512];
         ImU32 col = muted;
         const std::string &problem = !error_.empty() ? error_ : link ? link->error() : message;
         if (probe_) std::snprintf(status, sizeof status, TX("Connecting to %s..."), server_.c_str()), col = amber;
         else if (!problem.empty()) std::snprintf(status, sizeof status, "%s", problem.c_str()), col = alarm;
         else if (!named) std::snprintf(status, sizeof status, "%s", TX("Type your name above to connect to the server.")), col = amber;
+        else if (connected_now && newer_online_)
+            std::snprintf(status, sizeof status, "%s",
+                          TX("This server already races with a newer version of the game: update yours (git pull, or download the "
+                             "source again, and build it again) to play with its players.")),
+                col = alarm;
         else if (connected_now) std::snprintf(status, sizeof status, TX("Connected to %s: choose the room's settings."), server_.c_str()), col = green;
         else std::snprintf(status, sizeof status, "%s", TX("Connect to the server to choose the room's settings."));
         draw->AddText(body, 14.5f * scale, {fx + 2 * scale, y - 2 * scale}, col, status, nullptr, fw);

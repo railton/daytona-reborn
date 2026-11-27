@@ -19,7 +19,9 @@ constexpr size_t kMaxName = 20;
 // data, how it starts and joins races). The server keeps a room to one
 // version, so every player of a room behaves the same. Raise it with any
 // such change.
-constexpr int kOnlineVersion = 10;
+constexpr int kOnlineVersion = 11;
+// The relay's protocol (server/daytona-relay/proto, Version): the hello's number.
+constexpr int kRelayProtocol = 5;
 
 // What a friend needs to join: the server, the room, the server's password.
 struct Invite {
@@ -56,6 +58,19 @@ struct Hello {
 std::string hello_line(const Hello &hello); // with the trailing newline
 // An Info frame: the server's race settings, "key=value" lines, in its order.
 std::vector<std::pair<std::string, std::string>> parse_info(const std::string &payload);
+// Its game_online=: the newest game online version a race has started with
+// on that server (proto.go's info); 0 when it says none (an older server).
+int info_game_online(const std::vector<std::pair<std::string, std::string>> &info);
+
+// Who has to update, after a refusal or the server's answer.
+enum class Outdated { None, Game, Server, Room };
+// A refusal (an E frame's payload, "code\ntext" then "key=value" lines):
+// for "version", the server's protocol against kRelayProtocol (its
+// server_protocol= line, else the "(version N)" of an older server's text);
+// for "game_version", the room's game online version (room_online=) against
+// kOnlineVersion: Room when the room's creator is the one behind (an older
+// server's text says both versions too: read when the line is not there).
+Outdated refusal_outdated(const std::string &payload);
 
 // A room takes up to kMaxPlayers; its owner (the creator; the next in line
 // when the owner leaves) starts each race with everyone then in the room.

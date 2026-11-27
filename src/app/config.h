@@ -55,7 +55,7 @@ struct Config {
     bool bloom = false;              // the display: the bright parts glow (GpuRenderer::present)
     bool crt_filter = false;         // the display: an arcade monitor's scanlines, grille and corners
     bool smooth_2d = false;          // the menus, HUD and text magnified smooth (GpuRenderer::set_smooth_2d)
-    bool hires_textures = false;     // draw the high-resolution texture pack (HiresMaker::pack_path)
+    bool hires_textures = false;     // draw the high-resolution texture pack (HiresMaker::pack_path: the project's textures/)
     std::string player_car;          // a body from the project's cars/NAME/ for the player's car ("" the game's)
     bool hires_processor = false;    // make that pack on the processor (slow) instead of the graphics card
     int bloom_strength = 35;         // the glow added, percent (10..100)
@@ -71,9 +71,12 @@ struct Config {
     float display_saturation = 1.0f;
     uint32_t draw_budget = 0;   // 0 Automatic; positive Custom allowance (runtime/scenery.h)
     int draw_mode = 0;         // 0 double buffered (every frame), 1 single buffered (every 2nd), 2 every third frame
+    // the native mode: the screen's (window's) own resolution, Direct3D 12 and
+    // Vulkan. Until 0.21 it drew twice the screen each way (3840 x 2160 on a
+    // 1080p screen) and kNativeDirect was the screen's: both read as this now.
     static constexpr int kNativeResolution = 0;
     static constexpr int kNativeDirect = 5;
-    int supersampling = 1;     // 1-4 times arcade resolution, or a native mode
+    int supersampling = 1;     // 1-4 times arcade resolution (at most the screen's), or the native mode
     bool uses_native_resolution() const {
         return supersampling == kNativeResolution || supersampling == kNativeDirect;
     }
@@ -99,8 +102,8 @@ struct Config {
     // Solo races from the PC home: the cabinet's country (0 USA: English, 1
     // JPN: Japanese, 2 EXPORT) and difficulty (0 easy .. 3 hardest).
     int solo_country = 0, solo_difficulty = 1;
-    // Logs: what the game prints, kept in daytona.log beside the settings (the
-    // last 5 sessions too, daytona.1.log...), for when something goes wrong.
+    // Logs: what the game prints, kept in the logs folder beside roms/ (the
+    // last 5 sessions too: logs_dir(), log_name()), for when something goes wrong.
     bool write_logs = true;
     // "A new version is out" (app/update_check.h): GitHub's latest release
     // asked at most once a day from the PC home. The last check (Unix
@@ -113,7 +116,7 @@ struct Config {
     std::string update_dismissed;  // a tag: no notice for that version
     float ffb_strength = 0.7f; // force feedback (the drive board) on the steering device: 0 off .. 1
     bool ffb_invert = false;   // turn the wheel the other way
-    bool ffb_log = false;      // log the force feedback device, failures and the commands (daytona.log on Windows)
+    bool ffb_log = false;      // log the force feedback device, failures and the commands (in the game's log)
     bool ffb_centring_override = false; // Linux: the game's centring worked out here, sent as constant force (#16)
     // Linux and macOS: Logitech wheels through the system's driver, not SDL's
     // own (its HIDAPI lg4ff driver, off on Windows already). Some, like the
@@ -133,6 +136,13 @@ struct Config {
     // e.g. a second cabinet on the same computer for link play.
     static inline std::string profile;
     static std::string pref_dir(); // where this set's (and profile's) data lives, with a trailing separator
+    // The logs: a logs/ folder beside the game's roms/ (and cars/, textures/):
+    // beside the .AppImage, beside the program (the Windows package), the
+    // project's (build-daytona/../), or the working folder's; made when
+    // missing. pref_dir() when there is no roms/ folder, or it cannot be written.
+    static std::string logs_dir();
+    // This set's and profile's log name, without .log: "daytona-pc-solo" (pref_dir's own name).
+    static std::string log_name();
     void load();
     void save() const;
     void read(std::istream &input);

@@ -71,6 +71,7 @@
 #include "app/gpu/quality_probe.h"
 #include "app/quality.h"
 #include "app/speed_check.h"
+#include "app/system_info.h"
 #include "app/gpu/hardware_present_trace.h"
 #include "app/home_menu.h"
 #include "app/neon_ui.h"
@@ -107,6 +108,7 @@
 #include <ctime>
 #ifndef _WIN32
 #include <unistd.h> // the log's tee: pipe, dup2
+#include <fcntl.h>  // its pipe kept from a game started again (FD_CLOEXEC)
 #endif
 
 #ifndef DAYTONA_UPDATE_REPO // CMake's cache variable: the GitHub repository whose releases are checked
@@ -436,12 +438,16 @@ int fail(const char *what) {
 
 } // namespace
 
-// The log: what the game prints, kept in daytona.log beside the settings, the
-// last sessions before it as daytona.1.log .. daytona.5.log, so a player can
+// The log: what the game prints, kept in the logs folder beside roms/ (and
+// cars/: app::Config::logs_dir), as daytona-pc-solo.log (the set and the
+// profile), the last sessions before it as daytona-pc-solo.1.log .. .5.log, so a player can
 // send the one where something went wrong ("Generate logs" in Settings, on by
 // default). Windows builds daytona as a GUI program, which has no console of
 // its own: started from a command window it prints there instead. On Linux
 // and macOS the terminal, if any, still shows everything (a tee).
+#if !defined(_WIN32) && !defined(M2_MOBILE)
+int log_terminal = -1; // where the program printed before open_log's tee, -1: no tee
+#endif
 void open_log(bool keep) {
 #ifdef _WIN32
     if (AttachConsole(ATTACH_PARENT_PROCESS)) {
@@ -453,11 +459,13 @@ void open_log(bool keep) {
 #endif
 #ifndef M2_MOBILE
     if (!keep) return;
-    const std::string log = pref_file("daytona.log");
-    std::error_code ec; // the sessions before: daytona.log -> .1 -> ... -> .5 (the oldest goes)
+    // in the logs folder beside roms/ (app::Config::logs_dir), one name per set and profile
+    const std::string dir = app::Config::logs_dir(), name = app::Config::log_name();
+    const std::string log = dir + name + ".log";
+    std::error_code ec; // the sessions before: NAME.log -> NAME.1.log -> ... -> NAME.5.log (the oldest goes)
     for (int i = 5; i >= 1; --i) {
-        const std::string from = i == 1 ? log : pref_file(("daytona." + std::to_string(i - 1) + ".log").c_str());
-        const std::string to = pref_file(("daytona." + std::to_string(i) + ".log").c_str());
+        const std::string from = i == 1 ? log : dir + name + "." + std::to_string(i - 1) + ".log";
+        const std::string to = dir + name + "." + std::to_string(i) + ".log";
         if (std::filesystem::exists(std::filesystem::u8path(from), ec))
             std::filesystem::rename(std::filesystem::u8path(from), std::filesystem::u8path(to), ec);
     }
@@ -474,6 +482,8 @@ void open_log(bool keep) {
         return;
     }
     const int terminal = ::dup(STDOUT_FILENO); // where it printed so far
+    log_terminal = terminal;
+    ::fcntl(pipe_fds[0], F_SETFD, FD_CLOEXEC); // not to a game started again (Start over)
     ::dup2(pipe_fds[1], STDOUT_FILENO);
     ::dup2(pipe_fds[1], STDERR_FILENO);
     ::close(pipe_fds[1]);
@@ -512,6 +522,9 @@ int main(int argc, char **argv) {
     if (pc_home && app::Config::profile.empty()) app::Config::profile = "pc-solo";
 #endif
     app::Config cfg;
+    // no settings yet (the first start, or after Start over): a texture pack in textures/ is turned on (below)
+    std::error_code settings_ec;
+    const bool fresh_settings = !std::filesystem::exists(std::filesystem::u8path(app::Config::path()), settings_ec);
     cfg.load();
     open_log(cfg.write_logs);
     app::i18n::set(cfg.language.empty() ? app::i18n::system_default() : cfg.language); // before the fonts
@@ -853,11 +866,20 @@ int main(int argc, char **argv) {
     if (!SDL_ClaimWindowForGPUDevice(dev, window)) return fail("SDL_ClaimWindowForGPUDevice");
     if (const char *v = std::getenv("M2_FRAMES_IN_FLIGHT")) // experiment: 1 = each pass waits for the refresh
         SDL_SetGPUAllowedFramesInFlight(dev, Uint32(std::clamp(std::atoi(v), 1, 3)));
-    std::printf("daytona: GPU driver %s\n", SDL_GetGPUDeviceDriver(dev));
+    {
+        const char *name = SDL_GetStringProperty(SDL_GetGPUDeviceProperties(dev), SDL_PROP_GPU_DEVICE_NAME_STRING, nullptr);
+        const char *version = SDL_GetStringProperty(SDL_GetGPUDeviceProperties(dev), SDL_PROP_GPU_DEVICE_DRIVER_VERSION_STRING, nullptr);
+        std::printf("daytona: GPU driver %s; graphics card %s%s%s\n", SDL_GetGPUDeviceDriver(dev), name ? name : "unknown",
+                    version ? ", driver " : "", version ? version : "");
+    }
     // the session, for a log sent with a problem: the system and the settings that matter
-    std::printf("daytona: [%s] session; system %s, %d logical cores, %d MB of RAM; renderer %s, draw mode %d, display %s\n",
-                app::online::utc_now().c_str(), SDL_GetPlatform(), SDL_GetNumLogicalCPUCores(), SDL_GetSystemRAM(), cfg.renderer.c_str(), cfg.draw_mode,
+    std::printf("daytona: [%s] session; system %s, processor %s, %d logical cores, %d MB of RAM; renderer %s, draw mode %d, display %s\n",
+                app::online::utc_now().c_str(), SDL_GetPlatform(), app::processor_name().empty() ? "unknown" : app::processor_name().c_str(),
+                SDL_GetNumLogicalCPUCores(), SDL_GetSystemRAM(), cfg.renderer.c_str(), cfg.draw_mode,
                 cfg.fullscreen ? "fullscreen" : "window");
+    if (const SDL_DisplayMode *mode = SDL_GetDesktopDisplayMode(SDL_GetDisplayForWindow(window)))
+        std::printf("daytona: screen %dx%d at %.0f Hz\n", int(std::lround(mode->w * mode->pixel_density)),
+                    int(std::lround(mode->h * mode->pixel_density)), double(mode->refresh_rate));
 #ifndef M2_MOBILE
     const float paper_white = hdr10_paper_white.value_or(app::kHdr10PaperWhiteNits);
     // Display curve: the launcher setting, or M2_DISPLAY_GAMMA (0 = the PC
@@ -1024,6 +1046,9 @@ int main(int argc, char **argv) {
     bool solo = false;
     bool solo_picks = false, solo_shown = false; // a solo started from the PC home: the player picks on the cabinet's screens
     std::string home_message;
+    // the race was slow (app/speed_check.h): the home's card, and whether the processor held it back
+    std::string slow_notice;
+    bool slow_cpu = false;
     uint64_t reveal_at = 0;
     SDL_GPUTexture *capture_image = nullptr;
     int capture_status = 0;
@@ -1066,6 +1091,19 @@ int main(int argc, char **argv) {
     const bool hires_from_env = hires_env && *hires_env;
     if (hires_from_env && gpu.ok() && !gpu.load_hires_textures(hires_env))
         std::fprintf(stderr, "daytona: %s\n", gpu.error().c_str());
+#ifndef M2_MOBILE
+    // the project's textures/ (app/hires_maker.h): hires.m2tex, else a .zip holding one (checked and unpacked,
+    // then used), else the data folder's older pack moved there; none: Settings > AI textures makes it
+    if (!hires_from_env) {
+        std::string why;
+        const std::string ready = app::HiresMaker::prepare_pack(why);
+        if (!why.empty()) std::printf("daytona: high-resolution textures: %s\n", why.c_str());
+        if (!ready.empty() && (why.find("unpacked") != std::string::npos || fresh_settings) && !cfg.hires_textures) {
+            cfg.hires_textures = true; // a pack just brought in (or found at the first start) is used
+            cfg.save();
+        }
+    }
+#endif
     bool hires_applied = false;     // the settings' pack loaded
     uint64_t hires_applied_version = 0;
     // The experimental ray-tracing options are both off by
@@ -1193,6 +1231,7 @@ int main(int argc, char **argv) {
         std::string server;
         uint64_t started = 0, next = 0;
         app::HomeOnline::Probe state = app::HomeOnline::Probe::None;
+        app::HomeOnline::Update update = app::HomeOnline::Update::None;
         int ms = -1;
     } server_probe;
 #endif
@@ -1325,6 +1364,7 @@ int main(int argc, char **argv) {
     };
 
     bool in_launcher = true, running = true, have_frame = false, new_frame = false;
+    bool restart_fresh = false; // Settings > Game > Start over: erase the settings and start again once closed
 #ifndef M2_MOBILE
     if (capture_status) running = false;
 #endif
@@ -1676,7 +1716,12 @@ int main(int argc, char **argv) {
         const bool solo_choosing = false;
 #endif
         if (run_game)
-            if (const uint64_t wait = pacer.wait_ns(SDL_GetTicksNS())) SDL_DelayPrecise(wait); // VRR: hold the frame
+            if (const uint64_t wait = pacer.wait_ns(SDL_GetTicksNS())) {
+                SDL_DelayPrecise(wait); // VRR: hold the frame
+#ifndef M2_MOBILE
+                speed_check.wait(wait);
+#endif
+            }
         const uint64_t now = SDL_GetTicksNS();
 #ifndef M2_MOBILE
         { // online: the players list over the race, its first 10 s and while Tab (or L3) is held
@@ -1958,9 +2003,11 @@ int main(int argc, char **argv) {
 #ifndef M2_MOBILE
         SDL_GPUTexture *swap = nullptr;
         Uint32 sw = 0, sh = 0;
-        if (native_resolution &&
-            !SDL_WaitAndAcquireGPUSwapchainTexture(cmd, window, &swap, &sw, &sh))
-            return fail("swapchain");
+        if (native_resolution) {
+            const uint64_t asked = SDL_GetTicksNS(); // the graphics card's wait, for the speed check
+            if (!SDL_WaitAndAcquireGPUSwapchainTexture(cmd, window, &swap, &sw, &sh)) return fail("swapchain");
+            speed_check.wait(SDL_GetTicksNS() - asked);
+        }
         if (native_resolution && !swap) {
             // SDL may return no texture while the window is minimized.
             // Keep the pending game image for the first drawable iteration:
@@ -2054,23 +2101,45 @@ int main(int argc, char **argv) {
                                   cfg.bloom || cfg.crt_filter;
             const bool racing = hardware && !in_launcher && enhanced &&
                                 game->board().read_byte(rt::online::AutoEntry::mode_address) == rt::online::CourseSync::race;
+            static bool speed_logged = false; // the measurement in the log, slow or not, once
             if (!racing) speed_check.interrupt();
-            else if (speed_check.pass(now, new_frame, pacer.pacing().game_hz)) {
-                std::printf("daytona: the race ran at %.1f frames/s with this image quality (the game's %.1f)\n",
-                            speed_check.fps(), pacer.pacing().game_hz);
-                char line[320];
-                std::snprintf(line, sizeof line,
-                              TX("The race ran at %.0f frames a second, under the game's 57.5: a lower image quality may help "
-                                 "(Settings > Enhancements > Detect automatically)."),
-                              speed_check.fps());
-                if (pc_home) home_message = line; // the home's message line
-                else launcher.set_error(line);     // the classic launcher's
+            else if (!speed_check.pass(now, new_frame, pacer.pacing().game_hz)) {
+                if (speed_check.done() && !speed_logged)
+                    std::printf("daytona: the race ran at %.1f frames/s with this image quality (the game's %.1f); the processor's "
+                                "work %.1f ms a frame of %.1f\n",
+                                speed_check.fps(), pacer.pacing().game_hz, speed_check.cpu_ms(), 1000.0 / pacer.pacing().game_hz);
+                speed_logged = speed_check.done();
+            } else {
+                speed_logged = true;
+                // which part held it back: the processor's own work a frame against the frame's time
+                const bool cpu = speed_check.limit() == app::SpeedCheck::Limit::Processor;
+                std::printf("daytona: the race ran at %.1f frames/s with this image quality (the game's %.1f); the processor's "
+                            "work %.1f ms a frame of %.1f: held back by the %s\n",
+                            speed_check.fps(), pacer.pacing().game_hz, speed_check.cpu_ms(), 1000.0 / pacer.pacing().game_hz,
+                            cpu ? "processor" : "graphics card");
+                char line[400];
+                if (cpu)
+                    std::snprintf(line, sizeof line,
+                                  TX("The race ran at %.0f frames a second, under the game's 57.5: the processor did not keep up "
+                                     "(%.0f ms of work a frame, of the %.0f ms a frame has). The custom car and smooth car "
+                                     "shading cost it the most."),
+                                  speed_check.fps(), speed_check.cpu_ms(), 1000.0 / pacer.pacing().game_hz);
+                else
+                    std::snprintf(line, sizeof line,
+                                  TX("The race ran at %.0f frames a second, under the game's 57.5: the graphics card did not "
+                                     "keep up with this image quality."),
+                                  speed_check.fps());
+                if (pc_home) slow_notice = line, slow_cpu = cpu; // the home's card, with what to lower
+                else launcher.set_error(line);                 // the classic launcher's
             }
         }
 #endif
         if (hardware_rasterized) {
             screen_w = game->screen_width();
-            const int scale = cfg.uses_native_resolution() ? 1 : std::clamp(cfg.supersampling, 1, 4);
+            // the arcade multiple, at most the window's height (app/quality.h)
+            int window_px_h = 0;
+            SDL_GetWindowSizeInPixels(window, nullptr, &window_px_h);
+            const int scale = cfg.uses_native_resolution() ? 1 : app::arcade_scale_for(cfg.supersampling, window_px_h);
             if (scale > 1 && scale != hires_scale) {
                 if (hires) SDL_ReleaseGPUTexture(dev, hires);
                 SDL_GPUTextureCreateInfo hi = ti;
@@ -2081,6 +2150,10 @@ int main(int argc, char **argv) {
                 hires = SDL_CreateGPUTexture(dev, &hi);
                 hires_scale = hires ? scale : 1;
                 if (!hires) std::fprintf(stderr, "daytona: %dx super sampling unavailable: %s\n", scale, SDL_GetError());
+                else
+                    std::printf("daytona: render resolution %dx the arcade's (%dx%d)%s, window %d pixels high\n", scale,
+                                app::kArcadeWidth * scale, app::kArcadeHeight * scale,
+                                scale < std::clamp(cfg.supersampling, 1, 4) ? ", lowered to fit the window" : "", window_px_h);
             }
 #ifndef M2_MOBILE
             if (native_resolution && swap) {
@@ -2092,11 +2165,10 @@ int main(int argc, char **argv) {
                     w = std::max(1u, Uint32(std::lround(screen_w * fit)));
                     h = std::max(1u, Uint32(std::lround(H * fit)));
                 }
-                // Mip 1 averages four samples per output pixel. Leave the
-                // exact arcade raster alone and bound the intermediate size.
-                const bool supersample = cfg.supersampling == app::Config::kNativeResolution &&
-                    (w != Uint32(screen_w) || h != H) && w <= 4096 && h <= 4096;
-                const Uint32 aa = supersample ? 2u : 1u;
+                // the screen's own pixels: no more drawn (until 0.21 the native
+                // mode drew twice each way, 3840 x 2160 for a 1080p screen, too
+                // much for many cards and no sharper on that screen)
+                constexpr Uint32 aa = 1u;
                 if (!raster_target || w != raster_width || h != raster_height || aa != raster_scale) {
                     auto info = ti;
                     info.width = w * aa;
@@ -2270,6 +2342,24 @@ int main(int argc, char **argv) {
         ImDrawData *draw = nullptr;
 #ifndef M2_MOBILE
         if (launcher.take_quality_request()) start_quality();
+        // diagnostic: M2_TEST_START_OVER=1 asks Start over after 120 frames (cleared for the game started again)
+        static bool start_over_test = [] { const char *v = std::getenv("M2_TEST_START_OVER"); return v && *v == '1'; }();
+        if (start_over_test && game && game->frames() > 120) {
+            start_over_test = false;
+#ifdef _WIN32
+            _putenv_s("M2_TEST_START_OVER", "");
+#else
+            unsetenv("M2_TEST_START_OVER");
+#endif
+            restart_fresh = true;
+            running = false;
+            std::printf("daytona: settings erased at the player's request; the game starts again\n");
+        }
+        if (launcher.take_reset_request()) { // Settings > Game > Start over: the settings erased once the game has closed
+            std::printf("daytona: settings erased at the player's request; the game starts again\n");
+            restart_fresh = true;
+            running = false;
+        }
         if (quality_probe.running()) quality_probe.step(); // one batch: the window stays live
         if (pc_home && solo && native_fault) {
             home_message = launcher.error();
@@ -2332,6 +2422,15 @@ int main(int argc, char **argv) {
                         if (st == app::RelayLink::State::Info || st == app::RelayLink::State::Failed) {
                             const bool ok = st == app::RelayLink::State::Info;
                             server_probe.state = ok ? Probe::Ok : server_probe.link->error_code() == "version" ? Probe::Version : Probe::Offline;
+                            // a newer game races there (game_online=), or the protocols differ: who has to update
+                            using Update = app::HomeOnline::Update;
+                            const auto behind = server_probe.link->outdated();
+                            server_probe.update =
+                                ok ? (app::online::info_game_online(server_probe.link->info()) > app::online::kOnlineVersion ? Update::Game
+                                                                                                                         : Update::None)
+                                : behind == app::online::Outdated::Game   ? Update::Game
+                                : behind == app::online::Outdated::Server ? Update::Server
+                                                                          : Update::None;
                             // the connection and the answer: about two round trips
                             server_probe.ms = ok ? int((ms_now - server_probe.started) / 2) : -1;
                             server_probe.link.reset();
@@ -2357,11 +2456,13 @@ int main(int argc, char **argv) {
                 home_online.server = cfg.online_server;
                 home_online.settings = cfg.online_room;
                 home_online.probe = server_probe.state;
+                home_online.update = server_probe.update;
                 home_online.latency_ms = server_probe.ms;
                 if (online_link) {
                     const auto state = online_link->state();
                     if (state == app::RelayLink::State::Failed) {
                         home_online.error = online_link->error();
+                        if (online_link->outdated() == app::online::Outdated::Game) home_online.update = app::HomeOnline::Update::Game;
                     } else if (state == app::RelayLink::State::Connecting) {
                         home_online.room = app::HomeOnline::Room::Connecting;
                     } else {
@@ -2396,6 +2497,24 @@ int main(int argc, char **argv) {
                     home_online.settings = "difficulty:normal,cabinet:twin,start:master";
                     home_online.probe = Probe::Ok;
                     home_online.latency_ms = 92;
+                    // M2_CAPTURE_HOME_UPDATE=1: as when the server races with a newer game online version
+                    if (const char *u = std::getenv("M2_CAPTURE_HOME_UPDATE"); u && *u == '1') home_online.update = app::HomeOnline::Update::Game;
+                    // M2_CAPTURE_HOME_SLOW=cpu|gpu: the slow race's card, as its check words it (41 frames/s, 21 ms)
+                    if (const char *sl = std::getenv("M2_CAPTURE_HOME_SLOW"); sl && slow_notice.empty()) {
+                        char line[400];
+                        if (!std::strcmp(sl, "cpu"))
+                            std::snprintf(line, sizeof line,
+                                          TX("The race ran at %.0f frames a second, under the game's 57.5: the processor did not keep up "
+                                             "(%.0f ms of work a frame, of the %.0f ms a frame has). The custom car and smooth car "
+                                             "shading cost it the most."),
+                                          41.0, 21.0, 17.0);
+                        else
+                            std::snprintf(line, sizeof line,
+                                          TX("The race ran at %.0f frames a second, under the game's 57.5: the graphics card did not "
+                                             "keep up with this image quality."),
+                                          41.0);
+                        slow_notice = line, slow_cpu = !std::strcmp(sl, "cpu");
+                    }
                     if (!std::strcmp(fake, "room")) {
                         home_online.room = app::HomeOnline::Room::In;
                         home_online.joined = 3;
@@ -2431,6 +2550,7 @@ int main(int argc, char **argv) {
                 home_menu.set_update(app::update::show_notice(cfg.update_check, cfg.update_latest, update_running, cfg.update_dismissed)
                                          ? app::update::display_version(cfg.update_latest)
                                          : std::string());
+                home_menu.set_slow(slow_notice);
                 const auto home_action = home_menu.draw(pc_race, solo, home_message.c_str(), 1.f, home_online);
                 if (const bool manual = home_menu.request().transmission == rt::RaceTransmission::Manual;
                     manual != cfg.gearbox_manual) { // the gearbox chosen: kept, and online's too
@@ -2470,6 +2590,26 @@ int main(int argc, char **argv) {
                     if (!SDL_OpenURL(url.c_str())) SDL_Log("Could not open %s: %s", url.c_str(), SDL_GetError());
                     break;
                 }
+                case app::HomeMenu::LowerQuality: // the slow race's card: lower what held it back
+                    if (slow_cpu) {
+                        // the processor: the custom car (the game's car again) and smooth car shading
+                        cfg.player_car.clear();
+                        cfg.smooth_cars = false;
+                        home_message = TX("The game's own car and flat car shading: lighter for the processor.");
+                    } else {
+                        // the graphics card: a level down (app/quality.h)
+                        const bool high = cfg.uses_native_resolution() || cfg.supersampling >= 3 || cfg.msaa >= 4 || cfg.car_shadows;
+                        app::apply_quality(cfg, high ? app::QualityLevel::Medium : app::QualityLevel::Original, native_modes);
+                        home_message = high ? TX("Image quality lowered to Medium; antialiasing applies the next time the game starts.")
+                                            : TX("Image quality lowered to Original.");
+                    }
+                    std::printf("daytona: image quality lowered after a slow race (%s)\n", slow_cpu ? "processor" : "graphics card");
+                    cfg.save();
+                    slow_notice.clear();
+                    break;
+                case app::HomeMenu::DismissSlow:
+                    slow_notice.clear();
+                    break;
                 case app::HomeMenu::DismissUpdate: // not again for this version; a newer one shows again
                     cfg.update_dismissed = cfg.update_latest;
                     cfg.save();
@@ -2618,6 +2758,8 @@ int main(int argc, char **argv) {
                                               game != nullptr)) {
                 case app::Launcher::QualityChoice::Apply:
                     app::apply_quality(cfg, app::QualityLevel(launcher.quality_pick()), native_modes);
+                    std::printf("daytona: image quality applied: level %d of 3 (recommended %d)\n", launcher.quality_pick(),
+                                int(quality_probe.level()));
                     [[fallthrough]];
                 case app::Launcher::QualityChoice::Keep:
                     cfg.quality_checked = true;
@@ -2655,7 +2797,13 @@ int main(int argc, char **argv) {
         SDL_GPUTexture *swap = nullptr;
         Uint32 sw = 0, sh = 0;
 #endif
+        {
+            const uint64_t asked = SDL_GetTicksNS();
             if (!SDL_WaitAndAcquireGPUSwapchainTexture(cmd, window, &swap, &sw, &sh)) return fail("swapchain");
+#ifndef M2_MOBILE
+            speed_check.wait(SDL_GetTicksNS() - asked);
+#endif
+        }
         if (swap) {
             SDL_GPUTexture *target = swap;
 #ifndef M2_MOBILE
@@ -2948,6 +3096,21 @@ int main(int argc, char **argv) {
     ffb.close();
     devices.close_all();
     SDL_Quit();
+#ifndef M2_MOBILE
+    if (restart_fresh) { // Start over: the settings erased (after every save), then the game again
+        std::error_code ec;
+        std::filesystem::remove(std::filesystem::u8path(app::Config::path()), ec);
+        std::fflush(stdout);
+#ifndef _WIN32
+        if (log_terminal >= 0) { // the game started again prints where this one did, not into this one's tee
+            ::dup2(log_terminal, STDOUT_FILENO);
+            ::dup2(log_terminal, STDERR_FILENO);
+        }
+#endif
+        if (!app::restart_self(argc, argv)) std::fprintf(stderr, "daytona: could not start the game again: start it yourself\n");
+        return 0;
+    }
+#endif
 #ifndef M2_MOBILE
     if (player_input_capture) {
         const bool completed = !capture_status && start_solo_ok && !native_fault && game &&

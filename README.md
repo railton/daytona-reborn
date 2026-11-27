@@ -20,6 +20,8 @@ by alphanu1. What it adds is listed in [CHANGELOG.md](CHANGELOG.md).
 
 ## Change Logs
 
+**`2026-11-26`** **0.22.0**: **custom cars** in **Settings > Cars** (the project's `cars/` folder; the cockpit view shows the car's own bonnet); online, the other cars no longer flicker on a far or uneven line, and the game says when it or the server needs updating (every player of a room needs 0.22.0); the render resolution never past the screen's, and a slow first race says whether the processor or the graphics card held it back; the logs in a `logs/` folder beside `roms/`; **Start over** in Settings > Game; a Linux AppImage; the texture pack in `textures/`.
+
 **`2026-11-25`** **0.21.0**: make the high-resolution texture pack from **Settings > AI textures** (Linux with Docker, NVIDIA or the processor); the home screen tells when a [new version](#new-versions) is out; Windows build fixes; follow-ups of an external graphics review (detail fading in, smoother edge HUD, steadier shadows, a 10x faster pack refresh).
 
 **`2026-11-25`** **0.20.0**: **Smooth menus and HUD**: the game's 2D pictures with smooth curves at high resolution, colours and dithering kept.
@@ -62,7 +64,8 @@ From Daytona Reborn beta 0.10, kept in this repository:
   choice are synchronised; the
   players' names and live standings show over the race, and each other
   player's name rides above their car. No router port to open; a dropped
-  connection comes back to the race on its own. Rooms of 8
+  connection comes back to the race on its own, and the game says when it
+  (or the server) needs updating to play with the others. Rooms of 8
   linked cabinets have been run through the relay. See
   [server/daytona-relay](server/daytona-relay/README.md); how to play:
   [docs/PLAYING-ONLINE.md](docs/PLAYING-ONLINE.md).
@@ -141,11 +144,17 @@ desktop (with `Build Daytona.command`).
 
 | How | |
 | --- | --- |
-| **Recommended:** with Docker, nothing else installed: `./scripts/docker-build.sh` | copy your ROM set to `roms/daytona.zip` first |
+| **Recommended:** with Docker, nothing else installed: `./scripts/docker-build.sh` | copy your ROM set to `roms/daytona.zip` first; it ends with `build-daytona/Daytona-x86_64.AppImage`, the game in one file (Ubuntu 24.04 and newer) |
 | Native: `./setup.sh` | installs the packages with apt, dnf, pacman or zypper (sudo) |
 | A build for your own Windows PC: `./scripts/docker-build-windows.sh` | after `docker-build.sh`; copy `build-windows/` to the PC |
 
-The game: `build-daytona/daytona`.
+The game: `build-daytona/Daytona-x86_64.AppImage` (the Docker build; or
+`build-daytona/daytona`). The AppImage is the whole game in one file: put it
+in a folder with `roms/` (and `cars/`, `textures/`) beside it, allow it to
+run (file manager: Properties > "Executable as program", or `chmod +x`) and
+open it with a double click; without FUSE,
+`./Daytona-x86_64.AppImage --appimage-extract-and-run`. A native build makes
+one with `./scripts/make-appimage.sh` (Docker).
 
 Step by step, with the usual problems and fixes:
 [docs/BUILDING.md](docs/BUILDING.md). More detail on every platform and option:
@@ -169,12 +178,13 @@ The Revision A game opens on its home menu. **Settings** has eight tabs:
 | Cars | experimental, shown when the project's `cars/` folder holds a car: the car you drive, a card with a picture for each (the game's own, or a body made from a 3D model in the format of [cars/README.md](cars/README.md)); it changes at once |
 | Link play | linking cabinets on a local network |
 | Controls | devices, steering, force feedback, every control's key, gamepad and wheel assignment |
-| AI textures | experimental: what this computer has for the high-resolution texture pack, making it, using or deleting it ([docs/HIRES-TEXTURES.md](docs/HIRES-TEXTURES.md)) |
+| AI textures | experimental: what this computer has for the high-resolution texture pack, making it, using or deleting it; the pack lives in the project's `textures/` folder, where a `.zip` holding one is checked and used ([docs/HIRES-TEXTURES.md](docs/HIRES-TEXTURES.md)) |
 | Sound | volume, music and effects balance, native sound |
 
 When something goes wrong, the game's log tells what happened: send
-**daytona.log** (Settings > Game > **Open the logs folder**; the five
-sessions before it are kept too).
+**daytona-pc-solo.log**, in the **logs** folder beside **roms** and **cars**
+(Settings > Game > **Open the logs folder**; the five sessions before it are
+kept too).
 
 The language is chosen at the top right. Settings are saved as they change,
 in your user data folder (`launcher.ini`).

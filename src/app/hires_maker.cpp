@@ -1,11 +1,15 @@
 #include "app/hires_maker.h"
 
 #include "app/config.h"
+#include "app/custom_cars.h"
 #include "app/gpu/hires_textures.h"
 #include "app_version.h" // generated: cmake/app_version.cmake
+#include "runtime/archive.h"
 
 #include <SDL3/SDL.h>
 
+#include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cstdio>
 #include <ctime>
@@ -68,8 +72,88 @@ void HiresMaker::join() {
     if (worker_.joinable()) worker_.join();
 }
 
-std::string HiresMaker::pack_path() { return Config::pref_dir() + "hires.m2tex"; }
-std::string HiresMaker::log_path() { return Config::pref_dir() + "hires-textures.log"; }
+std::string HiresMaker::textures_dir() {
+    const std::string base = base_dir(), image = beside_appimage();
+    for (const std::string &dir : {image.empty() ? std::string() : image + "textures/", base + "../textures/", std::string("textures/")})
+        if (std::error_code ec; !dir.empty() && fs::is_directory(fs::u8path(dir), ec)) return dir;
+    // none yet: beside the .AppImage; the project's (beside roms/, as the build finds the ROM set); else the working folder's
+    if (!image.empty()) return image + "textures/";
+    if (std::error_code ec; fs::is_directory(fs::u8path(base + "../roms/"), ec)) return base + "../textures/";
+    return "textures/";
+}
+
+std::string HiresMaker::pack_path() { return textures_dir() + "hires.m2tex"; }
+
+std::string HiresMaker::prepare_pack(std::string &message, const std::string &dir_in, const std::string &old_in) {
+    const std::string dir = dir_in.empty() ? textures_dir() : dir_in;
+    const std::string pack = dir + "hires.m2tex";
+    const std::string old_pack = old_in.empty() ? Config::pref_dir() + "hires.m2tex" : old_in;
+    std::error_code ec;
+    message.clear();
+    auto valid = [](const std::string &path, std::string &why) {
+        hires::Pack p;
+        if (!p.load(path)) return why = p.error, false;
+        if (p.scale != 4) return why = "scale " + std::to_string(p.scale) + ", 4 expected", false;
+        return true;
+    };
+    auto note = [&](const std::string &line) { message += (message.empty() ? "" : "; ") + line; };
+    std::string why;
+    if (fs::exists(fs::u8path(pack), ec)) {
+        if (valid(pack, why)) return pack;
+        note("textures/hires.m2tex left out: " + why);
+    }
+    // a .zip (or .7z) holding a pack: the first one in name order that is valid
+    std::vector<fs::path> archives;
+    for (const auto &e : fs::directory_iterator(fs::u8path(dir), ec)) {
+        std::string ext = e.path().extension().string();
+        for (char &c : ext) c = char(std::tolower((unsigned char)c));
+        if (e.is_regular_file(ec) && (ext == ".zip" || ext == ".7z")) archives.push_back(e.path());
+    }
+    std::sort(archives.begin(), archives.end());
+    for (const fs::path &a : archives) {
+        const auto u8 = a.filename().u8string();
+        const std::string name(u8.begin(), u8.end());
+        try {
+            const auto archive = rt::open_archive(a.string());
+            std::string member;
+            for (const auto &[entry, info] : archive->entries())
+                if (entry.size() > 6 && entry.compare(entry.size() - 6, 6, ".m2tex") == 0) { member = entry; break; }
+            if (member.empty()) { note("textures/" + name + " left out: no .m2tex in it"); continue; }
+            const std::vector<uint8_t> bytes = archive->read(member);
+            const std::string part = pack + ".part";
+            {
+                std::ofstream out(fs::u8path(part), std::ios::binary);
+                out.write(reinterpret_cast<const char *>(bytes.data()), std::streamsize(bytes.size()));
+                if (!out) { note("textures/" + name + ": hires.m2tex could not be written"); continue; }
+            }
+            if (!valid(part, why)) {
+                fs::remove(fs::u8path(part), ec);
+                note("textures/" + name + " left out: " + why);
+                continue;
+            }
+            fs::remove(fs::u8path(pack), ec);
+            fs::rename(fs::u8path(part), fs::u8path(pack), ec);
+            if (ec) { note("textures/" + name + ": " + ec.message()); continue; }
+            note("the pack unpacked from textures/" + name);
+            return pack;
+        } catch (const std::exception &e) {
+            note("textures/" + name + " left out: " + e.what());
+        }
+    }
+    // the pack where it was kept before (the data folder): moved to textures/
+    if (fs::exists(fs::u8path(old_pack), ec) && valid(old_pack, why)) {
+        fs::create_directories(fs::u8path(dir), ec);
+        fs::rename(fs::u8path(old_pack), fs::u8path(pack), ec);
+        if (ec) { // another drive: copy, then remove
+            ec.clear();
+            fs::copy_file(fs::u8path(old_pack), fs::u8path(pack), fs::copy_options::overwrite_existing, ec);
+            if (!ec) fs::remove(fs::u8path(old_pack), ec);
+        }
+        if (!ec) { note("the pack moved from " + old_pack); return pack; }
+    }
+    return {};
+}
+std::string HiresMaker::log_path() { return Config::logs_dir() + "hires-textures.log"; }
 
 bool HiresMaker::parse_progress(const std::string &line, const std::string &tool, uint64_t &done, uint64_t &total) {
     const std::string key = tool + ": progress ";
@@ -334,6 +418,7 @@ void HiresMaker::job(std::string rom_path, bool processor) {
 
     // 4. install
     set_stage(Stage::Installing, 0.95f);
+    fs::create_directories(fs::u8path(textures_dir()), ec);
     hires::Pack pack;
     if (!pack.load(work + "hires.m2tex")) return fail(Problem::BadPack, "the pack made is not valid: " + pack.error);
     log("pack: " + std::to_string(pack.entries.size()) + " textures, " + std::to_string(pack.data.size()) + " bytes");

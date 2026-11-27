@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Daytona Reborn
+Comment=Daytona USA, statically recompiled; your own ROM set
+Exec=daytona
+Icon=daytona
+Categories=Game;
+Terminal=false

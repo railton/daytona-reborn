@@ -11,7 +11,8 @@
 //   3. upscale: hires/hires_textures.py in the container downloads the models
 //      (SHA-256 checked), upscales each texture by the model for its kind and
 //      writes the pack;
-//   4. install: the pack, checked, to <pref dir>/hires.m2tex;
+//   4. install: the pack, checked, to the project's textures/hires.m2tex
+//      (textures_dir(): beside roms/ and cars/, git-ignored);
 //   5. clean up, after a success only: the captured textures, the models,
 //      the container image and its base image (unless it was there before).
 //
@@ -71,8 +72,20 @@ public:
     State state() const;
     bool delete_pack();
 
-    static std::string pack_path(); // <pref dir>/hires.m2tex
-    static std::string log_path();  // <pref dir>/hires-textures.log
+    // The project's textures/ folder with a trailing separator: beside the
+    // build folder, as roms/ and cars/, else textures/ in the working folder
+    // (made when a pack is saved there).
+    static std::string textures_dir();
+    static std::string pack_path(); // textures_dir() + hires.m2tex
+
+    // At startup: the pack to use, made ready in `dir` (textures_dir() when
+    // empty). hires.m2tex there when it is a valid pack; else the first .zip
+    // (or .7z) there holding a valid .m2tex, unpacked to hires.m2tex; else the
+    // old place's (<pref dir>/hires.m2tex) moved there. "" when there is none
+    // (the AI textures tab makes one). `message`: what was done or why a file
+    // was left out, in English for the log.
+    static std::string prepare_pack(std::string &message, const std::string &dir = {}, const std::string &old_pack = {});
+    static std::string log_path();  // <logs folder>/hires-textures.log (Config::logs_dir)
 
     // "TOOL: progress DONE/TOTAL" (m2texcap, hires_textures.py): true with
     // the numbers. Exposed for the tests.

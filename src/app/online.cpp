@@ -193,7 +193,7 @@ std::string percent_decode(const std::string &s) {
 }
 
 std::string hello_line(const Hello &hello) {
-    std::string line = "DAYTONA-RELAY 5 op=";
+    std::string line = "DAYTONA-RELAY " + std::to_string(kRelayProtocol) + " op=";
     line += hello.op == Hello::Op::Create   ? "create"
             : hello.op == Hello::Op::Join   ? "join"
             : hello.op == Hello::Op::Rejoin ? "rejoin"
@@ -218,6 +218,40 @@ std::vector<std::pair<std::string, std::string>> parse_info(const std::string &p
         if (eq != std::string::npos && eq > 0) out.emplace_back(line.substr(0, eq), line.substr(eq + 1));
     }
     return out;
+}
+
+int info_game_online(const std::vector<std::pair<std::string, std::string>> &info) {
+    for (const auto &[key, value] : info)
+        if (key == "game_online") return std::max(0, std::atoi(value.c_str()));
+    return 0;
+}
+
+Outdated refusal_outdated(const std::string &payload) {
+    std::istringstream in(payload);
+    std::string code, text, line;
+    std::getline(in, code);
+    std::getline(in, text);
+    auto detail = [&](const char *key) {
+        std::istringstream lines(payload);
+        const std::string prefix = std::string(key) + "=";
+        for (std::string l; std::getline(lines, l);)
+            if (l.rfind(prefix, 0) == 0) return std::atoi(l.c_str() + prefix.size());
+        return 0;
+    };
+    if (code == "version") {
+        int server = detail("server_protocol");
+        if (!server) // an older server: "... not compatible with this server (version N)"
+            if (const auto at = text.rfind("(version "); at != std::string::npos) server = std::atoi(text.c_str() + at + 9);
+        if (server > kRelayProtocol) return Outdated::Game;
+        if (server > 0 && server < kRelayProtocol) return Outdated::Server;
+    } else if (code == "game_version") {
+        int room = detail("room_online");
+        if (!room) // an older server: "room ... is for game online version V, not W"
+            if (const auto at = text.find("online version "); at != std::string::npos) room = std::atoi(text.c_str() + at + 15);
+        if (room > kOnlineVersion) return Outdated::Game;
+        if (room > 0 && room < kOnlineVersion) return Outdated::Room;
+    }
+    return Outdated::None;
 }
 
 std::optional<Status> parse_status(const std::string &payload) {

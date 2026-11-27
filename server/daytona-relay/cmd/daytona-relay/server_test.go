@@ -265,7 +265,8 @@ func TestCreateRules(t *testing.T) {
 	if err := s.join(fakeClient("A"), proto.Hello{Op: "create", Room: "one", Game: "3"}); !errors.As(err, &e) || e.Code != "exists" {
 		t.Errorf("create over a room: %v", err)
 	}
-	if err := s.join(fakeClient("B"), proto.Hello{Op: "join", Room: "one", Game: "2"}); !errors.As(err, &e) || e.Code != "game_version" {
+	if err := s.join(fakeClient("B"), proto.Hello{Op: "join", Room: "one", Game: "2"}); !errors.As(err, &e) || e.Code != "game_version" ||
+		!strings.HasSuffix(string(proto.ErrorPayload(err)), "\nroom_online=3") {
 		t.Errorf("another game version: %v", err)
 	}
 	for i := 1; i < proto.MaxPlayers; i++ {
@@ -501,5 +502,34 @@ func TestRaceStats(t *testing.T) {
 	st.reset()
 	if st.in.Load() != 0 || st.rttN.Load() != 0 {
 		t.Fatal("reset left numbers")
+	}
+}
+
+// op=info's game_online: the newest game online version a race started with.
+func TestNewestGame(t *testing.T) {
+	s := newTestServer(t)
+	if strings.Contains(s.info(), "game_online=") {
+		t.Fatalf("game_online before any race: %q", s.info())
+	}
+	a, b := fakeClient("A"), fakeClient("B")
+	if err := s.join(a, proto.Hello{Op: "create", Room: "new", Game: "12"}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(s.info(), "game_online=") {
+		t.Fatalf("game_online from a room alone: %q", s.info())
+	}
+	if err := s.join(b, proto.Hello{Op: "join", Room: "new", Game: "12"}); err != nil {
+		t.Fatal(err)
+	}
+	s.begin(a)
+	if !strings.HasSuffix(s.info(), "game_online=12\n") {
+		t.Fatalf("after a race: %q", s.info())
+	}
+	c, d := fakeClient("C"), fakeClient("D")
+	s.join(c, proto.Hello{Op: "create", Room: "old", Game: "11"})
+	s.join(d, proto.Hello{Op: "join", Room: "old", Game: "11"})
+	s.begin(c)
+	if !strings.HasSuffix(s.info(), "game_online=12\n") {
+		t.Fatalf("an older race lowered it: %q", s.info())
 	}
 }

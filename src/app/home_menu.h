@@ -15,6 +15,9 @@ struct HomeOnline {
     std::string name, server; // saved (Config::online_name, online_server)
     std::string settings;     // the last room's settings, "key:value,..." (Config::online_room)
     enum class Probe { None, Testing, Ok, Offline, Version } probe = Probe::None;
+    // who has to update to play online here: this game (the server races
+    // with a newer one, or refused it as older), or the server (older)
+    enum class Update { None, Game, Server } update = Update::None;
     int latency_ms = -1; // round trip to the server: the room's, else the probe's
     // the room: none, connecting to it, or in it
     enum class Room { None, Connecting, In } room = Room::None;
@@ -38,6 +41,8 @@ public:
         SetName, // name() holds the name typed
         OpenRelease,   // the new version's notice: its release page
         DismissUpdate, // the new version's notice: not again for that version
+        LowerQuality,  // the slow race's notice (app/speed_check.h): lower what held it back
+        DismissSlow,   // the slow race's notice: closed
     };
     void init();
     void select(rt::StartRaceRequest request) {
@@ -62,6 +67,8 @@ public:
     // "A new version is out" (app/update_check.h): its version ("0.19.0"),
     // shown in a card above the bottom bar; "" for none.
     void set_update(const std::string &version) { update_ = version; }
+    // The first race was slow: what held it back, said on a card with "Lower the quality"; "" for none.
+    void set_slow(const std::string &text) { slow_ = text; }
     // Diagnostics (a capture): an invite as if pasted.
     void paste_invite(const std::string &code);
 
@@ -78,6 +85,8 @@ private:
     char invite_[256] = {}, name_[64] = {}, ask_[64] = {};
     std::string invite_text_, name_text_, seen_clip_;
     std::string update_; // the new version's notice, "" for none
+    std::string slow_;   // the slow race's notice, "" for none
+    bool online_update_dismissed_ = false; // the Online mode's update notice, closed until the game restarts
     bool pasted_ = false;       // the invite came from the clipboard
     double clipboard_at_ = -10; // when the clipboard was last looked at
     bool invite_active_ = false; // its field being edited (last frame)

@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -87,7 +88,8 @@ func TestFrameRoundTrip(t *testing.T) {
 func TestErrorPayload(t *testing.T) {
 	_, err := ParseHello("DAYTONA-RELAY 9 op=join room=x")
 	p := ErrorPayload(err)
-	if !strings.HasPrefix(string(p), "version\n") || ErrorText(p) != err.Error() {
+	if !strings.HasPrefix(string(p), "version\n") || ErrorText(p) != err.Error() ||
+		!strings.HasSuffix(string(p), "\nserver_protocol="+strconv.Itoa(Version)) {
 		t.Fatalf("payload %q", p)
 	}
 	if string(ErrorPayload(errors.New("x"))) != "other\nx" {

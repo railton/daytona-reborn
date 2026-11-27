@@ -1,6 +1,7 @@
 // Persisted scenery settings round-trip through the same format as launcher.ini.
 // Streams keep tests isolated from the user's live profile.
 #include "app/config.h"
+#include "app/quality.h"
 #include <cstdio>
 #include <sstream>
 
@@ -56,8 +57,16 @@ int main() {
         check(saved.uses_native_resolution() == native, "only native modes follow the window");
         std::ostringstream serialized;
         saved.write(serialized);
-        check(serialized.str().find(setting) != std::string::npos, "resolution mode survives save/load");
+        // 0.21's native-direct is the native mode now (the screen's own resolution): saved as native
+        const std::string expect = std::string_view(mode) == "native-direct" ? "supersampling=native\n" : setting;
+        check(serialized.str().find(expect) != std::string::npos, "resolution mode survives save/load");
     }
+    // the arcade multiples never past the screen (app/quality.h)
+    check(app::arcade_scale_for(4, 1080) == 3 && app::arcade_scale_for(4, 1440) == 4 && app::arcade_scale_for(4, 720) == 2,
+          "arcade multiple capped by the screen's height");
+    check(app::arcade_scale_for(2, 2160) == 2 && app::arcade_scale_for(4, 0) == 4 && app::arcade_scale_for(9, 4320) == 4 &&
+              app::arcade_scale_for(3, 400) == 1,
+          "arcade multiple: as asked when it fits, 1 to 4");
     for (auto value : {"nan:9", "21:inf", "21:0", "-21:9"}) {
         loaded.aspect = value;
         check(loaded.aspect_ratio() == 0, "non-finite and invalid aspect rejected");

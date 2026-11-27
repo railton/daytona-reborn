@@ -5,6 +5,7 @@
 #include <SDL3/SDL.h>
 
 #include <algorithm>
+#include <cstdlib>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -16,7 +17,10 @@ namespace fs = std::filesystem;
 
 std::string cars_dir() {
     const char *base = SDL_GetBasePath();
-    for (const std::string &dir : {std::string(base ? base : "") + "../cars/", std::string("cars/")}) {
+    const std::string image = beside_appimage();
+    for (const std::string &dir : {image.empty() ? std::string() : image + "cars/", std::string(base ? base : "") + "../cars/",
+                                   std::string("cars/")}) {
+        if (dir.empty()) continue;
         std::error_code ec;
         if (fs::is_directory(fs::u8path(dir), ec)) return dir;
     }

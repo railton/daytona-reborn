@@ -27,6 +27,11 @@ roms/*
 # your custom cars (third-party models' licences; game-car.png is the game's art): all but its README
 cars/*
 !cars/README.md
+# the game's logs (Settings > Game > Logs), beside roms/ and cars/
+logs/
+# the high-resolution texture pack (made from the game's own textures): all but its README
+textures/*
+!textures/README.md
 .tools/
 windows-build.log
 macos-build.log

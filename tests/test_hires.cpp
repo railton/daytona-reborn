@@ -2,6 +2,7 @@
 // and the shader's index; the maker's parsing (app/hires_maker.h).
 #include "app/gpu/hires_textures.h"
 #include "app/hires_maker.h"
+#include "runtime/zip.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -169,6 +170,63 @@ int main() {
               "pytorch/pytorch:2.7.1-cuda12.8-cudnn9-runtime",
           "the base image");
     check(app::HiresMaker::dockerfile_base("RUN x\n").empty(), "no FROM");
+
+
+    // the project's textures/ folder (HiresMaker::prepare_pack): a .zip holding a pack is checked and unpacked
+    {
+        namespace fs = std::filesystem;
+        const fs::path dir = fs::temp_directory_path() / "test_hires_textures";
+        fs::remove_all(dir);
+        fs::create_directories(dir);
+        const std::string d = dir.string() + "/";
+        const std::vector<uint8_t> good = make_pack({{0, 0, 0, 32, 32, 0, 7}});
+        auto zip = [&](const fs::path &path, const std::string &member, const std::vector<uint8_t> &bytes) {
+            // a stored (uncompressed) zip with one member
+            std::vector<uint8_t> z;
+            auto put = [&](const void *p, size_t n) { z.insert(z.end(), (const uint8_t *)p, (const uint8_t *)p + n); };
+            auto u16 = [&](uint16_t v) { put(&v, 2); };
+            auto u32 = [&](uint32_t v) { put(&v, 4); };
+            const uint32_t crc = rt::crc32(bytes.data(), bytes.size());
+            u32(0x04034b50), u16(20), u16(0), u16(0), u16(0), u16(0), u32(crc), u32(uint32_t(bytes.size())),
+                u32(uint32_t(bytes.size())), u16(uint16_t(member.size())), u16(0);
+            put(member.data(), member.size());
+            put(bytes.data(), bytes.size());
+            const uint32_t cd = uint32_t(z.size());
+            u32(0x02014b50), u16(20), u16(20), u16(0), u16(0), u16(0), u16(0), u32(crc), u32(uint32_t(bytes.size())),
+                u32(uint32_t(bytes.size())), u16(uint16_t(member.size())), u16(0), u16(0), u16(0), u16(0), u32(0), u32(0);
+            put(member.data(), member.size());
+            const uint32_t cd_size = uint32_t(z.size()) - cd;
+            u32(0x06054b50), u16(0), u16(0), u16(1), u16(1), u32(cd_size), u32(cd), u16(0);
+            std::FILE *f = std::fopen(path.string().c_str(), "wb");
+            std::fwrite(z.data(), 1, z.size(), f);
+            std::fclose(f);
+        };
+        std::string why;
+        check(app::HiresMaker::prepare_pack(why, d, d + "none.m2tex").empty(), "an empty folder has no pack");
+        zip(dir / "a_bad.zip", "hires.m2tex", std::vector<uint8_t>(64, 1));
+        zip(dir / "b_none.zip", "readme.txt", std::vector<uint8_t>(10, 'x'));
+        zip(dir / "c_good.zip", "pack/hires.m2tex", good);
+        const std::string got = app::HiresMaker::prepare_pack(why, d, d + "none.m2tex");
+        check(got == d + "hires.m2tex", "the valid zip's pack is unpacked to hires.m2tex");
+        check(why.find("a_bad.zip left out") != std::string::npos, "a zip with a broken pack is left out, named");
+        check(why.find("b_none.zip left out: no .m2tex") != std::string::npos, "a zip without a pack is left out");
+        check(why.find("unpacked from textures/c_good.zip") != std::string::npos, "the unpacking is told");
+        app::hires::Pack p;
+        check(p.load(got) && p.entries.size() == 1, "the unpacked pack loads");
+        check(app::HiresMaker::prepare_pack(why, d, d + "none.m2tex") == got && why.empty(), "next start: the pack as it is");
+        // the older place's pack is moved in when the folder has none
+        fs::remove_all(dir);
+        fs::create_directories(dir / "old");
+        {
+            std::FILE *f = std::fopen((dir / "old" / "hires.m2tex").string().c_str(), "wb");
+            std::fwrite(good.data(), 1, good.size(), f);
+            std::fclose(f);
+        }
+        check(app::HiresMaker::prepare_pack(why, d, (dir / "old" / "hires.m2tex").string()) == d + "hires.m2tex" &&
+                  !fs::exists(dir / "old" / "hires.m2tex"),
+              "the data folder's pack moved to textures/");
+        fs::remove_all(dir);
+    }
 
     if (failures) return 1;
     std::printf("hires: ok\n");

@@ -78,7 +78,15 @@ std::string server_error(const std::string &payload) {
     if (code == "password") return TXR("Wrong server password.");
     if (code == "server_full") return TXR("The server is full: too many rooms open.");
     if (code == "too_many") return TXR("Too many connections to the server from your address.");
-    if (code == "version") return TXR("This server is not compatible with this version of the game.");
+    if (code == "version") {
+        const auto who = online::refusal_outdated(payload);
+        if (who == online::Outdated::Game)
+            return TXR("This server runs a newer version of the Online mode: update your game (git pull, or download the "
+                       "source again) and build it again.");
+        if (who == online::Outdated::Server)
+            return TXR("This server runs an older version of the Online mode: whoever runs it needs to update it.");
+        return TXR("This server is not compatible with this version of the game.");
+    }
     if (code == "room") return TXR("Invalid room code.");
     if (code == "players") return TXR("Invalid number of players: 2 to 8.");
     if (code == "settings") return TXR("The server refused the room's settings.");
@@ -87,8 +95,16 @@ std::string server_error(const std::string &payload) {
     if (code == "slow_down") return TXR("Too many failed attempts: wait a minute and try again.");
     if (code == "idle") return TXR("The room was closed: nobody raced in it for a long time.");
     if (code == "flood") return TXR("Disconnected by the server: your game sent too much data.");
-    if (code == "game_version")
+    if (code == "game_version") {
+        const auto who = online::refusal_outdated(payload);
+        if (who == online::Outdated::Game)
+            return TXR("This room was created by a newer version of the game: update yours (git pull, or download the "
+                       "source again, and build it again) to join it.");
+        if (who == online::Outdated::Room)
+            return TXR("This room was created by an older version of the game: its creator needs to update to the latest "
+                       "version.");
         return TXR("This room was created by another version of the game: every player needs the same version.");
+    }
     return std::string(TXR("The server refused the connection: ")) + text;
 }
 
@@ -264,6 +280,7 @@ void RelayLink::fail(const std::string &why) {
 void RelayLink::refused(const std::string &payload) {
     const auto nl = payload.find('\n');
     error_code_ = nl == std::string::npos ? std::string() : payload.substr(0, nl);
+    outdated_ = online::refusal_outdated(payload);
     fail(server_error(payload));
 }
 

@@ -354,6 +354,8 @@ HomeMenu::Action HomeMenu::draw(bool has_race, bool loading, const char *message
     if (in_room) status_word = TX("In a room"), status_col = green;
     else if (connecting) status_word = TX("Connecting..."), status_col = amber;
     else if (online.server.empty()) status_word = TX("No server"), status_col = muted;
+    else if (online.update == HomeOnline::Update::Game) status_word = TX("Update needed"), status_col = alarm;
+    else if (online.update == HomeOnline::Update::Server) status_word = TX("Server outdated"), status_col = alarm;
     else
         switch (online.probe) {
         case HomeOnline::Probe::Ok: status_word = TX("Online"), status_col = green; break;
@@ -859,6 +861,8 @@ HomeMenu::Action HomeMenu::draw(bool has_race, bool loading, const char *message
         if (online.name.empty()) ready = TX("SET A NAME"), ready_col = amber;
         else if (in_room || connecting) ready = TX("ONLINE READY"), ready_col = green;
         else if (online.server.empty()) ready = TX("NO SERVER"), ready_col = amber;
+        else if (online.update == HomeOnline::Update::Game) ready = TX("UPDATE THE GAME"), ready_col = alarm;
+        else if (online.update == HomeOnline::Update::Server) ready = TX("SERVER OUTDATED"), ready_col = alarm;
         else if (online.probe == HomeOnline::Probe::Ok) ready = TX("ONLINE READY"), ready_col = green;
         else if (online.probe == HomeOnline::Probe::Offline) ready = TX("SERVER OFFLINE"), ready_col = alarm;
         else if (online.probe == HomeOnline::Probe::Version) ready = TX("VERSION MISMATCH"), ready_col = alarm;
@@ -877,13 +881,23 @@ HomeMenu::Action HomeMenu::draw(bool has_race, bool loading, const char *message
     // A new version is out (app/update_check.h): a card above the bottom
     // bar, at the right, over the scene; what to do, and its release page.
     // Players build their own game (rules.md, 22): source, never a download.
-    if (!update_.empty() && !loading) {
+    // The same card when this game is behind the Online mode: the server
+    // races with a newer version, or refused this one (every player of a
+    // room needs the same); closed until the game starts again.
+    const bool online_update = online.update == HomeOnline::Update::Game && !online_update_dismissed_;
+    // and when the first race was slow (app/speed_check.h): what held it back, and a button to lower it
+    const bool slow = !slow_.empty();
+    if ((!update_.empty() || online_update || slow) && !loading) {
         const float pad = 18 * scale, title_s = 24 * scale, body_s = 16.5f * scale, button_h = 38 * scale;
         const float card_w = std::min(440 * scale, std::max(300 * scale, w - left - panel - 60 * scale - left));
         const float wrap = card_w - 2 * pad;
         char title[96];
-        std::snprintf(title, sizeof title, TX("NEW VERSION %s"), update_.c_str());
-        const char *line = TX("Update your copy of the source (git pull, or download it again) and build the game again.");
+        if (slow) std::snprintf(title, sizeof title, "%s", TX("THE RACE WAS SLOW"));
+        else if (online_update) std::snprintf(title, sizeof title, "%s", TX("ONLINE: UPDATE NEEDED"));
+        else std::snprintf(title, sizeof title, TX("NEW VERSION %s"), update_.c_str());
+        const char *line = slow ? slow_.c_str() : online_update ? TX("The Online mode has a newer version, and every player of a room needs the same one. Update "
+                                              "your copy of the source (git pull, or download it again) and build the game again.")
+                                         : TX("Update your copy of the source (git pull, or download it again) and build the game again.");
         const float line_h = body_->CalcTextSizeA(body_s, FLT_MAX, wrap, line).y;
         const float card_h = pad + title_s + 10 * scale + line_h + 16 * scale + button_h + pad;
         const ImVec2 b = px(w - left, bottom - 40 * scale), a = {b.x - card_w, b.y - card_h};
@@ -893,12 +907,16 @@ HomeMenu::Action HomeMenu::draw(bool has_race, bool loading, const char *message
         italic(draw, display_, fit(display_, title_s, title, wrap), {a.x + pad, a.y + pad}, amber, title, 0.18f);
         draw->AddText(body_, body_s, {a.x + pad, a.y + pad + title_s + 10 * scale}, rgba(0.88f, 0.93f, 1), line, nullptr, wrap);
         const float by = b.y - pad - button_h, bw = (wrap - 12 * scale) * 0.5f;
-        if (neon::blue_button(draw, body_, scale, "##release_page", TX("Release page"), {a.x + pad, by},
+        if (neon::blue_button(draw, body_, scale, slow ? "##lower_quality" : "##release_page",
+                              slow ? TX("Lower the quality") : TX("Release page"), {a.x + pad, by},
                               {a.x + pad + bw, by + button_h}, 0, 17.f))
-            action = OpenRelease;
+            action = slow ? LowerQuality : OpenRelease;
         if (neon::outline_button(draw, body_, scale, TX("Dismiss"), {b.x - pad - bw, by}, {b.x - pad, by + button_h},
-                                 ImVec4(0.55f, 0.72f, 1, 1), 17.f))
-            action = DismissUpdate;
+                                 ImVec4(0.55f, 0.72f, 1, 1), 17.f)) {
+            if (slow) action = DismissSlow;
+            else if (online_update) online_update_dismissed_ = true;
+            else action = DismissUpdate;
+        }
     }
 
     // The player's name: asked once, or from the pill.

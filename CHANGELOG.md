@@ -4,7 +4,11 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`). The
 fork's version is in `VERSION`, raised with every code change (rules.md
 rule 14); each version has its section here.
 
-## Unreleased (version to be decided)
+## 0.22.0 (2026-11-26)
+
+Online: every player of a room needs 0.22.0 (the game's online version is
+11). The relay's update (`server/daytona-relay`) is optional: it lets an older
+game say it needs updating before it tries a room.
 
 ### A custom body for the player's car (experimental)
 
@@ -56,6 +60,138 @@ the game's car.
   cards, its reason in the log (`daytona: cars/NAME left out: ...`). The
   data folder's `cars/` is no longer read: move its folders to the
   project's. Test: `custom_cars`.
+
+### Online: the other cars no longer flicker on a far or uneven line
+
+- The link's adaptive reserve (the blocks of the other cabinets' data held
+  back against the line's jitter) kept falling to 0 in the quiet seconds
+  and rising again at each spike: every change shows, a rise holding the
+  other cars a frame and a drop skipping one. It now stays at 1 or more
+  and comes down only after 3 quiet windows in a row (about 15 s); it
+  still rises after a window with 2 frames short, up to 6
+  (`CommBoard::set_options`; `M2_PROTO_STEADY=0` gives 0.21's policy, and
+  `M2_PROTO_RESERVE_MAX`, `M2_PROTO_CALM` its ceiling and quiet windows,
+  for comparisons). The online version goes to 11: a room holds players
+  of one policy.
+- Measured headless (3 `m2run --relay` cabinets against a local relay,
+  netem; interleaved races, the share of frames where another car moved
+  one step, the rest standing or skipping):
+
+  | Line | 0.21 | now | the reserve now |
+  | --- | --- | --- | --- |
+  | the master far (85 ms, a 1 s spike to 240 ms every 20 s), the others near | master 96.5 %, others 98.0 % | master 99.4 %, others 99.65 % | master 5, others 2 to 5 |
+  | everyone 25 ms, a 1 s spike to 180 ms every 20 s | 96.2 % | 97.0 to 97.6 % | 5 to 6 |
+  | 60 +- 30 ms | 3 of 18 cabinets under 99 % (worst 90.7 %) | none (worst 99.2 %) | |
+  | 100 +- 15 ms | the same | the same | |
+
+  The reserve held is the line's own: a cabinet on a spiky line now shows
+  the other cars up to 5 or 6 frames (83 to 100 ms) later than one on a
+  calm line. A ceiling of 4 with 2 quiet windows kept more of 0.21's
+  flicker (master 98.4 %).
+
+### Start over: erase the settings and start again
+
+- Settings > Game > **Start over** > **Erase the settings...**, confirmed,
+  closes the game, erases this profile's `launcher.ini` (after the last
+  save) and starts the game again with the same arguments
+  (`app::restart_self`: a new process on Windows, `execv` of the running
+  file elsewhere, inside an AppImage too); the first start's checks then
+  run again (the ROM set, the graphics card's image quality test), and a
+  texture pack in `textures/` is turned on again. The records and the
+  cabinet's own settings (EEPROM, backup RAM) are kept. On Linux and
+  macOS the game started again prints where the first did (its log's tee
+  is undone before). `M2_TEST_START_OVER=1` asks it after 120 frames (for
+  a headless check: the restarted game's settings are the defaults).
+
+### The logs beside roms/ and cars/
+
+- The game's log is in a `logs/` folder beside `roms/` and `cars/`
+  (beside the `.AppImage`, beside `daytona.exe` in a Windows package, the
+  project's when built from source; git ignores it), as
+  `<set>-<profile>.log` (`daytona-pc-solo.log` for the PC home) with the 5
+  sessions before it (`.1.log` .. `.5.log`); `hires-textures.log` too.
+  Before, it was `daytona.log` in the settings folder (`%APPDATA%` on
+  Windows), which players could not find; that folder stays the fallback
+  when there is no `roms/` folder or it cannot be written. Settings > Game
+  shows the folder and opens it (`Config::logs_dir`).
+
+### The render resolution never past the screen's
+
+- A player's log (a Radeon RX 570, a 1920 x 1080 screen, Direct3D 12)
+  showed the native mode drawing 3840 x 2160: it drew twice the screen
+  each way, and the game froze in seconds; at 1920 x 1080 it ran. The
+  native mode is now the screen's (the window's) own resolution, as 0.21's
+  "Native direct" was (both settings read as it); the anti-aliasing is
+  MSAA's. The arcade multiples (2x to 4x) are drawn at most at the
+  screen's height, 10 % over allowed (`app::arcade_scale_for`: 3x on a
+  1080-line screen, 4x from 1440 lines); Settings > Video shows each
+  choice with the pixels it draws ("4x: more than the screen, drawn at
+  3x").
+- The automatic quality measures each level at what it draws now
+  (Maximum at the screen's size, High at the most the screen takes), and
+  the log says the graphics card and its driver at the start, the test's
+  times, sizes and recommendation, and the level applied, so that a log
+  sent with a problem tells what the card was asked to draw.
+- The first race's speed check (`app/speed_check.h`) now also splits the
+  main loop's time: the waits (the pacer's hold, the swapchain) and the
+  processor's own work (the game, the renderer's preparation, the custom
+  car). A slow race names what held it back: the processor when its work
+  takes 80 % of a frame at the game's rate, else the graphics card. The
+  home shows a card ("THE RACE WAS SLOW") with **Lower the quality**: for
+  the graphics card a level down (Medium, or Original from Medium), for
+  the processor the game's own car and flat car shading (what costs it
+  most: the Challenger's work is 8.3 ms a frame on an i5-14600KF, of the
+  17.4 ms a frame has). The log has the measurement after every first
+  race, slow or not, and the session line the processor's name and the
+  screen's size and rate; the image quality window shows the screen, the
+  graphics card and the processor it measured for.
+  `M2_CAPTURE_HOME_SLOW=cpu|gpu` shows the card in a `--capture-home` image.
+
+### Online: a notice when the game or the server has to be updated
+
+- The server's answer to the home screen's probe (`op=info`) now says the
+  newest game online version a race has started with on it
+  (`game_online=`, since the server started). A game behind it shows
+  "Update needed" in its Online pill, "UPDATE THE GAME" in the bottom bar
+  and a card like the new-version notice ("ONLINE: UPDATE NEEDED": every
+  player of a room needs the same version; how to update; the release
+  page; Dismiss hides it until the game starts again), and the Online
+  screen says so when it connects.
+- A refusal now says which side is behind: the server's `version` refusal
+  carries its protocol (`server_protocol=`), the room's `game_version` one
+  the room's version (`room_online=`), as extra `key=value` lines that an
+  older game skips; with an older server the game reads the same numbers
+  from the refusal's text. The game then says "update your game" (and
+  shows the card), "the room's creator needs to update", or "this server
+  needs updating" instead of "another version".
+- The server's protocol stays 5 and the game's online version 11: an
+  older game or server works with these as before.
+  `M2_CAPTURE_HOME_UPDATE=1` shows the notice in a `--capture-home` image.
+
+### A Linux AppImage
+
+- `scripts/make-appimage.sh` packs the Linux build as one
+  `Daytona-x86_64.AppImage` (Docker only: appimagetool 1.9.1 and the type 2
+  runtime pinned by SHA-256; the game, m2texcap, the AI textures kit and
+  the translations inside; an icon of our own in `platform/linux/`). The
+  game looks for `roms/`, `cars/` and `textures/` beside the `.AppImage`
+  file (`$APPIMAGE`), the image itself being read-only, then as before.
+  Built on Ubuntu 24.04: glibc 2.38 or newer. Never shared: it holds code
+  derived from your ROM set (rule 22). `scripts/docker-build.sh` makes it
+  at the end of every build (`--no-appimage` leaves it out); a failure
+  there leaves the game built.
+
+### The high-resolution texture pack in the project's textures/ folder
+
+- The pack lives in `textures/` beside `roms/` and `cars/` (git ignores all
+  but its README), no longer in the data folder. At each start the game
+  uses `textures/hires.m2tex` when valid; else the first `.zip` (or `.7z`)
+  there holding a `.m2tex`, checked with the pack's own reader, unpacked
+  and turned on (an 84 MB pack is a 38 MB zip, unpacked in under a
+  second); else it moves a pack made before from the data folder. A file
+  that is not a valid pack is left out, its reason in the log. With none,
+  Settings > AI textures makes one, saved there. Test: `hires` (a good, a
+  broken and an empty zip; the move from the data folder).
 - Decal faces: SURFACE 10..19 in bodies.m2car is a face with surface
   SURFACE - 10's texture, drawn in front of the faces it lies on (sorted by
   its nearest corner, 2 cm nearer, instead of its mean depth: a thin strip
@@ -72,9 +208,15 @@ the game's car.
   over the brightest's, so the car not chosen stays dimmed as the game's.
 - The cockpit view (VR2): the game draws its own model of the bonnet and
   dashboard there (ROM object 0x94fff9, keyed as the body, the camera
-  inside the car). Its bonnet and wings are painted with the new body seen
-  from above (per point, the surface of the body's highest face, its
-  texture fitted as a plane over x and z); the dashboard stays.
+  inside the car). The new body's own bonnet and wings take the place of
+  the game's: its skin seen from above (faces turned up within 3 cm of the
+  highest over them) ahead of the windscreen, the glass left out, slid
+  until the windscreen's foot meets the game's bonnet's rear edge and
+  raised or lowered to its height there (the camera stays where the game
+  puts it: a tall car's bonnet, the Beetle's, would stand over the
+  driver's eye), and drawn before the whole dashboard, which stays. Before,
+  the game's bonnet kept its own shape, painted with the new body's
+  surfaces; that painting stays for a body with nothing to draw there.
 - Faster: smooth car shading grouped the corners in a hash of vectors, one
   per corner, each frame; it now sorts them, the same light to the bit (the
   frames byte-identical with and without a custom body). A face turned

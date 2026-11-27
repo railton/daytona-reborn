@@ -109,6 +109,11 @@ With Revision A in `roms/` too, it is built as well, in its own folder:
 
         build-daytona/daytona
 
+On Linux, `scripts/docker-build.sh` then also packs it as one file,
+`build-daytona/Daytona-x86_64.AppImage` (`scripts/make-appimage.sh`; see
+[BUILDING.md](BUILDING.md), "The AppImage"): `roms/`, `cars/` and
+`textures/` go beside it.
+
 If it stops before that, see [Troubleshooting](#troubleshooting).
 
 ## 4. Play
@@ -126,8 +131,9 @@ used Ninja.) On Windows the command prompt comes back straight away, as for
 any windowed program; the game's messages still appear in that window. To
 have the window wait until the game closes, use
 `start /wait build\Release\daytona.exe`. Started from Explorer or a
-shortcut, the game writes its messages to `daytona.log` in its settings
-folder (see Starting again from scratch for where that is).
+shortcut, the game writes its messages to `logs\daytona-pc-solo.log`, in the
+`logs` folder beside `roms` (the settings folder, see Starting again from
+scratch, when the game's folder cannot be written).
 
 Revision A is `build-daytona/daytona` (`build-daytona\Release\daytona.exe`
 on Windows); it keeps its own settings and saves.
@@ -346,8 +352,8 @@ and what you were doing in the game.
 
 **Reporting a problem with the game itself**
 Include the game's messages: the lines starting `daytona:` in the window you
-started it from, or on Windows the file `daytona.log` in the settings folder
-below. They say which graphics driver and renderer are in use (for example
+started it from, or the file `logs/daytona-pc-solo.log` beside `roms` (the
+settings folder below when the game's folder cannot be written). They say which graphics driver and renderer are in use (for example
 `daytona: renderer hardware (GPU)`), and why the hardware renderer could not
 start if it could not.
 
@@ -356,7 +362,10 @@ It is waiting for a second, linked cabinet. Set a single cabinet in test
 mode (F2), as under [Play](#4-play).
 
 **Starting again from scratch**
-Delete the `build` folder (and `build-daytona`) and run setup again. Your
+To reset only the settings: Settings > Game > **Start over** > **Erase the
+settings...**; the game restarts and checks the ROM set and the graphics card
+again (records kept). For the build too:
+delete the `build` folder (and `build-daytona`) and run setup again. Your
 ROM sets in `roms/` are kept. Launcher settings, the game's settings EEPROM
 and backup RAM are in (`daytona` instead of `daytona93` for Revision A):
 

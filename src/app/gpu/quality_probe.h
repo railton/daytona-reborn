@@ -23,8 +23,8 @@ public:
     enum class Stage { Idle, Preparing, Maximum, High, Medium, Done, Failed };
     // display_w x display_h: the screen, in pixels. native_modes: the
     // screen's own resolution exists (Direct3D 12, Vulkan): Maximum is
-    // measured as the native mode draws (twice the screen each way when it
-    // is at most 4096 wide and tall); else at 4 times the arcade's.
+    // measured at the screen's size, as the native mode draws; else, as High,
+    // at 4 times the arcade's or the most the screen's height takes.
     void start(SDL_GPUDevice *dev, int display_w, int display_h, bool native_modes);
     void step();
     void stop(); // releases its renderers and target

@@ -198,8 +198,9 @@ build folders, then run setup again. `roms/` and `extern/` are kept.
   clean rebuild, and report the lines containing `error`.
 - The command prompt comes back straight away when the game starts: normal
   for a windowed program. Started from Explorer, the game writes its messages
-  to `daytona.log` in its settings folder
-  (`%APPDATA%\daytona-recomp\daytona-pc-solo\`).
+  to `logs\daytona-pc-solo.log`, in the `logs` folder beside `roms` and `cars`
+  (in the settings folder, `%APPDATA%\daytona-recomp\daytona-pc-solo\`, when
+  the game's folder cannot be written).
 
 ## Linux with Docker (recommended on Linux)
 
@@ -218,12 +219,27 @@ on that and on any newer distribution.
    The first time it builds the `daytona-builder` image (from
    `docker/linux-build/Dockerfile`), then runs the same build as everyone
    else (`python3 scripts/setup.py`) inside it. Any option is passed on to
-   `setup.py`. It ends by printing where the game is.
+   `setup.py`. It ends by packing the game as an AppImage and printing
+   where it is.
 3. Start the game:
 
-       build-daytona/daytona
+       build-daytona/Daytona-x86_64.AppImage
 
-   (`build/daytona` is Deluxe '93, if you have that set too.)
+   or `build-daytona/daytona` (`build/daytona` is Deluxe '93, if you have
+   that set too).
+
+**The AppImage** (`build-daytona/Daytona-x86_64.AppImage`, made by
+`scripts/make-appimage.sh` at the end of every build; `--no-appimage`
+leaves it out) is the whole game in one file: it runs on Ubuntu 24.04 and
+newer distributions (glibc 2.38) with a double click, once it may run
+(file manager: Properties > "Executable as program", or `chmod +x`).
+Put it in a folder of its own with `roms/` (your `daytona.zip`), and
+`cars/` and `textures/` if you have them, beside it: the game looks for
+them beside the `.AppImage` file. Without FUSE:
+`./Daytona-x86_64.AppImage --appimage-extract-and-run`. The packing runs
+in Docker (appimagetool 1.9.1 and the type 2 runtime, pinned by SHA-256,
+downloaded the first time). Like every build it holds code derived from
+your ROM set: it is for you, never to be shared (rules.md 22).
 
 The build runs as your own user, so every file in `build/`,
 `build-daytona/` and `extern/` belongs to you, not to root: you can delete
@@ -280,7 +296,8 @@ only (below).
 
 It installs the compiler and libraries with your package manager (apt, dnf,
 pacman or zypper; it asks for your `sudo` password), then runs the same
-`scripts/setup.py`. The game is `build-daytona/daytona`. Details and fixes:
+`scripts/setup.py`. The game is `build-daytona/daytona`; for the AppImage
+(above), `./scripts/make-appimage.sh` after it (Docker). Details and fixes:
 [getting-started.md](getting-started.md).
 
 ## First run

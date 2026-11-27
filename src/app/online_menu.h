@@ -48,6 +48,7 @@ private:
     std::string probed_;               // the server (and password) that answered; empty: not connected
     std::vector<int> choice_;          // per room option (room_options() in the .cpp), the value picked
     bool ask_password_ = false;        // the server asked for one (or one is saved): show its field
+    bool newer_online_ = false;        // the server races with a newer game online version (game_online=)
     bool auto_connect_ = false;        // the saved server was asked when the screen opened
     ImFont *display_ = nullptr, *body_ = nullptr;
     // Outside a room: the room's settings, in the home screen's look.

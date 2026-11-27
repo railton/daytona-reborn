@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdio>
 
 namespace app {
 
@@ -31,12 +32,19 @@ void QualityProbe::stop() {
 
 QualityProbe::Size QualityProbe::size_of(Stage level) const {
     switch (level) {
+    // never past the screen: the native mode is the screen's own pixels, the
+    // arcade multiples at most its height (app/quality.h, arcade_scale_for)
     case Stage::Maximum:
-        if (!native_modes_) return {1984, 1536};
-        if (display_w_ <= 4096 && display_h_ <= 4096) return {display_w_ * 2, display_h_ * 2};
-        return {display_w_, display_h_};
-    case Stage::High: return {1984, 1536};   // 4 times 496 x 384
-    case Stage::Medium: return {992, 768};   // twice
+        if (native_modes_) return {display_w_, display_h_};
+        [[fallthrough]];
+    case Stage::High: {
+        const int k = arcade_scale_for(4, display_h_);
+        return {kArcadeWidth * k, kArcadeHeight * k};
+    }
+    case Stage::Medium: {
+        const int k = arcade_scale_for(2, display_h_);
+        return {kArcadeWidth * k, kArcadeHeight * k};
+    }
     default: return {0, 0};
     }
 }
@@ -99,7 +107,16 @@ void QualityProbe::finish_level(double ms) {
     case Stage::High: times_.high = ms, stage_ = Stage::Medium; break;
     default: times_.medium = ms, stage_ = Stage::Done; break;
     }
-    if (stage_ == Stage::Done) stop();
+    if (stage_ == Stage::Done) {
+        // for a log sent with a problem: what was measured, and the level it gives
+        const char *names[] = {"original", "medium", "high", "maximum"};
+        const auto mx = size_of(Stage::Maximum), hi = size_of(Stage::High), md = size_of(Stage::Medium);
+        std::printf("daytona: image quality test on %s (screen %dx%d): maximum %.1f ms at %dx%d, high %.1f ms at %dx%d, "
+                    "medium %.1f ms at %dx%d (budget %.0f ms): recommended %s\n",
+                    gpu_name_.empty() ? "the graphics card" : gpu_name_.c_str(), display_w_, display_h_, times_.maximum, mx.w, mx.h,
+                    times_.high, hi.w, hi.h, times_.medium, md.w, md.h, kQualityBudgetMs, names[int(level())]);
+        stop();
+    }
 }
 
 void QualityProbe::step() {
