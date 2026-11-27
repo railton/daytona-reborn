@@ -60,6 +60,46 @@ the game's car.
   cards, its reason in the log (`daytona: cars/NAME left out: ...`). The
   data folder's `cars/` is no longer read: move its folders to the
   project's. Test: `custom_cars`.
+- Decal faces: SURFACE 10..19 in bodies.m2car is a face with surface
+  SURFACE - 10's texture, drawn in front of the faces it lies on (sorted by
+  its nearest corner, 2 cm nearer, instead of its mean depth: a thin strip
+  over a big face lost to it). For panel lines and stickers drawn as
+  geometry. Bodies without them are unchanged.
+- See-through glass: a body folder's `car.ini` with `glass_opacity=F` (0.25
+  to 1; `glass_see_through=1` is 0.5) draws the player's glass covering
+  that share (alpha to coverage with MSAA, an ordered 2 x 2 pattern
+  without), as the game's own translucency, so a car with an interior shows
+  it; the glass casts no shadow. Without it the frames are
+  unchanged (checked against the Camaro's, byte for byte).
+- The mission select screen's two turning cars (not keyed: known by their
+  ROM objects) take the body and wheels too, each lit by its own game light
+  over the brightest's, so the car not chosen stays dimmed as the game's.
+- The cockpit view (VR2): the game draws its own model of the bonnet and
+  dashboard there (ROM object 0x94fff9, keyed as the body, the camera
+  inside the car). The new body's own bonnet and wings take the place of
+  the game's: its skin seen from above (faces turned up within 3 cm of the
+  highest over them) ahead of the windscreen, the glass left out, slid
+  until the windscreen's foot meets the game's bonnet's rear edge and
+  raised or lowered to its height there (the camera stays where the game
+  puts it: a tall car's bonnet, the Beetle's, would stand over the
+  driver's eye), and drawn before the whole dashboard, which stays. Before,
+  the game's bonnet kept its own shape, painted with the new body's
+  surfaces; that painting stays for a body with nothing to draw there.
+- Faster: smooth car shading grouped the corners in a hash of vectors, one
+  per corner, each frame; it now sorts them, the same light to the bit (the
+  frames byte-identical with and without a custom body). A face turned
+  from the camera is kept only when it faces the sun (it only casts the
+  shadow), and none without car shadows. The custom body's and wheel's
+  smooth corner normals are made once, when they load (they do not change
+  shape), and turned by the car's matrix each frame; their light is the
+  game's light fit at those normals. 3440 x 1440, MSAA 4x, shadows,
+  reflections, bloom and CRT, 3,600 frames of a race: game + renderer CPU
+  median 22.4 -> 7.9 ms (p99 36.0 -> 11.4 ms) with the test body, now
+  20,869 faces and four 1,679-face wheels (were 27,731 and 3,289); 1.2 ms
+  with the game's car.
+- Checked with a 20,869-face body made from a third-party model (kept local,
+  its licence's): no flicker between consecutive frames, the shadow with its
+  outline, the numbers upright from every camera.
 
 ### Online: the other cars no longer flicker on a far or uneven line
 
@@ -192,46 +232,6 @@ the game's car.
   that is not a valid pack is left out, its reason in the log. With none,
   Settings > AI textures makes one, saved there. Test: `hires` (a good, a
   broken and an empty zip; the move from the data folder).
-- Decal faces: SURFACE 10..19 in bodies.m2car is a face with surface
-  SURFACE - 10's texture, drawn in front of the faces it lies on (sorted by
-  its nearest corner, 2 cm nearer, instead of its mean depth: a thin strip
-  over a big face lost to it). For panel lines and stickers drawn as
-  geometry. Bodies without them are unchanged.
-- See-through glass: a body folder's `car.ini` with `glass_opacity=F` (0.25
-  to 1; `glass_see_through=1` is 0.5) draws the player's glass covering
-  that share (alpha to coverage with MSAA, an ordered 2 x 2 pattern
-  without), as the game's own translucency, so a car with an interior shows
-  it; the glass casts no shadow. Without it the frames are
-  unchanged (checked against the Camaro's, byte for byte).
-- The mission select screen's two turning cars (not keyed: known by their
-  ROM objects) take the body and wheels too, each lit by its own game light
-  over the brightest's, so the car not chosen stays dimmed as the game's.
-- The cockpit view (VR2): the game draws its own model of the bonnet and
-  dashboard there (ROM object 0x94fff9, keyed as the body, the camera
-  inside the car). The new body's own bonnet and wings take the place of
-  the game's: its skin seen from above (faces turned up within 3 cm of the
-  highest over them) ahead of the windscreen, the glass left out, slid
-  until the windscreen's foot meets the game's bonnet's rear edge and
-  raised or lowered to its height there (the camera stays where the game
-  puts it: a tall car's bonnet, the Beetle's, would stand over the
-  driver's eye), and drawn before the whole dashboard, which stays. Before,
-  the game's bonnet kept its own shape, painted with the new body's
-  surfaces; that painting stays for a body with nothing to draw there.
-- Faster: smooth car shading grouped the corners in a hash of vectors, one
-  per corner, each frame; it now sorts them, the same light to the bit (the
-  frames byte-identical with and without a custom body). A face turned
-  from the camera is kept only when it faces the sun (it only casts the
-  shadow), and none without car shadows. The custom body's and wheel's
-  smooth corner normals are made once, when they load (they do not change
-  shape), and turned by the car's matrix each frame; their light is the
-  game's light fit at those normals. 3440 x 1440, MSAA 4x, shadows,
-  reflections, bloom and CRT, 3,600 frames of a race: game + renderer CPU
-  median 22.4 -> 7.9 ms (p99 36.0 -> 11.4 ms) with the test body, now
-  20,869 faces and four 1,679-face wheels (were 27,731 and 3,289); 1.2 ms
-  with the game's car.
-- Checked with a 20,869-face body made from a third-party model (kept local,
-  its licence's): no flicker between consecutive frames, the shadow with its
-  outline, the numbers upright from every camera.
 
 ## 0.21.0 (2026-11-25)
 
