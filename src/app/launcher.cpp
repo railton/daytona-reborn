@@ -963,7 +963,8 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
     }
     ImGui::Spacing();
 
-    // diagnostic: M2_CAPTURE_SETTINGS_TAB=N opens tab N (0 Game .. 5 Sound, 6 AI textures) once, for a --capture-home image
+    // diagnostic: M2_CAPTURE_SETTINGS_TAB=N opens a tab once, for a --capture-home image: 0 Main, 7 Cars,
+    // 4 Controls, 8 Advanced (M2_CAPTURE_SETTINGS_SECTION=N opens its section N: 0 Game .. 4 AI textures)
     static int open_tab = [] {
         const char *v = std::getenv("M2_CAPTURE_SETTINGS_TAB");
         return v && *v ? std::atoi(v) : -1;

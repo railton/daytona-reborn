@@ -4,6 +4,19 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`). The
 fork's version is in `VERSION`, raised with every code change (rules.md
 rule 14); each version has its section here.
 
+## Unreleased
+
+### Docs: screenshots and the guide at 0.24.0
+
+- The README's six screenshots taken again at 0.24.0 (the home with
+  International (km/h), the four Settings tabs, Settings > Advanced > AI
+  textures, the room's settings). `docs/getting-started.md` points at the
+  settings' new places (Advanced > Game, Display, Enhancements, Sound),
+  says what Render resolution offers now and that the force feedback was
+  tried on a gamepad; `textures/README.md` too. Rule 23: every platform
+  builds from the release commit before its tag; rule 13: a change to
+  what a screenshot shows takes it again in the same commit.
+
 ## 0.24.0 (2026-11-27)
 
 Online version 12: every player of a room needs 0.24.0 (a 0.23.0 game is

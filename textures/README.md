@@ -10,7 +10,7 @@ start the game looks in this folder:
    is turned on); a file that is not a valid pack is left out, and the
    game's log says why (`daytona: high-resolution textures: ...`);
 3. else a pack made before in the game's data folder is moved here;
-4. none: Settings > AI textures makes one from your own ROM set (Linux, for
+4. none: Settings > Advanced > AI textures makes one from your own ROM set (Linux, for
    now), saved here.
 
 ```

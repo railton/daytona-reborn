@@ -138,15 +138,15 @@ scratch, when the game's folder cannot be written).
 Revision A is `build-daytona/daytona` (`build-daytona\Release\daytona.exe`
 on Windows); it keeps its own settings and saves.
 
-A launcher opens first. On the **Game** tab, click **Browse...**, choose
+A launcher opens first. In **Settings > Advanced > Game**, click **Browse...**, choose
 the same `roms/daytona93.zip` (`roms/daytona.zip` for Revision A), and
 wait for the line under it to say "All 30 files verified." Then click
 **Start**. The launcher remembers the file
 next time. **Controls** sets your keys, gamepad and wheel. In the game,
 **Esc** brings the launcher back.
 
-**Wheel and pedals** (optional, experimental: not yet tested on a real
-wheel; reports welcome): on the **Controls** tab, the **Wheel / joystick**
+**Wheel and pedals** (optional, experimental: force feedback tested on a
+gamepad, not yet on a real wheel; reports welcome): on the **Controls** tab, the **Wheel / joystick**
 column takes any wheel, pedal set or shifter, even as separate
 USB devices. Click the box next to **Steer left**, turn the wheel left as
 far as you want full lock to be, and let go; do the same for **Steer
@@ -161,22 +161,22 @@ because SDL's own driver gives the newer Logitech wheels force feedback
 there; tick it if a Logitech wheel is listed but does nothing when you bind
 it. After changing it, restart the game and bind the wheel again.
 
-**Fullscreen mode and frame pacing** (optional, on the Game tab): the game
+**Fullscreen mode and frame pacing** (optional, in Advanced > Display): the game
 runs at the arcade's own speed, 57.52 frames/s, on any display. On a 60 Hz
 display that means a frame shown twice about every 0.4 s, and on a 144 Hz
 one a slight unevenness. **Fullscreen mode** picks an exclusive mode, such
-as a 57.52 Hz mode made in your graphics driver's settings; then tick
-**Smooth pacing on a 57.52 Hz display**. **VRR pacing** is for G-Sync or
+as a 57.52 Hz mode made in your graphics driver's settings; **Smooth pacing
+on a 57.52 Hz display**, on by default, then shows one frame per refresh. **VRR pacing** is for G-Sync or
 FreeSync displays: the display refreshes at the game's rate. **Sync to
 display** runs the game at 60 frames/s on a 60, 120 or 240 Hz display,
 perfectly smooth but about 4% faster than the arcade. Hover over each for
 details; the line under them says what is in effect.
 
-**Language**: the **Langue / Language** menu at the top of the launcher
-switches the interface between French and English (more languages to
-come); the choice is kept.
+**Language**: the **Language** menu at the top of Settings
+switches the interface between English, French and Brazilian Portuguese;
+the choice is kept.
 
-**Picture format**: first under **Display**. **Arcade 4:3** is the
+**Picture format**: first on the **Main** tab (and under Advanced > **Display**). **Arcade 4:3** is the
 cabinet's picture, centred with bars on a wide screen; **Automatic** takes
 the window's shape; 16:10, 16:9 or 21:9 keep their own. In the wide formats
 you see more of the scene at the sides, nothing is stretched, and the HUD
@@ -186,29 +186,30 @@ sides. In a race the sky at the sides is plain blue; tick **Stretch tile
 background (Experimental)** to stretch the game's own sky picture across
 the whole screen instead. All apply straight away, even mid-race.
 
-**Draw mode** (on the Game tab): **Double buffered** draws every frame, as
+**Draw mode** (in Advanced > Display): **Double buffered** draws every frame, as
 the arcade game does. **Single buffered** draws every second frame and
 **Every third frame** every third: much less work for slower machines. The
 game itself still runs at full speed; only the picture updates less often.
 
-**Super sampling** (on the Game tab, with **Renderer** set to **Hardware**):
-**Off** by default; **2x**, **3x** or **4x** draws the 3D at that many times the original
-resolution, with sharper textures; the HUD and text keep their pixel-art
-look. On a screen smaller than the picture it is scaled down, which also
-smooths jagged edges. Higher settings need a stronger GPU.
+**Render resolution** (in Advanced > Display, with **Renderer** set to **Hardware**):
+**Native** draws the 3D at the screen's own resolution; **2x**, **3x** or **4x**
+at that many times the arcade's, never past the screen's (more pixels than
+the screen shows only cost the graphics card). The HUD and text keep their
+pixel-art look. Higher settings need a stronger GPU; **Detect
+automatically** on the Main tab picks a level for the graphics card.
 
-**Draw distance** (optional): the slider under **Enhancements** sets how far
+**Draw distance** (optional): the slider under Advanced > **Enhancements** sets how far
 ahead trees, rocks and buildings are drawn. **Default** is the game's own.
 **Shorter** and **Shortest** draw less and run faster, which helps slower
 machines; **Further** and **Furthest** draw more. The road itself is not
 affected yet.
 
-**Audio** tab: **Volume** and **Mute**, and **Music** and **Effects**
+**Sound** (Advanced; the volume is on the Main tab too): **Volume** and **Mute**, and **Music** and **Effects**
 for the balance between the music and everything else (the engine, skids,
 crashes). Both at 100% is the game as the arcade's sound board mixes it.
 
-**Test menu without an F2 key** (phones, tablets): tick **Hold Test button**
-next to Start, then Start or Resume. Once the game is running, the Test
+**Test menu without an F2 key** (phones, tablets): tick **Hold the Test
+button** in Advanced > Game, then Start or Resume. Once the game is running, the Test
 button is held for 3 seconds and the test menu opens (coin settings, game
 type, cabinet); the box clears itself.
 
@@ -225,7 +226,7 @@ cabinet, so it waits at the settings screen for a second cabinet. Press
 mode does it through the relay server, also on a local network (see the
 README, "Playing on a local network").
 
-To skip the launcher, tick **Skip launcher** on the Game tab: from then on
+To skip the launcher, tick **Skip the launcher** in Advanced > Display: from then on
 the game starts straight away (Esc still brings the launcher back, where you
 can untick it). If the ROM set is missing or wrong, the launcher shows
 anyway, with the reason. For one run only:

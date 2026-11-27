@@ -105,7 +105,12 @@ instead: rules 19 and 20.
 13. **`CHANGELOG.md` is updated in the same commit as any change a player or
     a contributor would notice**: what it does, in plain words, under the
     right heading, and any new known limit. A finding that lives only in a
-    commit message is lost.
+    commit message is lost. **A change to what a screenshot shows** (a
+    screen, a label, a default, a tab) **takes that screenshot again in the
+    same commit**: `docs/images/`, made with `--capture-home` (CLAUDE.md,
+    "Seeing the game without clicking"), at the same size (1600 x 900) and
+    in English, and the guides that name the changed screen or setting
+    are updated with it.
 14. **A version is made only when the user asks for one.** Until then,
     commits are ordinary commits: `VERSION` stays, and `CHANGELOG.md`
     collects the changes under `## Unreleased`. When a version is asked
@@ -171,7 +176,14 @@ instead: rules 19 and 20.
     `Daytona Reborn X.Y.Z`, the text in English from that version's
     `CHANGELOG.md` section, in the previous release's format, no files
     attached (rule 22). The in-game update notice reads the latest
-    release, so it is published as the latest.
+    release, so it is published as the latest. **Before the tag, every
+    platform builds from the release commit**: Linux (`scripts/docker-build.sh`,
+    `ctest`), Windows (`scripts/docker-build-windows.sh`), the relay
+    (`go test ./...` and its Linux, Windows and macOS builds), and macOS
+    as far as it can be checked here (the GitHub macOS job; the full game
+    is built on a Mac from its test package). A platform-only path
+    (`#ifdef _WIN32`, `__APPLE__`) is not built by the others: 0.24.0's
+    first tag missed a Windows build failure for that reason.
 
 ## Standing engineering rules
 

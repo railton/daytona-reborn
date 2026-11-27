@@ -224,7 +224,7 @@ frame is shown.
 | --- | --- |
 | ![The Online card: an invite code pasted on its own, Create a new room, Join the room](docs/images/home-online.jpg) | ![In a room: its eight places in the cars' colours, the owner crowned, Start the race](docs/images/home-room.jpg) |
 | **Online**: the invite code is pasted on its own; or create a room. | **In a room**: its places in the cars' colours, what it waits for. |
-| ![The room's settings: name, server, and the race settings as choices](docs/images/room-settings.jpg) | ![Settings: seven tabs, the Enhancements tab open](docs/images/settings.jpg) |
+| ![The room's settings: name, server, and the race settings as choices](docs/images/room-settings.jpg) | ![Settings: four tabs, the Main tab open: picture, image quality, the cars, sound](docs/images/settings.jpg) |
 | **Room settings**: name, server, and the race for every player. | **Settings**: display, enhancements, controls, AI textures, sound. |
 | ![Settings > Advanced > AI textures: what this computer has, making the pack, using it](docs/images/ai-textures.jpg) | |
 | **AI textures** (experimental): make the high-resolution texture pack on this computer. | |
