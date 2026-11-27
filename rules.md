@@ -25,10 +25,7 @@ legal problem, or hours re-deriving something already established.
 4. **Vendored git repositories are git-ignored.** `extern/`, `third_party/`,
    `vendor/` — MAME, SDL3, SoftFloat, Musashi, Dear ImGui and anything else
    from upstream. They have their own history and licences; they are fetched
-   and pinned, never committed into this tree. `.vscode/settings.json` lists
-   each one in `git.ignoredRepositories` (a new one is added in the same
-   change), or VS Code's Source Control silently switches repository and a
-   commit lands in the wrong place.
+   and pinned, never committed into this tree.
 5. **Build output is git-ignored** — `build/`, generated C++, CMake/Ninja
    state, shader caches, object files.
 
