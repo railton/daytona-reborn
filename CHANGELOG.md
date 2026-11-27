@@ -4,7 +4,11 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`). The
 fork's version is in `VERSION`, raised with every code change (rules.md
 rule 14); each version has its section here.
 
-## Unreleased
+## 0.24.0 (2026-11-27)
+
+Online version 12: every player of a room needs 0.24.0 (a 0.23.0 game is
+told to update). The relay's update (its own pace) also serves 0.23.0
+games. The server in Brazil already runs it.
 
 ### Relay: the address to give the others on a local network
 
@@ -251,12 +255,12 @@ rule 14); each version has its section here.
   wait (the game held at the barrier, the link alone: the game reads no
   block then, so every such frame counted as one without data and could
   raise the reserve before the race; `CommBoard::vblank(idle)`).
-- The relay refuses a game's room without its online version (`v=`; the
-  daytona-link helper's `op=auto` rooms go without) and checks it on
+- The relay refuses a game's room without its online version (`v=`) and
+  checks it on
   `op=rejoin` too, as on joining (a game coming back into a race with
   another version is refused, with `room_online=`). Test `TestVersionAlways`.
-- When these changes get a version, the online version goes to 12
-  (`kOnlineVersion`): the reserve's behaviour changed.
+- The online version is 12 (`kOnlineVersion`): the reserve's behaviour
+  changed.
 
 ### Online: measured in rooms of 4 and 6
 

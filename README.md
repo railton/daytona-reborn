@@ -20,6 +20,8 @@ by alphanu1. What it adds is listed in [CHANGELOG.md](CHANGELOG.md).
 
 ## Change Logs
 
+**`2026-11-27`** **0.24.0**: online, the server keeps the other cars going when one player's line fails, and the other players' cars are drawn smoothly (no more stop-and-jump); online version 12 (every player needs 0.24.0); **Settings** in four tabs (Main, Cars, Controls, Advanced) with defaults set by the graphics card; **International (km/h)** as the default country; the roof number on custom cars, sharper; Settings from the online room's screen; play on a **local network** with the relay server (Link play removed); the force feedback tested on a gamepad; the macOS build fixed.
+
 **`2026-11-26`** **0.23.0**: online, every car's data goes through the server in order: the other cars no longer stop and jump in rooms of 3 to 8 players with different lines (the server's update; a 0.22.0 game gets it too); two reconnection fixes; a custom car refused says why in the log.
 
 **`2026-11-26`** **0.22.0**: **custom cars** in **Settings > Cars** (the project's `cars/` folder; the cockpit view shows the car's own bonnet); online, the other cars no longer flicker on a far or uneven line, and the game says when it or the server needs updating (every player of a room needs 0.22.0); the render resolution never past the screen's, and a slow first race says whether the processor or the graphics card held it back; the logs in a `logs/` folder beside `roms/`; **Start over** in Settings > Game; a Linux AppImage; the texture pack in `textures/`.

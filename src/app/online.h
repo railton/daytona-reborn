@@ -19,7 +19,7 @@ constexpr size_t kMaxName = 20;
 // data, how it starts and joins races). The server keeps a room to one
 // version, so every player of a room behaves the same. Raise it with any
 // such change.
-constexpr int kOnlineVersion = 11;
+constexpr int kOnlineVersion = 12; // 0.24.0: the reserve learns from the race only
 // The relay's protocol (server/daytona-relay/proto, Version): the hello's number.
 constexpr int kRelayProtocol = 5;
 
