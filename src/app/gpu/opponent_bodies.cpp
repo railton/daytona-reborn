@@ -287,6 +287,100 @@ void OpponentBodies::set_player(uint32_t texture_base) {
     build_top_view();
 }
 
+// The roof's number in a linked race: the game draws it (Revision A's ROM
+// object 0xb3ccba, a cut-out over the Hornet's roof: x +-0.475, z -0.99 to
+// -0.015, y 1.27) in the body's frame, not keyed to the car, so over another
+// body it stood in the air above a lower roof (the Challenger's, 10 cm) or
+// inside a taller one (the Beetle's), and sideways, as the arcade lays it (to
+// be read from the car's side). On the player's body it lies on that body's
+// roof instead, turned a quarter to be read from behind (the chase views):
+// the roof is a flat cell of the middle (|x| < 0.35, its neighbours within
+// 3 cm: not a mirror, an aerial) and all round it within 4 cm of it, the
+// highest with room for the number at half its size at least (else the
+// roomiest); the number at most the Hornet's size and 85 % of that roof,
+// 1 cm over the roof's highest point under it.
+constexpr float kRoofNumberZ = -0.5025f;                  // its centre on the Hornet's roof
+constexpr float kRoofNumberLength = 0.975f, kRoofNumberWidth = 0.95f; // along and across, turned a quarter
+
+void OpponentBodies::fit_roof_number() {
+    roof_number_ = {};
+    if (top_height_.size() != size_t(kTopGridX) * kTopGridZ) return;
+    const float x0 = top_box_[0], z0 = top_box_[1];
+    const float cw = (top_box_[2] - top_box_[0]) / kTopGridX, ch = (top_box_[3] - top_box_[1]) / kTopGridZ;
+    if (!(cw > 0 && ch > 0)) return;
+    auto h = [&](int i, int j) {
+        return i < 0 || j < 0 || i >= kTopGridX || j >= kTopGridZ ? -1e9f : top_height_[size_t(j) * kTopGridX + size_t(i)];
+    };
+    // a flat cell of the middle, the roof round it (within 4 cm of it) and the number's size there
+    struct Fit { float top = -1e9f, cz = 0, scale = 0; };
+    auto fit_at = [&](int ti, int tj) {
+        Fit fit;
+        const float v = h(ti, tj), floor_ = v - 0.04f;
+        int ja = tj, jb = tj;
+        while (h(ti, ja - 1) >= floor_) --ja;
+        while (h(ti, jb + 1) >= floor_) ++jb;
+        const int jc = (ja + jb) / 2;
+        if (h(ti, jc) < floor_) return fit;
+        int ia = ti, ib = ti;
+        while (h(ia - 1, jc) >= floor_) --ia;
+        while (h(ib + 1, jc) >= floor_) ++ib;
+        const float half = std::min(-(x0 + ia * cw), x0 + (ib + 1) * cw); // the roof's half width about the middle
+        const float length = (jb - ja + 1) * ch;
+        fit.top = v;
+        fit.cz = z0 + (ja + jb + 1) * 0.5f * ch;
+        fit.scale = std::min({1.0f, 0.85f * 2 * half / kRoofNumberLength, 0.85f * length / kRoofNumberWidth});
+        return fit;
+    };
+    // the highest with room for the number at half its size at least (the
+    // DeLorean's roof, not the time machine's gear standing behind it), else
+    // the one with the most room
+    Fit best, roomiest;
+    for (int j = 0; j < kTopGridZ; ++j)
+        for (int i = 0; i < kTopGridX; ++i) {
+            const float v = h(i, j);
+            if (std::abs(x0 + (i + .5f) * cw) > 0.35f || v < -1e8f) continue;
+            bool flat = true;
+            for (int dj = -1; dj <= 1 && flat; ++dj)
+                for (int di = -1; di <= 1 && flat; ++di) flat = std::abs(h(i + di, j + dj) - v) <= 0.03f;
+            if (!flat) continue;
+            const Fit fit = fit_at(i, j);
+            if (fit.scale >= 0.5f && fit.top > best.top) best = fit;
+            if (fit.scale > roomiest.scale) roomiest = fit;
+        }
+    const Fit chosen = best.scale >= 0.5f ? best : roomiest;
+    if (!(chosen.scale > 0.25f)) return; // no roof to speak of
+    const float scale = chosen.scale, cz = chosen.cz;
+    // its height: the roof's highest point under it (what stands more than
+    // 6 cm over the roof, the DeLorean's gear, covers a part of it instead)
+    float y = chosen.top;
+    for (int j = 0; j < kTopGridZ; ++j)
+        for (int i = 0; i < kTopGridX; ++i)
+            if (std::abs(x0 + (i + .5f) * cw) <= scale * kRoofNumberLength / 2 &&
+                std::abs(z0 + (j + .5f) * ch - cz) <= scale * kRoofNumberWidth / 2 && h(i, j) <= chosen.top + 0.06f)
+                y = std::max(y, h(i, j));
+    roof_number_ = {true, cz, y + 0.01f, scale};
+}
+
+bool OpponentBodies::move_roof_number(const rt::GeoPoly &source, rt::GeoPoly &out) const {
+    if (!roof_number_.valid || source.num_vertices < 3 || source.num_vertices != source.source_num_vertices) return false;
+    out = source;
+    const float *m = source.object_matrix, s = roof_number_.scale;
+    for (int k = 0; k < source.num_vertices; ++k) {
+        auto &v = out.v[k];
+        // a quarter turn about its centre, its top ahead: read from behind
+        // (seen online, 27/11: the other quarter turn showed it upside down);
+        // its texture stays with the corner
+        const float dx = v.ox, dz = v.oz - kRoofNumberZ;
+        const float x = -s * dz, y = roof_number_.y, z = roof_number_.z + s * dx;
+        v.x = (x * m[0] + y * m[3] + z * m[6] + m[9]) * source.object_focus_x;
+        v.y = (x * m[1] + y * m[4] + z * m[7] + m[10]) * source.object_focus_y;
+        v.p[0] = x * m[2] + y * m[5] + z * m[8] + m[11];
+        if (!(v.p[0] > near_z)) return false;
+        v.ox = x, v.oy = y, v.oz = z;
+    }
+    return true;
+}
+
 // For the cockpit view: which surface body 0 shows from above at each (x, z),
 // and the surfaces whose texture is a plane over (x, z), fitted from their
 // corners (u = a x + b z + c; kept only when it fits every corner).
@@ -367,6 +461,8 @@ void OpponentBodies::build_top_view() {
     }
     for (const int f : top_index)
         if (f >= 0) top_face_[size_t(f)] = true;
+    top_height_ = height;
+    fit_roof_number();
     for (int surface = 0; surface < 10; ++surface) {
         if (surface == int(kPlayerGlassSurface)) continue; // seen through, not a paint
         double m[3][3] = {}, ru[3] = {}, rv[3] = {};
@@ -870,6 +966,16 @@ const std::vector<rt::GeoPoly> *OpponentBodies::replace(const std::vector<rt::Ge
     if (player_)
         for (const auto &p : scene)
             if (is_player_glass(p)) glass_matrices.push_back(p.object_matrix);
+    // the roof's number in a linked race (fit_roof_number), on the player's body
+    std::vector<const float *> body_matrices;
+    if (player_)
+        for (const auto &[command, body] : candidates) body_matrices.push_back(body->object_matrix);
+    auto is_roof_number = [&](const rt::GeoPoly &p) {
+        if (p.object_oba != 0xb3ccbau || p.mobile_key.part) return false;
+        for (const float *m : body_matrices)
+            if (std::equal(m, m + 12, p.object_matrix)) return true;
+        return false;
+    };
     auto is_window_reflection = [&](const rt::GeoPoly &p) {
         if (p.object_oba != 4 || p.texheader[0] != 0x4409 || p.texheader[2] != 7064) return false;
         for (const float *m : glass_matrices)
@@ -883,6 +989,11 @@ const std::vector<rt::GeoPoly> *OpponentBodies::replace(const std::vector<rt::Ge
         if (replaced.contains(poly.object_command) || (player_ && is_window_reflection(poly))) {
             ++removed;
             continue;
+        }
+        if (player_ && is_roof_number(poly)) {
+            rt::GeoPoly moved;
+            if (move_roof_number(poly, moved)) scene_.push_back(moved);
+            continue; // else not drawn (at the Hornet's roof it would float)
         }
         if (player_ && is_cockpit_bonnet(poly)) {
             if (own_bonnet) continue; // the new body's bonnet is drawn instead

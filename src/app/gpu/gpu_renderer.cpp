@@ -86,7 +86,14 @@ void GpuRenderer::load_bodies() {
     if (!player_dir.empty()) {
         have_player_ = player_body_.load(player_dir, 32768);
         if (have_player_) player_body_.set_player(OpponentBodies::kPlayerTextureBase); // after the opponents' 3 x 10
-        if (have_player_) std::fprintf(stderr, "daytona: local player body loaded\n");
+        if (have_player_) {
+            const auto &roof = player_body_.roof_number();
+            if (roof.valid)
+                std::fprintf(stderr, "daytona: local player body loaded (the roof's number online at y %.2f, z %.2f, %.0f %%)\n",
+                             roof.y, roof.z, roof.scale * 100);
+            else
+                std::fprintf(stderr, "daytona: local player body loaded (no roof for the number online)\n");
+        }
         else std::fprintf(stderr, "daytona: local player body unavailable, keeping the original car: %s\n",
                           player_body_.error().c_str());
         if (!player_body_.wheel_error().empty())
@@ -856,6 +863,9 @@ void GpuRenderer::build(const rt::Video &video, int w, int h, int scale, bool sh
         if (sharp_textures) material.info[0] |= 1u << 23;
         if (msaa_ > 1) material.info[0] |= 1u << 25; // alpha to coverage for cut-out texels (m2.hlsl)
         material.info[0] |= aniso_bits_ << 26;
+        // the roof's number in a linked race (Revision A's ROM object 0xb3ccba,
+        // a cut-out, not keyed to its car): a car's texture, filtered as one
+        if (sharp_car_textures_ && poly.object_oba == 0xb3ccbau) material.info[0] |= 1u << 31;
         if (hires_data_uploaded_ && hires_index_ready_ && renderer >= 2) material.info[0] |= 1u << 11; // m2.hlsl hires_texel
         bool see_through = false; // the player's see-through glass (car.ini)
         if (poly.local_texture) {

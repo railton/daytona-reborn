@@ -110,6 +110,18 @@ private:
     struct Plane { bool valid = false; float u[3], v[3]; }; // u = u0 x + u1 z + u2
     std::array<Plane, 10> top_planes_{};
     void build_top_view();
+    std::vector<float> top_height_;          // kTopGridX * kTopGridZ: body 0's highest point over each cell
+    // The roof's number in a linked race, on the player's body (fit_roof_number)
+    struct RoofNumber {
+        bool valid = false;
+        float z = 0, y = 0, scale = 1; // its centre along the body, its height, its size against the Hornet's
+    };
+    RoofNumber roof_number_;
+    void fit_roof_number();
+    bool move_roof_number(const rt::GeoPoly &source, rt::GeoPoly &out) const;
+public:
+    const RoofNumber &roof_number() const { return roof_number_; }
+private:
     bool paint_cockpit(const rt::GeoPoly &source, rt::GeoPoly &out) const;
     float light_fit_[4] = {0, 0, 0, 0};                // a, w (the last good fit)
     bool light_fitted_ = false;

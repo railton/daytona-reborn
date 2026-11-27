@@ -19,7 +19,8 @@ struct Screen { float2 size; float2 pad; }; // the render target, in pixels
 //           native resolution 23, opponent paint 24; enhancements: alpha to
 //           coverage (MSAA) 25, log2 of the anisotropic filtering 26-28, a
 //           car's smooth light 29, a car's paint reflections 30, a car's
-//           sharp magnified texels 31
+//           sharp magnified texels 31 (opaque; a cut-out one, the roof's
+//           number: anisotropic filtering too)
 //   info.y: texx | texy << 16      info.z: utexx | utexy << 16
 //   info.w: lumabase | luma << 16  more.x: texlod (int)  more.y: palette colour (RGB555)
 struct PolyIn {
@@ -405,7 +406,12 @@ float4 ps_poly(PolyOut i) : SV_Target {
     const uint flags = i.info.x;
     const float z = 1.0 / i.oz.x;
     const float2 uv = i.oz.yz * z;
-    // The 2x render has two raster pixels per output pixel per axis.
+    // Twice the pixel's steps across the texture: written for the 2x render
+    // (two raster pixels an output pixel each way), which 0.22 dropped. The
+    // texture pack's detail and the sharpening (sample_tex) are tuned to it:
+    // they come in once a texel is two pixels wide. One pixel's worth would
+    // bring them in from a texel a pixel wide: a change to the picture, to be
+    // measured before it is made.
     const float2 footprint = 2.0 * (abs(ddx(uv)) + abs(ddy(uv)));
     // a custom car's paint: texels a pixel steps across, the longer way (its
     // level of detail, opponent_paint), at the top level's 256 x 128
@@ -481,6 +487,27 @@ float4 ps_poly(PolyOut i) : SV_Target {
             opacity += s >> 16;
         }
         t = (index / n) | ((opacity / n) << 16);
+    } else if (aniso != 0u && (flags >> 31) != 0u) {
+        // A car's cut-out texture (bit 31: the roof's number, seen nearly edge
+        // on from the chase view, was drawn from a level so coarse it
+        // blurred) filtered as well, its holes kept: the samples' colour
+        // weighted by their opacity, the opacity averaged. Cut-outs are left
+        // out otherwise (scenery's holes).
+        const float2 ax = ddx(uv), ay = ddy(uv);
+        const float lx = length(ax), ly = length(ay);
+        const float major = max(lx, ly), minor = max(min(lx, ly), 1e-6);
+        const float2 along = lx > ly ? ax : ay;
+        const uint n = uint(clamp(ceil(major / minor), 1.0, float(1u << aniso)));
+        const int mml_n = mml - int(log2(float(n)) * 128.0);
+        uint opacity = 0u, weighted = 0u;
+        [loop] for (uint k = 0u; k < n; ++k) {
+            const float2 o = along * ((float(k) + 0.5) / float(n) - 0.5);
+            const uint s = sample_tex(i.info, mml_n, u + int(o.x * 256.0), v + int(o.y * 256.0), true,
+                                      footprint / float(n));
+            opacity += s >> 16;
+            weighted += (s & 0xffu) * (s >> 16);
+        }
+        t = (opacity != 0u ? weighted / opacity : 0u) | ((opacity / n) << 16);
     } else {
         t = sample_tex(i.info, mml, u, v, translucent, footprint);
     }

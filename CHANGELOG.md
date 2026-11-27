@@ -6,6 +6,27 @@ rule 14); each version has its section here.
 
 ## Unreleased
 
+### Online: the roof's number on a custom car, and sharper
+
+- In a linked race the game draws each car's number on its roof as a piece
+  of its own (Revision A's ROM object 0xb3ccba, a cut-out), not keyed to
+  the car. Over a custom body it stood where the Hornet's roof is: 10 cm in
+  the air over the Challenger, inside the Beetle's roof, sideways (the
+  arcade lays it to be read from the car's side). On the player's custom
+  car it now lies on that body's roof (its highest flat part with room for
+  it, not a mirror or the DeLorean's gear), sized to it (at most the
+  Hornet's, 85 % of the roof) and turned to be read from behind, the chase
+  views (checked online).
+- It was blurred: a cut-out texture is left out of the anisotropic
+  filtering, and seen nearly edge on it took a coarse level. A car's
+  cut-outs with "Sharp car textures" are now filtered too, their holes
+  kept (colour weighted by opacity); the Hornet's number stays where and
+  as the arcade draws it, sharper. Without that option the frames are
+  unchanged (compared); the opaque path is the same code as before.
+- The log says where the number lies on the player's body. The shader's
+  footprint comment says what its factor of 2 is left from (the 2x render
+  dropped in 0.22) and what changing it would mean.
+
 ### Online: the other players' cars drawn smoothly
 
 - A player's car comes from their data, which arrives unevenly: a tick with
