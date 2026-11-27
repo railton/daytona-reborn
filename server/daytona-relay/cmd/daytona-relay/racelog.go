@@ -20,11 +20,12 @@ type raceStats struct {
 	rttMin, rttMax atomic.Int64 // its latency samples in the race, µs
 	rttSum, rttN   atomic.Int64
 	drops, backs   atomic.Int64 // connection dropped (place kept), back in the race
+	paced          atomic.Int64 // blocks the server sent it itself, its predecessor late (pace.go)
 }
 
 func (st *raceStats) reset() {
 	for _, v := range []*atomic.Int64{&st.in, &st.inUDP, &st.out, &st.queueMax, &st.rttMin, &st.rttMax, &st.rttSum, &st.rttN,
-		&st.drops, &st.backs} {
+		&st.drops, &st.backs, &st.paced} {
 		v.Store(0)
 	}
 }
@@ -33,7 +34,7 @@ func (st *raceStats) reset() {
 func (st *raceStats) copyFrom(o *raceStats) {
 	pairs := [][2]*atomic.Int64{{&st.in, &o.in}, {&st.inUDP, &o.inUDP}, {&st.out, &o.out}, {&st.queueMax, &o.queueMax},
 		{&st.rttMin, &o.rttMin}, {&st.rttMax, &o.rttMax}, {&st.rttSum, &o.rttSum}, {&st.rttN, &o.rttN},
-		{&st.drops, &o.drops}, {&st.backs, &o.backs}}
+		{&st.drops, &o.drops}, {&st.backs, &o.backs}, {&st.paced, &o.paced}}
 	for _, p := range pairs {
 		p[0].Store(p[1].Load())
 	}
@@ -74,8 +75,8 @@ func (s *server) logRing(r *room, why string) {
 			rate = float64(in) / secs
 		}
 		log.Printf("room %s:   %d %q: %d messages in (%.1f/s, %d first by UDP), %d out; latency min/avg/max %s; "+
-			"send queue max %d; dropped %d, back %d", r.code, i+1, m.name, in, rate, st.inUDP.Load(), st.out.Load(), lat,
-			st.queueMax.Load(), st.drops.Load(), st.backs.Load())
+			"send queue max %d; dropped %d, back %d; %d sent by the server on its own", r.code, i+1, m.name, in, rate,
+			st.inUDP.Load(), st.out.Load(), lat, st.queueMax.Load(), st.drops.Load(), st.backs.Load(), st.paced.Load())
 	}
 	r.ringLogged = time.Now()
 }

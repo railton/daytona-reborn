@@ -327,6 +327,23 @@ are seen about half your round trip plus half theirs late; with 4 players
 from Brazil through a relay in Europe, the farthest car is 0.4 s old
 instead of 1 s.
 
+**In order (0.23).** Each car's slots reach each player one after the
+other (`slotFor`, at most `DAYTONA_STAR_HISTORY` behind its newest), not
+the latest at the moment of sending, which repeated or skipped one when the
+two players' frames did not line up.
+
+**Its own pace.** A player's block is composed when their predecessor in
+the ring sends. When that predecessor is late (a burst of loss on its line:
+its messages wait for TCP's retransmission), every car stopped for that
+player, not only the late one. Past `DAYTONA_STAR_PACE_MS` (35 ms) the relay
+sends the player their next block itself, once a frame, with every car's
+next slot (the late one's the same again), and then takes the late car's
+backlog into its history without sending it, so the player never gets a
+burst (`pace.go`). Measured in rooms of 4 and 6 with one player's line
+losing packets in bursts: the other cars 92 to 96 % smooth without it,
+97 to 98 % with it, the longest stall 0.7 to 0.8 s down to 0.35 s; with no
+loss, no difference.
+
 ## 4. Bandwidth: compression
 
 **The problem.** 7170 bytes a frame (the block and the token) at 57.5
@@ -579,7 +596,7 @@ by room, name and time.
 | Frames, hello, status, invite | `src/app/online.*` | `proto/proto.go` |
 | Connection, UDP, rejoin | `src/app/relay_link.*` | `cmd/daytona-relay/main.go`, `udp.go` |
 | Compression | `src/app/link_codec.h` | `linkcodec/` |
-| Star composition | | `main.go` (`compose`) |
+| Star composition, in order, its own pace | | `main.go` (`compose`, `slotFor`), `pace.go` |
 | Pacing, reserve | `src/runtime/comm_board.*` | |
 | Settings, Start, barrier, course, gearbox | `src/runtime/online_settings.h` | |
 | Race logs | `src/app/online_race_stats.h` | `cmd/daytona-relay/racelog.go` |

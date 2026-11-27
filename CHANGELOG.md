@@ -6,6 +6,39 @@ rule 14); each version has its section here.
 
 ## Unreleased
 
+### Online: the server keeps the other cars going when one player's data is late
+
+- In star mode a player's block is composed when their predecessor in the
+  ring sends, so a predecessor whose data stalled (a burst of loss on its
+  line: TCP's retransmission, 250 to 350 ms) stopped every car for that
+  player, not only its own: in the rooms of 4 and 6 below, the player after
+  the lossy one saw every car at 92 %. Now, past `DAYTONA_STAR_PACE_MS`
+  (35 ms; `0` off), the server sends that player their next block itself,
+  once a frame, with every car's next slot (the late car's the same again),
+  and takes the late car's backlog into its history without sending it
+  (one block a frame throughout, never a burst); the late car's own slot
+  goes to its successor in order too, as every other car's does. Only in a
+  steady race (every player's blocks of one size: the end of a race changes
+  it), for as long as the player's place is kept. The game is unchanged: the
+  server's update alone (`pace.go`, test `TestStarPace`; the log counts the
+  blocks it sent on its own).
+- Measured headless, rooms of 6 (one player's line with burst loss, three
+  pairs) and 4 (two pairs), interleaved off and on:
+
+  | | off | on |
+  | --- | --- | --- |
+  | 6 players: the cars that are not the lossy one, worst | 92.5 to 95.6 % | 97.7 to 98.0 % |
+  | 6 players: the player after the lossy one, its worst car | 87.0 to 90.9 % | 93.6 to 95.4 % |
+  | 6 players: the lossy car, worst | 87.1 to 91.7 % | 91.2 to 92.5 % |
+  | 6 players: the longest stall | 782 to 817 ms | 313 to 348 ms |
+  | 4 players: every car, mean | 93.7 to 95.3 % | 96.3 to 96.7 % |
+  | 4 players: the longest stall | 365 to 730 ms | 313 to 330 ms |
+
+  With no loss (all near, one far, two with spikes) the numbers stay those
+  of the matrix below (99.2, 99.0, 97.9 to 98.8 %). The lossy car itself
+  still stops for its TCP retransmission; the game repeating each message 4
+  times instead of 2 (`M2_PROTO_UDP_REPEAT`) did not measurably help.
+
 ### Online: the log measures every other car
 
 - The game's log now has a line for every other car of the room after an

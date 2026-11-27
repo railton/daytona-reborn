@@ -624,3 +624,158 @@ func TestVersionAlways(t *testing.T) {
 		t.Errorf("rejoin with the room's version: %v", err)
 	}
 }
+
+// The own pace (pace.go): B late, C gets its blocks from the server once a
+// frame, with A's newest data and B's standing; B's late blocks are then
+// taken in but not sent, so C gets one block a frame, never a burst.
+func TestStarPace(t *testing.T) {
+	s := newTestServer(t)
+	s.star, s.paceAfter = true, defaultPaceAfter
+	clk := &clock{t: time.Unix(1000, 0)}
+	s.now = clk.now
+	a, b, c := fakeClient("A"), fakeClient("B"), fakeClient("C")
+	s.join(a, proto.Hello{Op: "create", Room: "pace", Game: "11"})
+	s.join(b, proto.Hello{Op: "join", Room: "pace", Game: "11"})
+	s.join(c, proto.Hello{Op: "join", Room: "pace", Game: "11"})
+	s.begin(a)
+	_, epoch := lastStatus(t, a)
+	lastStatus(t, b)
+	lastStatus(t, c)
+	block := func(tick byte) []byte {
+		f := make([]byte, 1+8*linkcodec.Slot)
+		for i := 0; i < linkcodec.Slot; i++ {
+			f[1+i] = tick
+		}
+		return f
+	}
+	var encA, encB, encC, dec linkcodec.Codec
+	s.forward(c, proto.Frame{Type: proto.TypeData, Epoch: epoch, Payload: encC.Encode(nil, block(0))}) // every player in the race's mode
+	<-a.out
+	sendA := func(tick byte) { // A's blocks go to B (or are taken in for the server's own, owed to B)
+		s.forward(a, proto.Frame{Type: proto.TypeData, Epoch: epoch, Payload: encA.Encode(nil, block(tick))})
+		select {
+		case <-b.out:
+		default:
+		}
+	}
+	sendB := func(tick byte) {
+		s.forward(b, proto.Frame{Type: proto.TypeData, Epoch: epoch, Payload: encB.Encode(nil, block(tick))})
+	}
+	// C's block: B's slot (0) and A's (1)
+	got := func() (byte, byte, bool) {
+		select {
+		case f := <-c.out:
+			frame, err := dec.Decode(f.Payload)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return frame[1+tickOffset], frame[1+linkcodec.Slot+tickOffset], true
+		default:
+			return 0, 0, false
+		}
+	}
+	tick := byte(0)
+	for i := 0; i < paceSteady; i++ { // a steady race: one block each a frame
+		tick++
+		sendA(tick)
+		sendB(tick)
+		if _, _, ok := got(); !ok {
+			t.Fatalf("block %d not passed on", i)
+		}
+		clk.add(framePeriod)
+		s.paceTick()
+		if _, _, ok := got(); ok {
+			t.Fatalf("block %d: the server sent one with B on time", i)
+		}
+	}
+	last := tick
+	// B stalls: A goes on; nothing from the server before paceAfter
+	tick++
+	sendA(tick)
+	clk.add(defaultPaceAfter - framePeriod - time.Millisecond)
+	s.paceTick()
+	if _, _, ok := got(); ok {
+		t.Fatal("sent before paceAfter")
+	}
+	clk.add(2 * time.Millisecond)
+	s.paceTick()
+	bs, as, ok := got()
+	if !ok || bs != last || as != tick {
+		t.Fatalf("own pace: %v, B %d A %d, want B %d (standing) A %d (newest)", ok, bs, as, last, tick)
+	}
+	tick++
+	sendA(tick)
+	clk.add(framePeriod)
+	s.paceTick()
+	if bs, as, ok = got(); !ok || bs != last || as != tick {
+		t.Fatalf("a frame later: %v, B %d A %d", ok, bs, as)
+	}
+	s.paceTick() // the same moment: not twice
+	if _, _, ok = got(); ok {
+		t.Fatal("two in one frame")
+	}
+	// B's two late blocks: taken in, not sent; its third goes on
+	sendB(last + 1)
+	sendB(last + 2)
+	if _, _, ok = got(); ok {
+		t.Fatal("a late block sent after the server's own")
+	}
+	sendB(last + 3)
+	if bs, _, ok = got(); !ok || bs != last+1 { // B's own in order too: the one after its last sent
+		t.Fatalf("after the owed ones: %v, B %d, want %d", ok, bs, last+1)
+	}
+	if n := c.race.paced.Load(); n != 2 {
+		t.Errorf("paced count %d, want 2", n)
+	}
+	// B silent again: the server keeps the pace while B's place is kept
+	// (paceActive), then stops; a frame of A's in another size (the race
+	// ending) stops it at once
+	sent := func(frames int) int64 {
+		before := c.race.paced.Load()
+		for i := 0; i < frames; i++ {
+			clk.add(framePeriod)
+			s.paceTick()
+			got()
+			for _, m := range []*client{a, b} { // A silent too: B gets the server's blocks as well
+				select {
+				case <-m.out:
+				default:
+				}
+			}
+		}
+		return c.race.paced.Load() - before
+	}
+	if n := sent(300); n < 295 {
+		t.Errorf("a 5 s stall: %d sent by the server, want about 298", n)
+	}
+	if n := sent(int(paceActive/framePeriod) + 60); n == 0 || n > int64(paceActive/framePeriod) {
+		t.Errorf("past paceActive: %d sent", n)
+	}
+	if n := sent(60); n != 0 {
+		t.Errorf("B gone: %d sent, want 0", n)
+	}
+	sendB(last + 4) // B back, at its pace: what was owed is cleared
+	got()
+	clk.add(framePeriod)
+	sendB(last + 5)
+	// the server's own blocks took B's backlog in order meanwhile (last+3);
+	// B's first one back (last+4) is taken in for what was owed, then sent in order
+	if bs, _, ok = got(); !ok || bs != last+4 {
+		t.Fatalf("B back: %v, B %d, want %d", ok, bs, last+4)
+	}
+	for i := 0; i < paceSteady; i++ {
+		clk.add(framePeriod)
+		tick++
+		sendA(tick)
+		sendB(last + 6 + byte(i))
+		got()
+	}
+	s.forward(a, proto.Frame{Type: proto.TypeData, Epoch: epoch, Payload: encA.Encode(nil, make([]byte, 1+4*linkcodec.Slot))})
+	select {
+	case <-b.out:
+	default:
+	}
+	if n := sent(10); n != 0 {
+		t.Errorf("A's blocks in another size: %d sent by the server, want 0", n)
+	}
+}

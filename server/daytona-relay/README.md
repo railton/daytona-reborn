@@ -10,8 +10,10 @@ it also reads the compressed link blocks (star mode, the default): each
 player gets, in one hop, a block with every other car's latest data, instead
 of the data passed from player to player round the ring. With 4 players from
 Brazil through a relay in Europe the farthest car went from about 1 s old to
-0.4 s. A player whose connection drops in a race has 10 s to come back to
-their place, and the game reconnects on its own.
+0.4 s. Each car's data reaches each player in order, and when a player's
+data is late the server keeps the others' going at the frame's pace itself
+(`DAYTONA_STAR_PACE_MS`). A player whose connection drops in a race has 10 s
+to come back to their place, and the game reconnects on its own.
 
 ## Run it on a server (Docker)
 
@@ -56,6 +58,7 @@ Edit `docker-compose.yml`, or put them in a `.env` file beside it, then
 | `DAYTONA_UDP_REPEAT` | `2` | earlier messages repeated in each datagram: what covers a burst of lost datagrams (fewer: less traffic) |
 | `DAYTONA_STAR` | `1` | `1` star mode (above); `0` the ring of 0.12, for comparisons (no rejoin) |
 | `DAYTONA_STAR_HISTORY` | `2` | star mode: each car's data goes to each player in order, one slot per block, at most this many behind its newest; `0` the latest at each send (0.22's: a car stopped or jumped when its updates and the sender's did not line up) |
+| `DAYTONA_STAR_PACE_MS` | `35` | star mode: when a player's predecessor in the ring is this many ms late (a burst of loss on its line), the server sends that player its blocks itself, once a frame, with every other car's newest data and the late car standing; the late car's blocks are then taken in but not sent, so the player never gets a burst; at most 0.5 s at a time, only in a steady race; `0` off (each player's blocks composed only when its predecessor sends) |
 
 The race variables are the **defaults**: the game shows them when its
 player connects to create a room, and the room's creator may change each

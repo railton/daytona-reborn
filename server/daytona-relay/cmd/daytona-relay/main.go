@@ -81,6 +81,7 @@ type client struct {
 	ownHist [][]byte
 	ownSeq  uint64
 	sentSeq map[*client]uint64
+	pace    paced // the blocks the server sends it itself while its predecessor is late (pace.go)
 
 	key  string // to come back into the race after a drop (op=rejoin)
 	away bool   // dropped from a race, its place kept until resumeGrace (star mode)
@@ -166,6 +167,9 @@ type server struct {
 	// historyKeep: in star mode each car's slots go to each player in order,
 	// at most this many behind its newest (slotFor); 0 takes the latest
 	historyKeep int
+	// paceAfter: in star mode, a player's predecessor this late, the server
+	// sends the player its blocks itself (pace.go); 0: off
+	paceAfter time.Duration
 
 	udpConn    *net.UDPConn       // the UDP side of the port (udp.go); nil: TCP only
 	udpByAddr  map[string]*client // under mu
@@ -315,6 +319,7 @@ func (s *server) formRing(r *room) {
 		m.enc.Reset()
 		m.own = nil
 		m.ownHist, m.ownSeq, m.sentSeq = m.ownHist[:0], 0, nil
+		m.pace.resetPace()
 		m.race.reset()
 	}
 	r.ringSince, r.ringLogged = time.Now(), time.Now()
@@ -628,16 +633,37 @@ func (s *server) compose(r *room, at int, c, next *client, f proto.Frame) proto.
 	if linkcodec.IsBlock(frame) && len(frame) >= 1+len(r.ring)*linkcodec.Slot {
 		c.own = append(c.own[:0], frame[1:1+linkcodec.Slot]...)
 		s.keepOwn(c)
-		n := len(r.ring)
-		for j := 1; j <= n-2; j++ {
-			src := r.ring[((at-j)%n+n)%n]
-			if slot := s.slotFor(next, src); slot != nil {
-				copy(frame[1+j*linkcodec.Slot:], slot)
-			}
+		gap := s.now().Sub(c.pace.lastIn)
+		s.sawBlock(c, len(frame))
+		p := &next.pace
+		burst := p.synthRun > 0 || gap < framePeriod/2 // c back after the server sent in its place, or its backlog
+		p.synthRun, p.lastOutAt = 0, s.now()
+		if p.owed > 0 && burst { // the server sent next one in its place (pace.go): its data is kept, not sent
+			p.owed--
+			f.Payload = nil
+			return f
 		}
+		p.owed = 0 // at the frame's pace again
+		if slot := s.slotFor(next, c); slot != nil && s.paceAfter > 0 {
+			copy(frame[1:], slot) // c's own in order too, as the others' (its blocks taken in for the server's own)
+		}
+		s.fillOthers(r, at, next, frame)
+		p.lastOut = append(p.lastOut[:0], frame...)
 	}
 	f.Payload = next.enc.Encode(nil, frame)
 	return f
+}
+
+// fillOthers: in a block for next composed at at (its predecessor's place),
+// every other car's next slot (slotFor). Caller holds s.mu.
+func (s *server) fillOthers(r *room, at int, next *client, frame []byte) {
+	n := len(r.ring)
+	for j := 1; j <= n-2; j++ {
+		src := r.ring[((at-j)%n+n)%n]
+		if slot := s.slotFor(next, src); slot != nil {
+			copy(frame[1+j*linkcodec.Slot:], slot)
+		}
+	}
 }
 
 // The star mode's per-car history (compose): a car's own slots arrive at
@@ -928,8 +954,12 @@ func main() {
 	if s.historyKeep < 0 {
 		s.historyKeep = 0
 	}
+	s.paceAfter = time.Duration(envInt("DAYTONA_STAR_PACE_MS", int(defaultPaceAfter/time.Millisecond))) * time.Millisecond
 	if s.star {
 		log.Printf("star mode: each player gets every other car's data in one hop, in order (at most %d slots behind; DAYTONA_STAR_HISTORY)", s.historyKeep)
+		if s.paceAfter > 0 && s.historyKeep > 0 {
+			log.Printf("star mode's own pace: a player's predecessor %v late, the server sends the player's blocks itself (DAYTONA_STAR_PACE_MS)", s.paceAfter)
+		}
 	} else {
 		log.Printf("ring mode (DAYTONA_STAR=0): the cars' data passed from player to player; no rejoin")
 	}
@@ -951,6 +981,11 @@ func main() {
 		for range time.Tick(pingEvery) {
 			s.refreshLatency()
 			s.logRaces()
+		}
+	}()
+	go func() {
+		for range time.Tick(paceEvery) {
+			s.paceTick()
 		}
 	}()
 	go func() {
