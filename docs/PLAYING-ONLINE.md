@@ -47,7 +47,8 @@ On the home screen, choose the **Online** card, then **Create a new room**.
    7777), then **Connect**. The line under it turns green when the server
    answers. If the server has a password, a field for it appears.
 3. **Race settings**: every player of the room races with them, so pick
-   them for everyone: cabinet, country (the game's language), difficulty,
+   them for everyone: cabinet, country (the game's language and speed
+   unit; International (km/h), the server's default, is English in km/h), difficulty,
    game mode, rival arrow, advertise sound, free play, and who may start
    the race. They are kept for your next room.
 4. **Create the room**.
@@ -98,7 +99,8 @@ When everyone is in, the owner presses **Start the race**.
 - **Esc** opens the room's details: **Resume the race** goes back in,
   **Leave the room** ends it for you. Online there is no pause: behind the
   menu your car runs on without you, as on linked cabinets, and the others
-  keep racing.
+  keep racing. The gear beside **Copy** opens the Settings (to change your
+  car, say); closing them comes back to the room.
 
 ![During a race: Resume the race, and New race with everyone for the owner](images/online/room-details-race.jpg)
 - When the race ends, the games stay linked: the owner presses Start again

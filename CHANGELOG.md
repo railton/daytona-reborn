@@ -31,7 +31,10 @@ rule 14); each version has its section here.
   protocol study (in ONLINE-PROTOCOL.md and this file now) and the root
   `HANDOFF.md`. The README's "Original project documentation" became
   "Documentation", with the guides that are kept. `docs/issues.md` stays:
-  the design document cites its force-feedback and sound findings. Rule 23: every platform
+  the design document cites its force-feedback and sound findings.
+- `docs/PLAYING-ONLINE.md`'s seven screenshots taken again (the room's
+  details with the gear, International (km/h), the 0.24 footer); the
+  guide says what the gear and the country do. Rule 23: every platform
   builds from the release commit before its tag; rule 13: a change to
   what a screenshot shows takes it again in the same commit.
 
