@@ -19,7 +19,7 @@ class RelayLink;
 
 class OnlineMenu {
 public:
-    enum Action { Stay, Back, Connect, Leave, Resume, Begin };
+    enum Action { Stay, Back, Connect, Leave, Resume, Begin, Settings };
     OnlineMenu();
     ~OnlineMenu();
     // link: the current room's connection, or null; racing: its game runs.

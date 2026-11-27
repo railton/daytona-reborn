@@ -2417,6 +2417,7 @@ int main(int argc, char **argv) {
                 switch (online_menu.draw(cfg, online_link.get(), online_game && game, home_message)) {
                 case app::OnlineMenu::Back: online_screen = false; home_menu.show_online(); break;
                 case app::OnlineMenu::Resume: in_launcher = false; break;
+                case app::OnlineMenu::Settings: settings = true; break; // back here when closed
                 case app::OnlineMenu::Leave: leave_online(); home_message.clear(); break;
                 case app::OnlineMenu::Begin: if (online_link) online_link->begin(); break;
                 case app::OnlineMenu::Connect:

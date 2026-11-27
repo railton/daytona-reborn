@@ -6,6 +6,12 @@ rule 14); each version has its section here.
 
 ## Unreleased
 
+### Online: Settings from the room's screen
+
+- Esc in an online race shows the room's screen; it had no way to the
+  Settings (to change the car, say) but Back to the home. A gear at the
+  right of its title opens them; closing them comes back to the room.
+
 ### Online: the roof's number on a custom car, and sharper
 
 - In a linked race the game draws each car's number on its roof as a piece

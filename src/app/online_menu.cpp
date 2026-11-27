@@ -363,9 +363,16 @@ OnlineMenu::Action OnlineMenu::draw_room(const online::Status &st, const std::st
     glow(draw, panel, kBlue, 0.9f, scale);
     const float lx = x0 + pad, inner = pw - 2 * pad;
 
-    // title: the players' badge, the room's count; its code and Copy at the right
+    // title: the players' badge, the room's count; its code, Copy and the
+    // Settings at the right (the cars, the picture: from the race too, where
+    // Esc shows this screen)
     float y = y0 + 22 * scale;
+    const float gear_w = 46 * scale;
     {
+        const ImVec2 ga = {lx + inner - gear_w, y + 4 * scale}, gb = {lx + inner, y + 42 * scale};
+        if (blue_button(draw, body, scale, "##settings", "", ga, gb, 0, 18)) action = Settings;
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", TX("Settings"));
+        gear(draw, {(ga.x + gb.x) * 0.5f, (ga.y + gb.y) * 0.5f}, 22 * scale, white, rgba(0.05f, 0.10f, 0.22f));
         const ImVec2 badge = {lx + 22 * scale, y + 22 * scale};
         draw->AddCircleFilled(badge, 22 * scale, rgba(0.02f, 0.06f, 0.15f, 0.95f), 32);
         draw->AddCircle(badge, 22 * scale, cyan, 32, 2 * scale);
@@ -382,13 +389,14 @@ OnlineMenu::Action OnlineMenu::draw_room(const online::Status &st, const std::st
         italic(draw, display, fit(display, 32 * scale, title, inner * 0.45f), {lx + 58 * scale, y + 4 * scale}, white, title, 0.18f);
         if (!connecting && !code.empty()) {
             const float copy_w = 110 * scale;
-            if (blue_button(draw, body, scale, "##copy_code", copied_ ? TX("Copied!") : TX("Copy"), {lx + inner - copy_w, y + 4 * scale},
-                            {lx + inner, y + 42 * scale}, 0, 18)) {
+            const float copy_x = lx + inner - gear_w - 8 * scale - copy_w;
+            if (blue_button(draw, body, scale, "##copy_code", copied_ ? TX("Copied!") : TX("Copy"), {copy_x, y + 4 * scale},
+                            {copy_x + copy_w, y + 42 * scale}, 0, 18)) {
                 ImGui::SetClipboardText(code.c_str());
                 copied_ = true;
             }
             // the code, its start and end when long
-            const float room = inner * 0.5f - copy_w - 16 * scale, s = 15.5f * scale;
+            const float room = inner * 0.5f - copy_w - gear_w - 24 * scale, s = 15.5f * scale;
             std::string shown = code;
             if (measure(body, s, shown.c_str()).x > room && shown.size() > 16) {
                 const auto dash = shown.rfind('-');
@@ -401,7 +409,7 @@ OnlineMenu::Action OnlineMenu::draw_room(const online::Status &st, const std::st
                 shown = head + tail;
             }
             const ImVec2 cw = measure(body, s, shown.c_str());
-            draw->AddText(body, s, {lx + inner - copy_w - 14 * scale - cw.x, y + 23 * scale - s * 0.5f}, cyan, shown.c_str());
+            draw->AddText(body, s, {copy_x - 14 * scale - cw.x, y + 23 * scale - s * 0.5f}, cyan, shown.c_str());
         }
     }
     y += 54 * scale;
