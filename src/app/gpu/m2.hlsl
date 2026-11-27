@@ -59,7 +59,7 @@ struct CarLight {
     float4 depth;              // z0, 1 / depth range, shadow strength, 1 / map size
     float4 sky;                // the game's sky in sky_env: the camera axis (u, v), focal length / size (u, v); 0: none
     float4 map2;               // the far cascade (the map's right half): as map; z 0: no caster there
-    float4 depth2;             // its z0, 1 / depth range
+    float4 depth2;             // its z0, 1 / depth range; where its shadows start to fade (camera z), 1 / the fade's length
 };
 [[vk::binding(0, 3)]] cbuffer CarLightUBO : register(b0, space3) { CarLight car_light; };
 
@@ -138,11 +138,10 @@ float3 opponent_texel(uint offset, uint width, int2 p, int2 limit) {
     return float3(c & 255u, (c >> 8u) & 255u, (c >> 16u) & 255u) / 255.0;
 }
 
-float4 opponent_paint(float2 uv, float2 footprint, uint surface, uint shade) {
-    const uint2 base = uint2(256u, 128u);
-    const float2 projected = footprint * float2(base);
-    const uint level = uint(clamp(floor(log2(max(1.0, max(projected.x, projected.y)))), 0.0, 3.0));
-    const uint2 dims = base >> level;
+// One level of a custom car's paint (its atlas: 256 x 128, then 128 x 64,
+// 64 x 32, 32 x 16), bilinear.
+float3 opponent_level(float2 uv, uint surface, uint level) {
+    const uint2 dims = uint2(256u, 128u) >> level;
     const uint offset = surface * 43520u + 43690u - (43690u >> (level * 2u));
     const float2 xy = saturate(uv) * float2(dims) - 0.5;
     const int2 start = int2(floor(xy));
@@ -152,7 +151,21 @@ float4 opponent_paint(float2 uv, float2 footprint, uint surface, uint shade) {
                           opponent_texel(offset, dims.x, start + int2(1, 0), limit), weight.x);
     const float3 b = lerp(opponent_texel(offset, dims.x, start + int2(0, 1), limit),
                           opponent_texel(offset, dims.x, start + int2(1, 1), limit), weight.x);
-    return float4(saturate(lerp(a, b, weight.y) * (float(shade) / 127.0)), 1.0);
+    return lerp(a, b, weight.y);
+}
+
+// A custom car's paint, trilinear: the two levels around the texels a pixel
+// covers (texels: the longer of the pixel's two steps across the paint),
+// blended, so its sharpness changes smoothly as the car turns or goes away
+// (one level picked, it changed at once: a line of sharpness across a side
+// panel, measured by an outside review).
+float4 opponent_paint(float2 uv, float texels, uint surface, uint shade) {
+    const float lod = clamp(log2(max(1.0, texels)), 0.0, 3.0);
+    const uint level = uint(lod);
+    const float blend = lod - float(level);
+    float3 c = opponent_level(uv, surface, level);
+    if (blend > 0.0) c = lerp(c, opponent_level(uv, surface, level + 1u), blend);
+    return float4(saturate(c * (float(shade) / 127.0)), 1.0);
 }
 
 static const uint log2_table[128] = {0, 2, 5, 8, 11, 14, 16, 19, 22, 25, 27, 30, 33, 35, 38, 40, 43, 46, 48, 51, 53, 56, 58, 61, 63, 65, 68, 70, 73, 75, 77, 80, 82, 84, 87, 89, 91, 93, 96, 98, 100, 102, 104, 106, 109, 111, 113, 115, 117, 119, 121, 123, 125, 127, 129, 132, 134, 136, 138, 140, 141, 143, 145, 147, 149, 151, 153, 155, 157, 159, 161, 162, 164, 166, 168, 170, 172, 173, 175, 177, 179, 181, 182, 184, 186, 188, 189, 191, 193, 194, 196, 198, 200, 201, 203, 205, 206, 208, 209, 211, 213, 214, 216, 218, 219, 221, 222, 224, 225, 227, 229, 230, 232, 233, 235, 236, 238, 239, 241, 242, 244, 245, 247, 248, 250, 251, 253, 254};
@@ -381,7 +394,10 @@ float car_shadow_light(PolyOut i) {
     if (car_light.depth.z <= 0.0 || i.position_oz.z <= 0.0) return 1.0;
     const float3 p = i.position_oz / i.oz.x;
     const float3 l = float3(dot(p, car_light.right.xyz), dot(p, car_light.up.xyz), dot(p, car_light.dir.xyz));
-    const float lit = cascade_lit(l, car_light.map, car_light.depth, 0.0) * cascade_lit(l, car_light.map2, car_light.depth2, 0.5);
+    // the far cascade's shadows fade out with distance, gone before its end (a car's whole shadow goes there)
+    const float far_lit = lerp(cascade_lit(l, car_light.map2, car_light.depth2, 0.5), 1.0,
+                               saturate((p.z - car_light.depth2.z) * car_light.depth2.w));
+    const float lit = cascade_lit(l, car_light.map, car_light.depth, 0.0) * far_lit;
     return lerp(1.0 - car_light.depth.z, 1.0, lit);
 }
 
@@ -391,10 +407,13 @@ float4 ps_poly(PolyOut i) : SV_Target {
     const float2 uv = i.oz.yz * z;
     // The 2x render has two raster pixels per output pixel per axis.
     const float2 footprint = 2.0 * (abs(ddx(uv)) + abs(ddy(uv)));
+    // a custom car's paint: texels a pixel steps across, the longer way (its
+    // level of detail, opponent_paint), at the top level's 256 x 128
+    const float paint_texels = max(length(ddx(uv) * float2(256.0, 128.0)), length(ddy(uv) * float2(256.0, 128.0)));
     if ((flags & (1u << 24)) != 0u) { // a local car body: the player's lit as the game's cars (bits 29, 30)
         const bool smooth = ((flags >> 29) & 1u) != 0u, reflective = ((flags >> 30) & 1u) != 0u;
         const uint shade = smooth ? uint(clamp(i.light_oz / i.oz.x + 0.5, 0.0, 255.0)) : i.info.z;
-        const float4 c = opponent_paint(uv, footprint, i.info.y, shade);
+        const float4 c = opponent_paint(uv, paint_texels, i.info.y, shade);
         // see-through glass (bit 28): covered as much as info.w / 255, as the
         // game's translucency (alpha to coverage with MSAA, bit 25; else an
         // ordered 2 x 2 pattern of pixels)

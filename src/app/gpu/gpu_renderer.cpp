@@ -609,6 +609,10 @@ void GpuRenderer::shadow_casters(const std::vector<rt::GeoPoly> &polys) {
     if (casters_now_.empty()) return;
     constexpr float kShadowNear = 40.0f;  // camera units: the player's car is about 5 away
     constexpr float kShadowFar = 140.0f;  // the opponents ahead, at a coarser scale
+    // the far shadows fade out by the receiver's depth before kShadowFar,
+    // where a car's whole shadow goes (by its farthest corner; face by face,
+    // a car crossing it lost its shadow in pieces)
+    constexpr float kFadeFrom = 112.0f, kFadeTo = 132.0f;
     constexpr float kShadowDepth = 60.0f; // how far beyond the casters a receiver may be, along the light
     constexpr float kStrength = 0.45f;    // the light taken away in shadow
     float dir[3] = {game_light_[0], game_light_[1], game_light_[2]}; // the light's travel
@@ -644,8 +648,9 @@ void GpuRenderer::shadow_casters(const std::vector<rt::GeoPoly> &polys) {
         if (p.num_vertices < 3) continue;
         float zmin = 1e30f, zmax = 0.0f;
         for (int k = 0; k < p.num_vertices; ++k) zmin = std::min(zmin, p.v[k].p[0]), zmax = std::max(zmax, p.v[k].p[0]);
-        if (zmin <= 0.0f || zmax >= kShadowFar) continue;
-        const int c = car_far[p.mobile_key.slot] < kShadowNear ? 0 : 1;
+        const float far = car_far[p.mobile_key.slot];
+        if (zmin <= 0.0f || far >= kShadowFar) continue;
+        const int c = far < kShadowNear ? 0 : 1;
         kept[c].push_back(i);
         for (int k = 0; k < p.num_vertices; ++k) {
             float l[3];
@@ -659,6 +664,7 @@ void GpuRenderer::shadow_casters(const std::vector<rt::GeoPoly> &polys) {
     std::copy(up, up + 3, u + 8);
     std::copy(dir, dir + 3, u + 12);
     u[22] = kStrength, u[23] = 1.0f / float(kShadowMapH); // a texel of a half
+    u[34] = kFadeFrom, u[35] = 1.0f / (kFadeTo - kFadeFrom); // depth2 (z, w): the far shadows' fade
     for (int c = 0; c < 2; ++c) {
         if (kept[c].empty()) continue;
         const float pad = c ? 1.0f : 0.5f;

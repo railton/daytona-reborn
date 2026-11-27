@@ -39,6 +39,23 @@ rule 14); each version has its section here.
   still stops for its TCP retransmission; the game repeating each message 4
   times instead of 2 (`M2_PROTO_UDP_REPEAT`) did not measurably help.
 
+### Graphics: the custom cars' paint, the far shadows
+
+- A custom car's paint is trilinear: the two levels around the texels a
+  pixel covers, blended, so its sharpness changes smoothly as the car turns
+  or goes away (one level picked, it changed at once: a line of sharpness
+  across a side panel). The level comes from the longer of the pixel's two
+  steps across the paint; it was 1 to 1.5 levels blurrier, from a factor of
+  the 2x render dropped in 0.22. Up close a little sharper (the plate, the
+  headlights' rings), seen in frames at 1920 x 1080.
+- The far cars' shadows (40 to 140 units ahead): a car's whole shadow goes at
+  140 units, by its farthest corner, and the far shadows fade out from 112
+  to 132 units before it (by the ground's depth). Face by face, a car
+  crossing 140 lost its shadow in pieces.
+- Measured: 3000 frames at 3840 x 2160, MSAA 4x, the Fusca with shadows and
+  reflections, 6 interleaved runs each: the GPU wait 0.20 -> 0.20 ms, the
+  renderer's CPU 4.24 -> 4.20 ms a frame (medians): no cost seen.
+
 ### Online: the log measures every other car
 
 - The game's log now has a line for every other car of the room after an
