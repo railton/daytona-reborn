@@ -178,10 +178,10 @@ sequenceDiagram
     participant S as Friend (SLAVE)
     rect rgba(37,99,235,0.08)
         Note over M,S: 1. The room
-        M->>R: TCP hello: op=create, name, v=10, settings, udp=1
+        M->>R: TCP hello: op=create, name, v=12, settings, udp=1
         R-->>M: S: place 1, the room's settings, a rejoin key
         Note left of M: invite DTN1-...<br/>server + room + password
-        S->>R: TCP hello: op=join, name, v=10, udp=1
+        S->>R: TCP hello: op=join, name, v=12, udp=1
         R-->>M: S: 2 players, latencies
         R-->>S: S: place 2, the same settings
         par every 2 s
@@ -230,13 +230,16 @@ every router, and many players cannot open them at all.
 
 **The solution.** Every game connects **out** to one server, the relay,
 which passes the data between the players of a room. Only the server needs
-a port open: 7777, TCP and UDP.
+a port open: 7777, TCP and UDP. On a local network one of the players runs
+it on their own computer, which prints the address to give the others
+(the README, "Playing on a local network"); the arcade's direct link
+between cabinets (Link play) is no longer offered.
 
 **In detail.** One TCP connection a player, opened with a text line, the
 **hello**:
 
 ```
-DAYTONA-RELAY 5 op=join room=k7f3q9xz name=Alex pass=... v=10 udp=1
+DAYTONA-RELAY 5 op=join room=k7f3q9xz name=Alex pass=... v=12 udp=1
 ```
 
 - `op`: `create` (the creator owns the room), `join`, `info` (the server's
@@ -454,9 +457,23 @@ An example, with the reserve at 2:
 after the frame's vblank, never two in one frame; if the queue grows too
 long, the oldest block goes in silently so the delay does not build up.
 Each block of reserve costs about 17 ms of delay on the other cars' data,
-which is why the reserve shrinks again when the line is steady. Each game
-also sends its block and the board's token **in one send** per frame,
-instead of two.
+which is why the reserve shrinks again when the line is steady. The
+reserve learns from the race only (0.24): the frames a game waits at the
+start barrier, when it reads no block, are not counted as frames without
+one. Each game also sends its block and the board's token **in one send**
+per frame, instead of two.
+
+**The picture (0.24).** What the reserve cannot cover, a stall of a few
+hundred milliseconds when a player's line loses a burst of packets, the
+game showed as that car stopping, then jumping when its data came. Each
+other player's car is now drawn at a pose of its own
+(`Geo::smooth_remote_cars`): carried on along its last motion while the
+game holds it without data (up to 24 ticks, then slowing to a stop), and
+brought back to the game's pose over a few ticks when the data comes,
+never backwards. With its data on time it is the game's pose exactly. The
+picture only: the game's poses, collisions and what it sends are
+untouched, so the protocol is the same; the setting is "Online: the other
+players' cars smooth", on by default.
 
 ## 7. Everyone at the same moment: coordination
 
@@ -598,6 +615,7 @@ by room, name and time.
 | Compression | `src/app/link_codec.h` | `linkcodec/` |
 | Star composition, in order, its own pace | | `main.go` (`compose`, `slotFor`), `pace.go` |
 | Pacing, reserve | `src/runtime/comm_board.*` | |
+| The other cars drawn smoothly | `src/runtime/geo.cpp` (`smooth_remote_cars`), `src/runtime/remote_cars.h` | |
 | Settings, Start, barrier, course, gearbox | `src/runtime/online_settings.h` | |
 | Race logs | `src/app/online_race_stats.h` | `cmd/daytona-relay/racelog.go` |
 

@@ -13,7 +13,11 @@ rule 14); each version has its section here.
   textures, the room's settings). `docs/getting-started.md` points at the
   settings' new places (Advanced > Game, Display, Enhancements, Sound),
   says what Render resolution offers now and that the force feedback was
-  tried on a gamepad; `textures/README.md` too. Rule 23: every platform
+  tried on a gamepad; `textures/README.md` too. The protocol's
+  documents: the relay README's greeting no longer lists `op=auto`;
+  `docs/ONLINE-PROTOCOL.md` has the hello at `v=12`, the local network,
+  the reserve learning from the race only and the other cars drawn
+  smoothly. Rule 23: every platform
   builds from the release commit before its tag; rule 13: a change to
   what a screenshot shows takes it again in the same commit.
 
