@@ -28,6 +28,10 @@ namespace app {
 namespace {
 
 constexpr const char *kImage = "daytona-hires-kit"; // the upscaling container, removed after a success
+// its run's name: killing `docker run` leaves the container running (it went
+// on upscaling after a cancel, into the folder the next run uses), so a
+// cancel removes it by this name, and a run removes one left before
+constexpr const char *kContainer = "daytona-hires-kit-run";
 
 std::string base_dir() {
     const char *base = SDL_GetBasePath();
@@ -42,6 +46,18 @@ std::string capture_tool() {
 #endif
 }
 std::string work_dir() { return Config::pref_dir() + "hires-work/"; }
+
+// `docker rm -f kContainer` (kills it if running), outside run(): it runs after a cancel.
+void remove_container(const std::function<void(const std::string &)> &log) {
+    const char *argv[] = {"docker", "rm", "-f", kContainer, nullptr};
+    log(std::string("$ docker rm -f ") + kContainer);
+    SDL_Process *p = SDL_CreateProcess(argv, false);
+    if (!p) return log(std::string("cannot start: ") + SDL_GetError());
+    int code = -1;
+    SDL_WaitProcess(p, true, &code);
+    SDL_DestroyProcess(p);
+    log("exit " + std::to_string(code));
+}
 
 std::string now_text() {
     const std::time_t t = std::time(nullptr);
@@ -411,7 +427,8 @@ void HiresMaker::job(std::string rom_path, bool processor) {
 
     // 3. upscale
     set_stage(Stage::Upscaling, 0.4f);
-    std::vector<std::string> args = {"docker", "run", "--rm"};
+    remove_container([this](const std::string &line) { log(line); });
+    std::vector<std::string> args = {"docker", "run", "--rm", "--name", kContainer};
     if (!processor) args.insert(args.end(), {"--gpus", "all"});
 #if defined(SDL_PLATFORM_LINUX)
     args.insert(args.end(), {"-u", std::to_string(getuid()) + ":" + std::to_string(getgid())});
@@ -421,6 +438,7 @@ void HiresMaker::job(std::string rom_path, bool processor) {
     code = run(args, [&](const std::string &line) {
         if (parse_progress(line, "hires_textures", done, total)) set_progress(0.4f + 0.55f * float(done) / float(total));
     });
+    if (cancel_) remove_container([this](const std::string &line) { log(line); });
     if (code != 0) return fail(Problem::Upscale, "the upscaling failed", code);
 
     // 4. install

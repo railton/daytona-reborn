@@ -47,14 +47,23 @@ rule 14); each version has its section here.
   across a side panel). The level comes from the longer of the pixel's two
   steps across the paint; it was 1 to 1.5 levels blurrier, from a factor of
   the 2x render dropped in 0.22. Up close a little sharper (the plate, the
-  headlights' rings), seen in frames at 1920 x 1080.
+  headlights' rings), seen in frames at 1920 x 1080. Frame by frame (the
+  rolling start's camera around the Fusca), the front's detail jumped 6 to
+  8 % within two frames where a level changed (it was 3 to 22 % below the
+  blend's); now it follows the distance (at most 1.5 % there).
 - The far cars' shadows (40 to 140 units ahead): a car's whole shadow goes at
   140 units, by its farthest corner, and the far shadows fade out from 112
   to 132 units before it (by the ground's depth). Face by face, a car
-  crossing 140 lost its shadow in pieces.
+  crossing 140 lost its shadow in pieces: traced in a race, one car's 9
+  faces went 9, 8, 6, 5 ... 0 over 20 frames and back over 70 more,
+  hovering at 140 to 145. Small on screen (at 1280 x 720, at most 89 pixels
+  differ between the two ways in any frame of the race), and now gone: the
+  fade has ended before the cut.
 - Measured: 3000 frames at 3840 x 2160, MSAA 4x, the Fusca with shadows and
   reflections, 6 interleaved runs each: the GPU wait 0.20 -> 0.20 ms, the
-  renderer's CPU 4.24 -> 4.20 ms a frame (medians): no cost seen.
+  renderer's CPU 4.24 -> 4.20 ms a frame (medians): no cost seen. At
+  1920 x 1080 the same: GPU wait 0.35 -> 0.27 ms (runs from 0.14 to 0.36),
+  CPU 4.32 -> 4.29 ms.
 
 ### AI textures: a stopped pack takes up where it was; outlines keep their coverage
 
@@ -65,7 +74,16 @@ rule 14); each version has its section here.
   card: run again, the 573 images were kept in 1.9 s (100 s to make them;
   about 30 minutes on a processor); after a stop with 200 left, only those
   were made, and the result was byte for byte the same as an uninterrupted
-  run's.
+  run's. Checked again through the maker the Settings button runs
+  (`HiresMaker`): cancelled with 210 images made, made again, 210 kept, the
+  pack byte for byte the same.
+- Cancel now stops the upscaling too: it ended the `docker run` command but
+  not its container, which went on upscaling (from 293 to 469 images in 20 s
+  after a Cancel) into the folder the next run takes up. The run has a name
+  (`daytona-hires-kit-run`), removed on a cancel and before a run.
+- In the game, the road patch's dark share against the original: 61.2 % at
+  MSAA 1x, 63.8 % before the opacity is remapped, 60.7 % after; at MSAA 4x
+  +3.5 points before, +1.6 after (72 and 84 frames of a race).
 - A cut-out texture's upscaled opacity keeps the game's coverage: the model
   can fill a mask's scattered holes, so one that draws more than 1 point
   more (or less) of itself than the game's, at the half a render without
