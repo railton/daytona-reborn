@@ -141,10 +141,6 @@ void Config::read(std::istream &f) {
             controls.wheel_sensitivity = std::isfinite(value) ? std::clamp(value, 0.25f, 3.0f) : 1.0f;
         }
         else if (k == "steer_invert") controls.steer_invert = v == "1";
-        else if (k == "link") link = v == "1";
-        else if (k == "link_port") link_port = std::clamp(std::atoi(v.c_str()), 1, 65535);
-        else if (k == "link_next") link_next = v;
-        else if (k == "link_framesync") link_framesync = v == "1";
         else if (k == "online_name") online_name = v;
         else if (k == "online_server") online_server = v;
         else if (k == "online_password") online_password = v;
@@ -243,10 +239,6 @@ void Config::write(std::ostream &f) const {
     f << "joy_deadzone=" << controls.joy_deadzone << "\n";
     f << "wheel_sensitivity=" << controls.wheel_sensitivity << "\n";
     f << "steer_invert=" << (controls.steer_invert ? 1 : 0) << "\n";
-    f << "link=" << (link ? 1 : 0) << "\n";
-    f << "link_port=" << link_port << "\n";
-    f << "link_next=" << link_next << "\n";
-    f << "link_framesync=" << (link_framesync ? 1 : 0) << "\n";
     f << "online_name=" << online_name << "\n";
     f << "online_server=" << online_server << "\n";
     f << "online_password=" << online_password << "\n";

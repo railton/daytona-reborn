@@ -1158,33 +1158,6 @@ msgstr ""
 "puis rejoint la place que le jeu lui donne. L'image seulement : la course elle-même ne change pas.\n"
 "Nécessite le rendu Matériel et le double tampon."
 
-msgid "To race friends over the Internet, use Online in the home menu: no port to open, player names, standings, the room's settings for everyone. Link play joins cabinets directly, on a local network, or through the daytona-link helper."
-msgstr "Pour courir avec des amis sur Internet, utilisez En ligne dans le menu d'accueil : aucun port à ouvrir, noms des joueurs, classement, les réglages de la salle pour tous. Le jeu en réseau relie les bornes directement, sur un réseau local, ou via l'utilitaire daytona-link."
-
-msgid "Link play (experimental, reset)"
-msgstr "Jeu en réseau (expérimental, réinitialiser)"
-
-msgid "Link to other cabinets"
-msgstr "Relier à d'autres bornes"
-
-msgid "This cabinet's port"
-msgstr "Port de cette borne"
-
-msgid "Next cabinet (host:port)"
-msgstr "Borne suivante (hôte:port)"
-
-msgid "Synchronise frames (each cabinet waits for the master)"
-msgstr "Synchroniser les images (chaque borne attend la principale)"
-
-msgid "On a local network only: every frame waits for the data to go round all the cabinets, so over the Internet the game slows down (22 frames/s with 20 ms between two cabinets)."
-msgstr "Sur un réseau local seulement : chaque image attend que les données fassent le tour de toutes les bornes, donc sur Internet le jeu ralentit (22 images/s avec 20 ms entre deux bornes)."
-
-msgid "Network: %s"
-msgstr "Réseau : %s"
-
-msgid "The cabinets link in a ring over the network (Wi-Fi or cable): each listens on its port and connects to the next one; with two, each has the other as next. All the computers can take the same port, for example 15112, and Next cabinet = the other computer's address:15112. In test mode (F2) > GAME SYSTEM, set LINK ID (one MASTER, the others SLAVE) and a different CAR NUMBER on each. The 1994 game (revision A) supports link play."
-msgstr "Les bornes se relient en anneau par le réseau (Wi-Fi ou câble) : chacune écoute sur son port et se connecte à la suivante ; à deux, chacune a l'autre pour suivante. Tous les ordinateurs peuvent prendre le même port, par exemple 15112, et Borne suivante = adresse de l'autre ordinateur:15112. En mode test (F2) > GAME SYSTEM, régler LINK ID (une MASTER, les autres SLAVE) et un CAR NUMBER différent sur chacune. Le jeu de 1994 (révision A) permet le jeu en réseau."
-
 msgid "Devices"
 msgstr "Appareils"
 
@@ -1384,45 +1357,6 @@ msgstr "Améliorations"
 
 msgid "AI textures"
 msgstr "Textures IA"
-
-msgid "Link play (advanced)"
-msgstr "Jeu en réseau (avancé)"
-
-msgid "off"
-msgstr "coupé"
-
-msgid "not started"
-msgstr "pas démarré"
-
-msgid "on (the game has not started the link: set LINK ID in test mode)"
-msgstr "actif (le jeu n'a pas lancé la liaison : régler LINK ID en mode test)"
-
-msgid "waiting: "
-msgstr "en attente : "
-
-msgid "next cabinet "
-msgstr "borne suivante "
-
-msgid " reached; "
-msgstr " jointe ; "
-
-msgid " not reached yet (is it listening on that port?); "
-msgstr " pas encore jointe (écoute-t-elle sur ce port ?) ; "
-
-msgid "a cabinet is connected to port "
-msgstr "une borne est connectée au port "
-
-msgid "no cabinet has connected yet to port "
-msgstr "aucune borne ne s'est encore connectée au port "
-
-msgid "linked: cabinet "
-msgstr "relié : borne "
-
-msgid " of "
-msgstr " sur "
-
-msgid "lost (reset to try again)"
-msgstr "perdu (réinitialiser pour réessayer)"
 
 msgid "Invalid race settings."
 msgstr "Paramètres de course invalides."
@@ -1631,9 +1565,6 @@ msgstr "Cette salle existe déjà."
 msgid "This room is full."
 msgstr "Cette salle est complète."
 
-msgid "This room is not for that number of players."
-msgstr "Cette salle n'a pas ce nombre de joueurs."
-
 msgid "Wrong server password."
 msgstr "Mot de passe du serveur incorrect."
 
@@ -1655,14 +1586,8 @@ msgstr "Ce serveur n'est pas compatible avec cette version du jeu."
 msgid "Invalid room code."
 msgstr "Code de salle invalide."
 
-msgid "Invalid number of players: 2 to 8."
-msgstr "Nombre de joueurs invalide : de 2 à 8."
-
 msgid "The server refused the room's settings."
 msgstr "Le serveur a refusé les réglages de la salle."
-
-msgid "This room belongs to the daytona-link helper, not to the game's Online mode."
-msgstr "Cette salle appartient à l'utilitaire daytona-link, pas au mode En ligne du jeu."
 
 msgid "Too many rooms open from your address."
 msgstr "Trop de salons ouverts depuis votre adresse."
@@ -1716,7 +1641,28 @@ msgid "Invalid data from another player: is everyone on the same version of the 
 msgstr "Données invalides d'un autre joueur : tout le monde a-t-il la même version du jeu ?"
 
 # Plus utilisés (no longer used):
-#~ msgid ""
-#~ "The cabinet wheel's motor (recentring, resistance, wheel pulling), on the device assigned to steering; a gamepad rumbles when the car is pushed. Currently: %s.\n"
-#~ "Wheels and force feedback are not yet tested on real hardware: feedback welcome.\n"
-#~ "The log goes to the game's log, in the logs folder (Settings > Game > Logs)."
+#~ msgid "To race friends over the Internet, use Online in the home menu: no port to open, player names, standings, the room's settings for everyone. Link play joins cabinets directly, on a local network, or through the daytona-link helper."
+#~ msgid "Link play (experimental, reset)"
+#~ msgid "Link to other cabinets"
+#~ msgid "This cabinet's port"
+#~ msgid "Next cabinet (host:port)"
+#~ msgid "Synchronise frames (each cabinet waits for the master)"
+#~ msgid "On a local network only: every frame waits for the data to go round all the cabinets, so over the Internet the game slows down (22 frames/s with 20 ms between two cabinets)."
+#~ msgid "Network: %s"
+#~ msgid "The cabinets link in a ring over the network (Wi-Fi or cable): each listens on its port and connects to the next one; with two, each has the other as next. All the computers can take the same port, for example 15112, and Next cabinet = the other computer's address:15112. In test mode (F2) > GAME SYSTEM, set LINK ID (one MASTER, the others SLAVE) and a different CAR NUMBER on each. The 1994 game (revision A) supports link play."
+#~ msgid "Link play (advanced)"
+#~ msgid "off"
+#~ msgid "not started"
+#~ msgid "on (the game has not started the link: set LINK ID in test mode)"
+#~ msgid "waiting: "
+#~ msgid "next cabinet "
+#~ msgid " reached; "
+#~ msgid " not reached yet (is it listening on that port?); "
+#~ msgid "a cabinet is connected to port "
+#~ msgid "no cabinet has connected yet to port "
+#~ msgid "linked: cabinet "
+#~ msgid " of "
+#~ msgid "lost (reset to try again)"
+#~ msgid "This room is not for that number of players."
+#~ msgid "Invalid number of players: 2 to 8."
+#~ msgid "This room belongs to the daytona-link helper, not to the game's Online mode."

@@ -54,7 +54,6 @@ void apply_fullscreen_mode(SDL_Window *window, const std::string &key) {
 }
 
 Launcher::Launcher(Config &cfg, SDL_Window *window) : cfg_(cfg), window_(window) {
-    std::snprintf(link_next_buf_, sizeof link_next_buf_, "%s", cfg_.link_next.c_str());
 #ifdef SDL_PLATFORM_ANDROID
     // Older mobile builds saved the picker result (content://...) directly.
     // Do not reopen such a URI during startup: Android's temporary document
@@ -1400,42 +1399,6 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
             });
         };
 
-        // ---- Link play: cabinets linked directly, without the relay (advanced: the
-        // Online mode in the home menu covers racing over the Internet)
-        const auto section_link = [&] {
-            ImGui::Spacing();
-            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 0.74f, 0.45f, 1));
-            ImGui::TextWrapped("%s", TX("To race friends over the Internet, use Online in the home menu: no port to open, "
-                                        "player names, standings, the room's settings for everyone. Link play joins "
-                                        "cabinets directly, on a local network, or through the daytona-link helper."));
-            ImGui::PopStyleColor();
-            ImGui::SeparatorText(TX("Link play (experimental, reset)"));
-            if (ImGui::Checkbox(TX("Link to other cabinets"), &cfg_.link)) cfg_.save();
-            ImGui::BeginDisabled(!cfg_.link);
-            columns("##link", wide, [&] {
-                ImGui::TextUnformatted(TX("This cabinet's port"));
-                ImGui::SetNextItemWidth(-FLT_MIN);
-                if (ImGui::InputInt("##link_port", &cfg_.link_port, 0, 0)) {
-                    cfg_.link_port = std::clamp(cfg_.link_port, 1, 65535);
-                    cfg_.save();
-                }
-            }, [&] {
-                ImGui::TextUnformatted(TX("Next cabinet (host:port)"));
-                ImGui::SetNextItemWidth(-FLT_MIN);
-                if (ImGui::InputText("##link_next", link_next_buf_, sizeof link_next_buf_)) {
-                    cfg_.link_next = link_next_buf_;
-                    cfg_.save();
-                }
-            });
-            if (ImGui::Checkbox(TX("Synchronise frames (each cabinet waits for the master)"), &cfg_.link_framesync)) cfg_.save();
-            hint("%s", TX("On a local network only: every frame waits for the data to go round all the cabinets, so "
-                          "over the Internet the game slows down (22 frames/s with 20 ms between two cabinets)."));
-            ImGui::EndDisabled();
-            ImGui::Spacing();
-            ImGui::TextWrapped(TX("Network: %s"), link_status_.c_str());
-            ImGui::Spacing();
-            hint(TX("The cabinets link in a ring over the network (Wi-Fi or cable): each listens on its port and connects to the next one; with two, each has the other as next. All the computers can take the same port, for example 15112, and Next cabinet = the other computer's address:15112. In test mode (F2) > GAME SYSTEM, set LINK ID (one MASTER, the others SLAVE) and a different CAR NUMBER on each. The 1994 game (revision A) supports link play."));
-        };
 
         // ---- Controls: devices, steering, force feedback, the assignments
         const auto section_controls = [&] {
@@ -1712,7 +1675,6 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
 #ifndef M2_MOBILE
             section(TX("AI textures"), [&] { draw_hires_tab(scale); });
 #endif
-            section(TX("Link play (advanced)"), section_link);
             ImGui::EndTabItem();
         }
 

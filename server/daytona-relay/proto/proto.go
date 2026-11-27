@@ -1,5 +1,5 @@
 // Package proto is the wire format between the players (the game's Online
-// mode, or the daytona-link helper) and daytona-relay (the server).
+// mode) and daytona-relay (the server).
 //
 // The client opens one TCP connection and sends a single text line, values
 // percent-encoded:
@@ -9,9 +9,7 @@
 // op: info (no room: the server answers one Info frame, its race settings'
 // defaults, then closes; a wrong password is refused as for any op), create
 // (the room must not exist; its creator owns it, and set= overrides the
-// server's race settings for it), join (it must exist) or auto (create or
-// join, with players=N: the daytona-link helper's fixed-size rooms, which
-// start on their own once N have joined).
+// server's race settings for it) or join (it must exist).
 //
 // A room takes up to MaxPlayers. Its owner (the creator; the next in line
 // when the owner leaves) starts a
@@ -146,12 +144,11 @@ func CleanName(s string) string {
 }
 
 type Hello struct {
-	Op       string // info, create, join, auto
+	Op       string // info, create, join, rejoin
 	Room     string // empty for info
-	Players  int    // auto only: the helper's fixed room size
 	Name     string
 	Password string
-	Game     string // the game's online version ("v"); a room only takes one; empty: the daytona-link helper
+	Game     string // the game's online version ("v"); a room only takes one
 	Settings string // create only: "key:value,..." over the server's race settings (package settings)
 	Key      string // rejoin only: the key the player's status gave (Status.Key)
 	UDP      bool   // udp=1: this player's game data is numbered (4-byte sequence before each D payload) and also comes and goes by UDP
@@ -162,9 +159,6 @@ func (h Hello) Line() string {
 	fmt.Fprintf(&b, "%s %d op=%s", Magic, Version, h.Op)
 	if h.Room != "" {
 		fmt.Fprintf(&b, " room=%s", url.PathEscape(h.Room))
-	}
-	if h.Players > 0 {
-		fmt.Fprintf(&b, " players=%d", h.Players)
 	}
 	if h.Name != "" {
 		fmt.Fprintf(&b, " name=%s", url.PathEscape(h.Name))
@@ -211,8 +205,6 @@ func ParseHello(line string) (Hello, error) {
 			h.Op = val
 		case "room":
 			h.Room = val
-		case "players":
-			h.Players, _ = strconv.Atoi(val)
 		case "name":
 			h.Name = val
 		case "pass":
@@ -229,9 +221,9 @@ func ParseHello(line string) (Hello, error) {
 	}
 	switch h.Op {
 	case "info":
-		h.Room, h.Players, h.Settings = "", 0, ""
+		h.Room, h.Settings = "", ""
 		return h, nil
-	case "create", "join", "auto", "rejoin":
+	case "create", "join", "rejoin":
 	default:
 		return Hello{}, Errf("protocol", "unknown operation")
 	}
@@ -240,9 +232,6 @@ func ParseHello(line string) (Hello, error) {
 		return Hello{}, err
 	}
 	h.Room = room
-	if h.Op == "auto" && (h.Players < MinPlayers || h.Players > MaxPlayers) {
-		return Hello{}, Errf("players", "players must be %d to %d", MinPlayers, MaxPlayers)
-	}
 	h.Name = CleanName(h.Name)
 	return h, nil
 }

@@ -6,6 +6,18 @@ rule 14); each version has its section here.
 
 ## Unreleased
 
+### Link play removed; the Online mode on a local network
+
+- Link play (cabinets joined directly over TCP: Settings' Link play
+  section, its four settings) was not used: removed. The Online mode does
+  the same through the relay server, with names, standings and reconnection,
+  also on a local network: the README's "Playing on a local network". The
+  `daytona-link` helper (the unmodified game through the relay) and the
+  relay's rooms for it (op=auto, error codes room_kind, size, players) went
+  with it; the game never asked for one, so games and rooms are unchanged.
+  `m2run --link-listen/--link-next` keep the direct link for the headless
+  tests. The history has it all.
+
 ### Controls: force feedback tested on a gamepad
 
 - Force feedback works on a gamepad (its rumble, in the impacts and when

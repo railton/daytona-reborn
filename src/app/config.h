@@ -85,13 +85,6 @@ struct Config {
     static constexpr double kMaxAspect = 21.0 / 9.0;
     double aspect_ratio() const; // width / height; 0 = original
     Controls controls;
-    // Link play (the communication board; Revision A): this cabinet listens
-    // for the one before it in the ring and connects to the next. Master or
-    // slave, and the car number, are the game's own settings (test mode).
-    bool link = false;
-    int link_port = 15112;               // where the cabinet before this one connects
-    std::string link_next = "127.0.0.1:15113"; // host:port of the next cabinet
-    bool link_framesync = false;         // hold every cabinet to the master's frame
     // Online play (app/relay_link.h): through a daytona-relay server, the
     // home menu's Online screen. The player's name, the last server used.
     std::string online_name;

@@ -28,8 +28,7 @@ func TestHelloRejects(t *testing.T) {
 		"DAYTONA-RELAY 3 op=join room=x", // the version before compressed link data and latency
 		"DAYTONA-RELAY 4 op=join room=x", // the version before star mode, UDP and rejoin
 		"DAYTONA-RELAY 5 op=steal room=x",
-		"DAYTONA-RELAY 5 op=auto room=x players=9",
-		"DAYTONA-RELAY 5 op=auto room=x players=1",
+		"DAYTONA-RELAY 5 op=auto room=x players=2", // the daytona-link helper's rooms, gone
 		"DAYTONA-RELAY 5 op=join room=bad%20room",
 	} {
 		if _, err := ParseHello(line); err == nil {
@@ -39,8 +38,8 @@ func TestHelloRejects(t *testing.T) {
 	if h, err := ParseHello("DAYTONA-RELAY 5 op=join room=ABC"); err != nil || h.Room != "abc" {
 		t.Errorf("join without players: %+v %v", h, err)
 	}
-	if h, err := ParseHello("DAYTONA-RELAY 5 op=create room=abc"); err != nil || h.Players != 0 {
-		t.Errorf("create without players: %+v %v", h, err)
+	if h, err := ParseHello("DAYTONA-RELAY 5 op=create room=abc"); err != nil || h.Room != "abc" {
+		t.Errorf("create: %+v %v", h, err)
 	}
 	if h, err := ParseHello("DAYTONA-RELAY 5 op=info pass=x room=y set=a:b"); err != nil || h.Op != "info" || h.Room != "" || h.Settings != "" || h.Password != "x" {
 		t.Errorf("info: %+v %v", h, err)

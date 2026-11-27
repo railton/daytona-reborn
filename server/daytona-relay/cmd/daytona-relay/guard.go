@@ -149,9 +149,6 @@ func (s *server) janitor() {
 		}
 	}
 	for _, r := range s.rooms {
-		if r.auto > 0 {
-			continue // the daytona-link helper's rooms: no owner to start a race, they wait for their size
-		}
 		why := ""
 		if len(r.members) == 1 && now.Sub(r.aloneSince) >= s.roomAlone {
 			why = "its creator alone for " + s.roomAlone.String()

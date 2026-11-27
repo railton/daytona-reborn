@@ -110,7 +110,7 @@ Do Daytona Reborn beta 0.10, mantida neste repositório:
 - **Controles** para teclado, controles, volantes e pedais, com eixos
   analógicos e force feedback (experimental).
 - **Idiomas:** inglês, francês, português do Brasil.
-- **Link play** em rede local, como gabinetes de fliperama ligados.
+- **Numa rede local** também: o servidor relay rodando num dos computadores.
 
 ## Início rápido
 
@@ -118,7 +118,7 @@ Você precisa da sua própria ROM no formato do MAME (`.zip` ou `.7z`):
 
 | Conjunto | Jogo | Observações |
 | --- | --- | --- |
-| `daytona` | Daytona USA, Revision A (1994) | tela inicial para PC, melhorias, Online e link play |
+| `daytona` | Daytona USA, Revision A (1994) | tela inicial para PC, melhorias, Online |
 | `daytona93` | Daytona USA Deluxe '93 | opcional, compilado como um jogo separado |
 
 1. Baixe o código:
@@ -188,7 +188,7 @@ O jogo Revision A abre na tela inicial. As **Configurações** têm quatro abas:
 | Principal | o que mais se muda, também durante a corrida (Esc): formato da imagem, tela cheia, a qualidade de imagem automática (ou a máxima de uma vez), sombras e reflexos dos carros, os carros dos outros jogadores suaves no online, as texturas em alta resolução, volume |
 | Carros | experimental, aparece quando a pasta `cars/` do projeto tem um carro: o carro que você dirige, um cartão com a imagem de cada um (o do próprio jogo, ou uma carroceria feita de um modelo 3D no formato de [cars/README.md](cars/README.md)); troca na hora |
 | Controles | dispositivos, direção, force feedback, a tecla, o botão do controle e do volante de cada comando |
-| Avançado | tudo, em seções que abrem e fecham: **Jogo** (a ROM; logs, ligados por padrão, e Abrir a pasta de logs; atualizações; recomeçar do zero), **Vídeo** (API gráfica, renderizador, resolução de renderização, modo de desenho, janela, ritmo de exibição), **Melhorias** (distância de visão, cenário em 3D, detalhe dos adversários, orçamento de polígonos, opções de widescreen, cada opção de qualidade de imagem, efeitos de tela, cores da tela, suavização), **Som** (volume, equilíbrio entre música e efeitos, som nativo), **Texturas IA** (experimental: o que este computador tem para o pacote de texturas em alta resolução, gerar, usar ou apagar o pacote; o pacote fica na pasta `textures/` do projeto, onde um `.zip` com um pacote dentro é conferido e usado: [docs/HIRES-TEXTURES.md](docs/HIRES-TEXTURES.md)), **Link play** (ligar gabinetes numa rede local) |
+| Avançado | tudo, em seções que abrem e fecham: **Jogo** (a ROM; logs, ligados por padrão, e Abrir a pasta de logs; atualizações; recomeçar do zero), **Vídeo** (API gráfica, renderizador, resolução de renderização, modo de desenho, janela, ritmo de exibição), **Melhorias** (distância de visão, cenário em 3D, detalhe dos adversários, orçamento de polígonos, opções de widescreen, cada opção de qualidade de imagem, efeitos de tela, cores da tela, suavização), **Som** (volume, equilíbrio entre música e efeitos, som nativo), **Texturas IA** (experimental: o que este computador tem para o pacote de texturas em alta resolução, gerar, usar ou apagar o pacote; o pacote fica na pasta `textures/` do projeto, onde um `.zip` com um pacote dentro é conferido e usado: [docs/HIRES-TEXTURES.md](docs/HIRES-TEXTURES.md)) |
 
 Na primeira abertura o jogo mede a placa de vídeo e ajusta a qualidade de
 imagem a ela (Original, Média, Alta ou Máxima; Alta e Máxima também
@@ -291,15 +291,14 @@ As configurações do servidor e os formatos dos bytes:
 Ainda não testado entre redes distantes; veja as limitações conhecidas no
 [CHANGELOG.md](CHANGELOG.md).
 
-## Link play em rede local
+## Jogando numa rede local
 
-O Revision A pode ligar gabinetes numa rede local, como máquinas de
-fliperama ligadas. Em Configurações > **Link play**, marque **Ligar a
-outros gabinetes**, informe a porta deste gabinete e o `host:porta` do
-próximo (os gabinetes formam um anel; com dois, o próximo de cada um é o
-outro); depois, no menu de teste (F2) > GAME SYSTEM, defina **LINK ID** (um
-MASTER, os outros SLAVE) e um **CAR NUMBER** diferente em cada um. O modo
-Online faz tudo isso sozinho.
+O modo Online funciona numa rede local também, sem internet: rode o
+servidor relay num dos computadores (`server/daytona-relay`: com Docker, ou o
+programa `daytona-relay`, compilado com Go) e passe aos outros o endereço
+desse computador na rede como servidor, por exemplo `192.168.0.10:7777`
+(`ipconfig` no Windows, `ip addr` no Linux, mostra o endereço). Libere o
+servidor no firewall desse computador, na rede privada.
 
 ## Plataformas
 

@@ -251,7 +251,7 @@ if(EXISTS ${CMAKE_SOURCE_DIR}/extern/sdl3/CMakeLists.txt)
     add_custom_target(daytona_version ALL
         COMMAND ${CMAKE_COMMAND} -DSRC=${CMAKE_CURRENT_SOURCE_DIR} -DOUT=${APP_VERSION_H} -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/app_version.cmake
         BYPRODUCTS ${APP_VERSION_H} VERBATIM)
-    add_library(daytona_app OBJECT src/app/main.cpp src/app/launcher.cpp src/app/i18n.cpp src/app/config.cpp src/app/controls.cpp src/app/ffb.cpp src/app/link_socket.cpp src/app/relay_link.cpp src/app/link_codec.cpp src/app/online.cpp src/app/online_menu.cpp src/app/online_overlay.cpp src/app/pacing.cpp src/app/custom_cars.cpp src/app/system_info.cpp)
+    add_library(daytona_app OBJECT src/app/main.cpp src/app/launcher.cpp src/app/i18n.cpp src/app/config.cpp src/app/controls.cpp src/app/ffb.cpp src/app/relay_link.cpp src/app/link_codec.cpp src/app/online.cpp src/app/online_menu.cpp src/app/online_overlay.cpp src/app/pacing.cpp src/app/custom_cars.cpp src/app/system_info.cpp)
     if(NOT M2_MOBILE)
         target_sources(daytona_app PRIVATE src/app/home_menu.cpp src/app/gpu/home_scene.cpp src/app/hires_maker.cpp
                        src/app/update_check.cpp src/app/update_fetch.cpp)

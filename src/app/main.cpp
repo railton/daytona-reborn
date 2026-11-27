@@ -38,7 +38,6 @@
 #include "app/ffb.h"
 #include "app/pacing.h"
 #include "runtime/test_hold.h"
-#include "app/link_socket.h"
 #include "app/relay_link.h"
 #include "app/online_menu.h"
 #include "app/selection_steer.h"
@@ -382,28 +381,6 @@ private:
     SDL_AudioStream *fm_ = nullptr, *pcm_ = nullptr;
     int fm_rate_ = 1;
 };
-
-// The launcher's link play status line.
-std::string link_status(const rt::CommBoard *board, const app::TcpLink *link, const app::Config &cfg) {
-    if (!cfg.link) return TX("off");
-    if (!board || !link) return TX("not started");
-    switch (board->link()) {
-    case rt::CommBoard::Link::Off: return TX("on (the game has not started the link: set LINK ID in test mode)");
-    case rt::CommBoard::Link::Waiting: {
-        // which half of the ring is missing
-        std::string s = TX("waiting: ");
-        s += TX("next cabinet ") + cfg.link_next +
-             (link->tx_open() ? TX(" reached; ") : TX(" not reached yet (is it listening on that port?); "));
-        s += std::string(link->rx_open() ? TX("a cabinet is connected to port ") : TX("no cabinet has connected yet to port ")) +
-             std::to_string(cfg.link_port);
-        return s;
-    }
-    case rt::CommBoard::Link::Up:
-        return TX("linked: cabinet ") + std::to_string(board->id()) + TX(" of ") + std::to_string(board->count());
-    case rt::CommBoard::Link::Lost: return TX("lost (reset to try again)");
-    }
-    return "";
-}
 
 std::string pref_file(const char *name) { return app::Config::pref_dir() + name; } // per ROM set and profile
 template <typename C> void load_file(const std::string &path, C &into) {
@@ -1224,8 +1201,7 @@ int main(int argc, char **argv) {
     };
 #endif
     app::ForceFeedback ffb; // the drive board on the steering device
-    std::unique_ptr<app::TcpLink> link; // link play (declared first: outlives the game, which holds it)
-    std::unique_ptr<app::RelayLink> online_link; // online play, the same (app/relay_link.h)
+    std::unique_ptr<app::RelayLink> online_link; // online play (declared first: outlives the game, which holds it; app/relay_link.h)
 #ifndef M2_MOBILE
     // The home screen's view of the saved server: asked (op=info) when it shows, then every minute.
     struct ServerProbe {
@@ -1290,7 +1266,6 @@ int main(int argc, char **argv) {
         native_audio.close(); // joins callback before replacing its ROMs/engine
         audio.close();
         game.reset();
-        link.reset();
         online_game = false;
         have_audio = false;
         native_fault = false;
@@ -1348,11 +1323,6 @@ int main(int argc, char **argv) {
                 online_gearbox = {};
                 online_waiting = false;
                 std::printf("daytona: online: room %s, player %d of %d\n", online_link->room().c_str(), st.position, st.size);
-            } else if (cfg.link && !solo_mode) { // link play: the communication board on TCP
-                link = std::make_unique<app::TcpLink>(uint16_t(cfg.link_port), cfg.link_next);
-                if (!link->error().empty()) throw std::runtime_error("Link play: " + link->error());
-                game->board().set_link(link.get(), cfg.link_framesync);
-                std::printf("daytona: link play: listening on port %d, next cabinet %s\n", cfg.link_port, cfg.link_next.c_str());
             }
             launcher.set_error("");
             return true;
@@ -1360,7 +1330,6 @@ int main(int argc, char **argv) {
             native_audio.close();
             audio.close();
             game.reset();
-            link.reset();
             online_game = false;
             launcher.set_error(e.what());
             return false;
@@ -1422,7 +1391,6 @@ int main(int argc, char **argv) {
             native_audio.close();
             audio.close();
             game.reset();
-            link.reset();
             have_audio = false;
             home_message = TX("The race request was refused.");
             return false;
@@ -1997,7 +1965,6 @@ int main(int argc, char **argv) {
                        false);
 #endif
             launcher.set_ffb_device(ffb.device_kind());
-            launcher.set_link_status(link_status(game->board().comm_board(), link.get(), cfg));
             if (game->sound()) {
                 game->sound()->set_volumes(cfg.music_volume, cfg.effects_volume);
                 if (have_audio) audio.push(*game->sound(),

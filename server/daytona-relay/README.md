@@ -158,22 +158,6 @@ full again the race starts again on its own.
 Outside the Online mode the player's own settings are unchanged: the room's
 apply only to the online race and are not saved.
 
-### Without the game's Online mode: `daytona-link`
-
-For the unmodified game, each player runs the `daytona-link` helper (Linux or
-Windows) beside it:
-
-    daytona-link -server vps.example.com:7777 -room race1 -players 3 -name Ana
-
-and in the launcher's Game tab: **Link to other cabinets**, port 15112, next
-cabinet `127.0.0.1:15200`. LINK ID and CAR NUMBER then go in the test menu
-(F2), as the helper says.
-
-Build (Go 1.22+, or Docker):
-
-    docker run --rm -v "$PWD:/src" -w /src golang:1.27 sh -c \
-      'go test ./... && go build -o dist/daytona-link ./cmd/daytona-link && GOOS=windows go build -o dist/daytona-link.exe ./cmd/daytona-link'
-
 ## Testing headless
 
 The project's `m2run` joins a room as the game does:
@@ -212,10 +196,6 @@ after another has closed is expected.
 
 Every game tells the server its online version; a room only takes games of
 the version that created it, so every player of a room behaves the same.
-
-The game's rooms and the `daytona-link` helper's do not mix (error
-`room_kind`): the game compresses its link data, the helper passes the
-unmodified game's bytes.
 
 ## Protocol
 

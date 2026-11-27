@@ -151,24 +151,6 @@ func TestBeginQueueAndOwner(t *testing.T) {
 	}
 }
 
-// The daytona-link helper's rooms keep a fixed size and start on their own.
-func TestAutoRoomStartsAtSize(t *testing.T) {
-	s := newTestServer(t)
-	a, b := fakeClient("A"), fakeClient("B")
-	s.join(a, proto.Hello{Op: "auto", Room: "h", Players: 2})
-	if st, _ := lastStatus(t, a); st.Racing || st.Owner {
-		t.Fatalf("helper room, alone: %+v", st)
-	}
-	s.join(b, proto.Hello{Op: "auto", Room: "h", Players: 2})
-	if st, _ := lastStatus(t, b); !st.Ready || st.Position != 2 {
-		t.Fatalf("helper room, full: %+v", st)
-	}
-	var e *proto.Error
-	if err := s.join(fakeClient("C"), proto.Hello{Op: "auto", Room: "h", Players: 2}); !errors.As(err, &e) || e.Code != "full" {
-		t.Errorf("third in a helper room of 2: %v", err)
-	}
-}
-
 // A room's creator chooses its settings over the server's defaults; another
 // room on the same server keeps the defaults.
 func TestRoomSettingsInStatus(t *testing.T) {
@@ -282,21 +264,6 @@ func TestCreateRules(t *testing.T) {
 	}
 	if err := s.join(fakeClient("D"), proto.Hello{Op: "create", Game: "9", Room: "three"}); !errors.As(err, &e) || e.Code != "server_full" {
 		t.Errorf("third room with DAYTONA_MAX_ROOMS=2: %v", err)
-	}
-}
-
-// The game's rooms and the daytona-link helper's do not mix: the game's
-// link data is compressed, the helper's raw.
-func TestRoomKinds(t *testing.T) {
-	s := newTestServer(t)
-	var e *proto.Error
-	s.join(fakeClient("A"), proto.Hello{Op: "create", Room: "game", Game: "7"})
-	if err := s.join(fakeClient("H"), proto.Hello{Op: "auto", Room: "game", Players: 2}); !errors.As(err, &e) || e.Code != "room_kind" {
-		t.Errorf("helper into a game room: %v", err)
-	}
-	s.join(fakeClient("H"), proto.Hello{Op: "auto", Room: "helper", Players: 2})
-	if err := s.join(fakeClient("B"), proto.Hello{Op: "join", Room: "helper", Game: "7"}); !errors.As(err, &e) || e.Code != "room_kind" {
-		t.Errorf("game into a helper room: %v", err)
 	}
 }
 
@@ -601,7 +568,7 @@ func TestStarHistory(t *testing.T) {
 }
 
 // The game's rooms need the game's online version, on joining and on coming
-// back into a race (op=rejoin), as the helper's (op=auto) do not.
+// back into a race (op=rejoin).
 func TestVersionAlways(t *testing.T) {
 	s := newTestServer(t)
 	s.star = true

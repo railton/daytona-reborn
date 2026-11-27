@@ -1111,33 +1111,6 @@ msgid ""
 "Needs the Hardware renderer and the double buffer."
 msgstr ""
 
-msgid "To race friends over the Internet, use Online in the home menu: no port to open, player names, standings, the room's settings for everyone. Link play joins cabinets directly, on a local network, or through the daytona-link helper."
-msgstr ""
-
-msgid "Link play (experimental, reset)"
-msgstr ""
-
-msgid "Link to other cabinets"
-msgstr ""
-
-msgid "This cabinet's port"
-msgstr ""
-
-msgid "Next cabinet (host:port)"
-msgstr ""
-
-msgid "Synchronise frames (each cabinet waits for the master)"
-msgstr ""
-
-msgid "On a local network only: every frame waits for the data to go round all the cabinets, so over the Internet the game slows down (22 frames/s with 20 ms between two cabinets)."
-msgstr ""
-
-msgid "Network: %s"
-msgstr ""
-
-msgid "The cabinets link in a ring over the network (Wi-Fi or cable): each listens on its port and connects to the next one; with two, each has the other as next. All the computers can take the same port, for example 15112, and Next cabinet = the other computer's address:15112. In test mode (F2) > GAME SYSTEM, set LINK ID (one MASTER, the others SLAVE) and a different CAR NUMBER on each. The 1994 game (revision A) supports link play."
-msgstr ""
-
 msgid "Devices"
 msgstr ""
 
@@ -1323,45 +1296,6 @@ msgid "Enhancements"
 msgstr ""
 
 msgid "AI textures"
-msgstr ""
-
-msgid "Link play (advanced)"
-msgstr ""
-
-msgid "off"
-msgstr ""
-
-msgid "not started"
-msgstr ""
-
-msgid "on (the game has not started the link: set LINK ID in test mode)"
-msgstr ""
-
-msgid "waiting: "
-msgstr ""
-
-msgid "next cabinet "
-msgstr ""
-
-msgid " reached; "
-msgstr ""
-
-msgid " not reached yet (is it listening on that port?); "
-msgstr ""
-
-msgid "a cabinet is connected to port "
-msgstr ""
-
-msgid "no cabinet has connected yet to port "
-msgstr ""
-
-msgid "linked: cabinet "
-msgstr ""
-
-msgid " of "
-msgstr ""
-
-msgid "lost (reset to try again)"
 msgstr ""
 
 msgid "Invalid race settings."
@@ -1571,9 +1505,6 @@ msgstr ""
 msgid "This room is full."
 msgstr ""
 
-msgid "This room is not for that number of players."
-msgstr ""
-
 msgid "Wrong server password."
 msgstr ""
 
@@ -1595,13 +1526,7 @@ msgstr ""
 msgid "Invalid room code."
 msgstr ""
 
-msgid "Invalid number of players: 2 to 8."
-msgstr ""
-
 msgid "The server refused the room's settings."
-msgstr ""
-
-msgid "This room belongs to the daytona-link helper, not to the game's Online mode."
 msgstr ""
 
 msgid "Too many rooms open from your address."

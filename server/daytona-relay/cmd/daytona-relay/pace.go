@@ -61,7 +61,7 @@ func (s *server) paceTick() {
 	now := s.now()
 	for _, r := range s.rooms {
 		n := len(r.ring)
-		if n < 3 || r.auto != 0 {
+		if n < 3 {
 			continue // two players: no other car to keep moving
 		}
 		for at, c := range r.ring {

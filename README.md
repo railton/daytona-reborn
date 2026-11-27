@@ -100,7 +100,7 @@ From Daytona Reborn beta 0.10, kept in this repository:
 - **Controls** for keyboard, gamepads, wheels and pedals, with analogue axes
   and force feedback (experimental).
 - **Languages:** English, French, Brazilian Portuguese.
-- **Link play** over a local network, as linked arcade cabinets.
+- **On a local network** too: the relay server run on one of the computers.
 
 ## Quick start
 
@@ -108,7 +108,7 @@ You need your own ROM set in MAME format (`.zip` or `.7z`):
 
 | Set | Game | Notes |
 | --- | --- | --- |
-| `daytona` | Daytona USA, Revision A (1994) | PC home menu, enhancements, Online and link play |
+| `daytona` | Daytona USA, Revision A (1994) | PC home menu, enhancements, Online |
 | `daytona93` | Daytona USA Deluxe '93 | optional, built as a separate game |
 
 1. Get the code:
@@ -177,7 +177,7 @@ The Revision A game opens on its home menu. **Settings** has four tabs:
 | Main | what is changed most, also from a race (Esc): picture format, fullscreen, the automatic image quality (or the maximum at once), car shadows and paint reflections, the other players' cars drawn smoothly online, the high-resolution textures, volume |
 | Cars | experimental, shown when the project's `cars/` folder holds a car: the car you drive, a card with a picture for each (the game's own, or a body made from a 3D model in the format of [cars/README.md](cars/README.md)); it changes at once |
 | Controls | devices, steering, force feedback, every control's key, gamepad and wheel assignment |
-| Advanced | everything, in sections that open and close: **Game** (the ROM set; logs, on by default, and Open the logs folder; updates; start over), **Display** (graphics API, renderer, render resolution, draw mode, window, display pacing), **Enhancements** (draw distance, 3D scenery, opponents' detail, polygon budget, widescreen options, each image quality option, screen effects, screen colours, smoothing), **Sound** (volume, music and effects balance, native sound), **AI textures** (experimental: what this computer has for the high-resolution texture pack, making it, using or deleting it; the pack lives in the project's `textures/` folder, where a `.zip` holding one is checked and used: [docs/HIRES-TEXTURES.md](docs/HIRES-TEXTURES.md)), **Link play** (linking cabinets on a local network) |
+| Advanced | everything, in sections that open and close: **Game** (the ROM set; logs, on by default, and Open the logs folder; updates; start over), **Display** (graphics API, renderer, render resolution, draw mode, window, display pacing), **Enhancements** (draw distance, 3D scenery, opponents' detail, polygon budget, widescreen options, each image quality option, screen effects, screen colours, smoothing), **Sound** (volume, music and effects balance, native sound), **AI textures** (experimental: what this computer has for the high-resolution texture pack, making it, using or deleting it; the pack lives in the project's `textures/` folder, where a `.zip` holding one is checked and used: [docs/HIRES-TEXTURES.md](docs/HIRES-TEXTURES.md)) |
 
 At the first start the game measures the graphics card and sets the image
 quality to match (Original, Medium, High or Maximum; High and Maximum also
@@ -276,14 +276,14 @@ The server's settings and byte formats:
 Not yet tried between distant networks; see the known limits in
 [CHANGELOG.md](CHANGELOG.md).
 
-## Link play on a local network
+## Playing on a local network
 
-Revision A can link cabinets over a LAN, as linked arcade machines. In
-Settings > **Link play**, tick **Link to other cabinets**, give this
-cabinet's port and the next cabinet's `host:port` (the cabinets form a ring;
-with two, each one's next is the other); then in the test menu (F2) >
-GAME SYSTEM set **LINK ID** (one MASTER, the others SLAVE) and a different
-**CAR NUMBER** on each. The Online mode does all of this on its own.
+The Online mode works on a local network too, without the Internet: run the
+relay server on one of the computers (`server/daytona-relay`: with Docker,
+or its `daytona-relay` program, built with Go), and give the others that
+computer's address on the network as the server, for example
+`192.168.0.10:7777` (`ipconfig` on Windows, `ip addr` on Linux, shows it).
+Allow the server through that computer's firewall on the private network.
 
 ## Platforms
 

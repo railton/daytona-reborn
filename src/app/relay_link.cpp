@@ -74,7 +74,6 @@ std::string server_error(const std::string &payload) {
     if (code == "not_found") return TXR("This room does not exist: is the code complete? Is its creator still connected?");
     if (code == "exists") return TXR("This room already exists.");
     if (code == "full") return TXR("This room is full.");
-    if (code == "size") return TXR("This room is not for that number of players.");
     if (code == "password") return TXR("Wrong server password.");
     if (code == "server_full") return TXR("The server is full: too many rooms open.");
     if (code == "too_many") return TXR("Too many connections to the server from your address.");
@@ -88,9 +87,7 @@ std::string server_error(const std::string &payload) {
         return TXR("This server is not compatible with this version of the game.");
     }
     if (code == "room") return TXR("Invalid room code.");
-    if (code == "players") return TXR("Invalid number of players: 2 to 8.");
     if (code == "settings") return TXR("The server refused the room's settings.");
-    if (code == "room_kind") return TXR("This room belongs to the daytona-link helper, not to the game's Online mode.");
     if (code == "too_many_rooms") return TXR("Too many rooms open from your address.");
     if (code == "slow_down") return TXR("Too many failed attempts: wait a minute and try again.");
     if (code == "idle") return TXR("The room was closed: nobody raced in it for a long time.");
