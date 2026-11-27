@@ -1217,8 +1217,8 @@ msgstr ""
 
 msgid ""
 "The cabinet wheel's motor (recentring, resistance, wheel pulling), on the device assigned to steering; a gamepad rumbles when the car is pushed. Currently: %s.\n"
-"Wheels and force feedback are not yet tested on real hardware: feedback welcome.\n"
-"The log goes to the game's log, in the logs folder (Settings > Game > Logs)."
+"Tested on a gamepad (rumble); wheels not yet tested on real hardware: feedback welcome.\n"
+"The log goes to the game's log, in the logs folder (Settings > Advanced > Game > Logs)."
 msgstr ""
 
 msgid "Legacy Logitech wheel support (restart the game)"

@@ -1513,8 +1513,8 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
 #endif
             }, [&] {
                 hint(TX("The cabinet wheel's motor (recentring, resistance, wheel pulling), on the device assigned to steering; a gamepad rumbles when the car is pushed. Currently: %s.\n"
-                        "Wheels and force feedback are not yet tested on real hardware: feedback welcome.\n"
-                        "The log goes to the game's log, in the logs folder (Settings > Game > Logs)."), ffb_device_);
+                        "Tested on a gamepad (rumble); wheels not yet tested on real hardware: feedback welcome.\n"
+                        "The log goes to the game's log, in the logs folder (Settings > Advanced > Game > Logs)."), ffb_device_);
 #ifndef _WIN32 // SDL's own Logitech driver is off on Windows already
                 if (ImGui::Checkbox(TX("Legacy Logitech wheel support (restart the game)"), &cfg_.legacy_logitech_wheels)) cfg_.save();
                 hint(TX("Logitech wheels through the system driver: needed for a wheel that is listed but does nothing when assigned (the original Driving Force). Unchecked: SDL's driver, which gives force feedback to recent wheels under macOS. After a change, restart and assign the wheel's controls again."));

@@ -6,6 +6,12 @@ rule 14); each version has its section here.
 
 ## Unreleased
 
+### Controls: force feedback tested on a gamepad
+
+- Force feedback works on a gamepad (its rumble, in the impacts and when
+  the car slides), tested by a player; the Controls' notice says so, wheels
+  still to be tested on real hardware.
+
 ### Settings: four tabs, and the defaults set by the graphics card
 
 - Settings has four tabs instead of eight: **Main** (what is changed most,
