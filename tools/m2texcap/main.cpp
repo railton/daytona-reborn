@@ -41,7 +41,14 @@ struct Seen {
     app::hires::Rect rect;
     bool cutout = false;
     uint64_t polys = 0;
+    // the pack finds a texture only at its first place (rect) and in its mode
+    // (cutout, any cut-out use making it one): the polygons drawing it from
+    // another place, and the opaque ones of a cut-out entry, go without it
+    uint64_t elsewhere = 0, opaque = 0, cutouts = 0;
+    std::map<uint64_t, uint64_t> places; // (sheet, x, y) -> polygons
 };
+
+uint64_t place_key(const app::hires::Rect &r) { return uint64_t(r.sheet) << 40 | uint64_t(r.x) << 20 | r.y; }
 
 void write_pgm(const std::string &path, const uint32_t *sheet, const app::hires::Rect &r) {
     std::FILE *f = std::fopen(path.c_str(), "wb");
@@ -116,6 +123,9 @@ int main(int argc, char **argv) {
             }
             s.cutout |= renderer == 3;
             ++s.polys;
+            ++s.places[place_key(r)];
+            if (place_key(r) != place_key(s.rect)) ++s.elsewhere;
+            ++(renderer == 3 ? s.cutouts : s.opaque);
         }
     };
     auto run = [&](rt::GameLoop &game, uint64_t frames, bool throttle) {
@@ -174,5 +184,21 @@ int main(int argc, char **argv) {
     }
     std::fclose(csv);
     std::printf("m2texcap: %zu textures, %" PRIu64 " texels, in %s\n", seen.size(), texels, out.c_str());
+    // what the pack misses (its index: a texture at its first place, in its mode)
+    uint64_t polys = 0, elsewhere = 0, opaque_of_cutout = 0, many_places = 0, both_modes = 0;
+    for (const auto &[h, s] : seen) {
+        polys += s.polys;
+        elsewhere += s.elsewhere;
+        many_places += s.places.size() > 1;
+        if (s.cutout && s.opaque) {
+            ++both_modes;
+            opaque_of_cutout += s.opaque;
+        }
+    }
+    std::printf("m2texcap: of %" PRIu64 " textured polygons seen, %" PRIu64 " (%.2f %%) draw a texture from another place "
+                "than its first (%" PRIu64 " textures at more than one place) and %" PRIu64 " (%.2f %%) draw a cut-out "
+                "texture opaque (%" PRIu64 " textures used both ways): the pack misses them\n",
+                polys, elsewhere, polys ? 100.0 * double(elsewhere) / double(polys) : 0.0, many_places, opaque_of_cutout,
+                polys ? 100.0 * double(opaque_of_cutout) / double(polys) : 0.0, both_modes);
     return 0;
 }

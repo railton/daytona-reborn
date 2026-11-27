@@ -95,7 +95,10 @@ The menu says which step failed and names the log:
 `hires-textures.log` in the game's data folder (the pack itself is in `textures/`) (on Linux
 `~/.local/share/daytona-recomp/daytona/`, or `daytona-PROFILE/`). It has
 every command run, all their output and the exit codes: send it with the
-report. After a failure the tools are kept, so trying again is quicker.
+report. After a failure (or Cancel) the tools are kept, so trying again is
+quicker, and so are the textures already upscaled: trying again upscales
+only the rest (`capture/out/done.txt` says how each was made: the model, the
+scale, the version of the script; one made another way is made again).
 
 | The menu says | Usually |
 | --- | --- |
@@ -117,7 +120,11 @@ report. After a failure the tools are kept, so trying again is quicker.
 - Used at the finest level of detail only, where the texture is magnified;
   further away the game's own mip levels are drawn.
 - Cut-out textures (trees, crowds, signs, the cars' numbers and decals) keep
-  an upscaled opacity: crisp outlines, smooth with MSAA.
+  an upscaled opacity: crisp outlines, smooth with MSAA. The model can fill a
+  mask's scattered holes, so a mask drawing more than 1 point more (or less)
+  of itself than the game's (the share at least a half, what a render
+  without MSAA draws) has its opacities remapped to the game's share: 4 of
+  213 here, the worst a road patch's holes, 3.5 points.
 - Measured at 3840 x 2160, MSAA 4x, the attract race (3600 frames), with a
   pack of 406 textures (87 MB): 294 in use, 15 to 24 % of each frame's
   pixels changed, the renderer's CPU time per frame 0.16 -> 0.30 ms.
@@ -151,6 +158,12 @@ spandrel, safetensors, numpy and Pillow:
        build-daytona/m2texcap ROM.zip CAPTURE \
          --attract 9000 --course 1 4000 --course 2 4000 --course 3 4000 \
          --inputs scripts/inputs/race_to_end.txt 20000
+
+   Its last line counts the polygons the pack would miss: a texture is found
+   at its first place in texture RAM and in its mode (cut-out or not); one
+   drawn from another place, or a cut-out one drawn opaque, goes without.
+   Measured: 1,324 of 513,179 polygons (0.26 %, 3 textures), none by the
+   mode.
 
 2. Download the models, upscale and write the pack. With Docker:
 

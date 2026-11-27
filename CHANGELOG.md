@@ -56,6 +56,26 @@ rule 14); each version has its section here.
   reflections, 6 interleaved runs each: the GPU wait 0.20 -> 0.20 ms, the
   renderer's CPU 4.24 -> 4.20 ms a frame (medians): no cost seen.
 
+### AI textures: a stopped pack takes up where it was; outlines keep their coverage
+
+- Making the pack again after a failure or Cancel keeps the textures already
+  upscaled (`capture/out`, with `done.txt` saying how each was made: the
+  model, the scale, the script's version; one made another way is made
+  again; each image written whole or not at all). Measured on the graphics
+  card: run again, the 573 images were kept in 1.9 s (100 s to make them;
+  about 30 minutes on a processor); after a stop with 200 left, only those
+  were made, and the result was byte for byte the same as an uninterrupted
+  run's.
+- A cut-out texture's upscaled opacity keeps the game's coverage: the model
+  can fill a mask's scattered holes, so one that draws more than 1 point
+  more (or less) of itself than the game's, at the half a render without
+  MSAA cuts at, has its opacities remapped to the game's share. 4 of 213
+  here; the worst, a road patch's holes, drew 3.5 points too much.
+- `m2texcap` counts the polygons the pack misses (a texture is found at its
+  first place in texture RAM and in its mode): 1,324 of 513,179 (0.26 %, 3
+  textures drawn from another place), none drawing a cut-out texture opaque.
+  Too few to change the pack's format.
+
 ### Online: the log measures every other car
 
 - The game's log now has a line for every other car of the room after an

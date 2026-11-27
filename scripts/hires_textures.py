@@ -18,6 +18,7 @@ edges, and its opacity upscaled by the graphic model, for crisp outlines.
 
   hires_textures.py models MODELS_DIR                 # download the models (pinned SHA-256)
   hires_textures.py upscale CAPTURE_DIR MODELS_DIR    # CAPTURE_DIR/out: one 4x PNG per texture
+                                                      # (stopped and run again: the ones done are kept)
   hires_textures.py pack CAPTURE_DIR PACK             # CAPTURE_DIR/out -> PACK
   hires_textures.py all CAPTURE_DIR MODELS_DIR PACK
 
@@ -61,6 +62,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 TRANSPARENT = 255  # texel 15, times 17 (tools/m2texcap)
+# How an image in CAPTURE_DIR/out was made, in out/done.txt (one line per
+# image, the last for a file counts): a run stopped (a failure, a cancel) and
+# started again takes up the images already made the same way instead of
+# making all again (30 minutes on a processor). Raised when the making of an
+# image changes (fill, run_model).
+MAKE_VERSION = 1
 
 
 def rows(capture):
@@ -182,7 +189,7 @@ def upscale(capture, directory):
     table = classes()
     out = os.path.join(capture, "out")
     os.makedirs(out, exist_ok=True)
-    work = {kind: [] for kind in MODELS}  # per model: (file, tones or opacities, is an opacity)
+    work = {kind: [] for kind in MODELS}  # per model: (file, tones or opacities, plane: tones, filled or opacity)
     for r in rows(capture):
         w, h, tones = read_pgm(os.path.join(capture, r["file"]))
         a = np.frombuffer(tones, dtype=np.uint8).reshape(h, w)
@@ -192,32 +199,85 @@ def upscale(capture, directory):
             if filled is None:
                 continue
             kind = table.get(r["hash"]) or kind_of(w, h, bytes(filled.round().astype(np.uint8).ravel()))
-            work[kind].append((r["file"], filled / 255.0, False))
-            work["graphic"].append((r["file"], (~holes).astype(np.float32), True))
+            work[kind].append((r["file"], filled / 255.0, "filled"))
+            work["graphic"].append((r["file"], (~holes).astype(np.float32), "opacity"))
         else:
             kind = table.get(r["hash"]) or kind_of(w, h, tones)
-            work[kind].append((r["file"], a / 255.0, False))
+            work[kind].append((r["file"], a / 255.0, "tones"))
+    for name in os.listdir(out):  # a stop mid-write: its half image goes
+        if name.endswith(".part"):
+            os.remove(os.path.join(out, name))
+    made = {}  # image -> how it was made (out/done.txt)
+    log_path = os.path.join(out, "done.txt")
+    if os.path.exists(log_path):
+        with open(log_path) as f:
+            for line in f:
+                if line.strip():
+                    made[line.split(" ", 1)[0]] = line.rstrip("\n")
     total = sum(len(items) for items in work.values())
-    done = 0
+    done = kept = 0
     print(f"hires_textures: progress 0/{total}", flush=True)
-    for kind, items in work.items():
-        if not items:
-            continue
-        name, _, digest = MODELS[kind]
-        path = os.path.join(directory, name)
-        if not os.path.exists(path) or sha256(path) != digest:
-            sys.exit(f"hires_textures: {path}: missing or changed (hires_textures.py models {directory})")
-        model, device, half = load_model(path)
-        start = time.time()
-        for file, a, opacity in items:
-            suffix = "_a.png" if opacity else ".png"
-            Image.fromarray(run_model(model, device, half, a), "L").save(os.path.join(out, file[:-4] + suffix))
-            done += 1
+    with open(log_path, "a") as log:
+        for kind, items in work.items():
+            if not items:
+                continue
+            name, _, digest = MODELS[kind]
+            how = lambda image, plane: f"{image} {plane} {digest} {SCALE} {PAD} {MAKE_VERSION}"
+            todo = []
+            for file, a, plane in items:
+                image = file[:-4] + ("_a.png" if plane == "opacity" else ".png")
+                if made.get(image) == how(image, plane) and os.path.exists(os.path.join(out, image)):
+                    kept += 1
+                    done += 1
+                else:
+                    todo.append((image, a, plane))
             print(f"hires_textures: progress {done}/{total}", flush=True)
-        print(f"hires_textures: {len(items)} {kind} images with {name} ({device}), {time.time() - start:.0f} s")
-        del model
-        if device == "cuda":
-            torch.cuda.empty_cache()
+            if not todo:
+                continue
+            path = os.path.join(directory, name)
+            if not os.path.exists(path) or sha256(path) != digest:
+                sys.exit(f"hires_textures: {path}: missing or changed (hires_textures.py models {directory})")
+            model, device, half = load_model(path)
+            start = time.time()
+            for image, a, plane in todo:
+                target = os.path.join(out, image)
+                Image.fromarray(run_model(model, device, half, a), "L").save(target + ".part", "PNG")
+                os.replace(target + ".part", target)  # whole or not there: a stop mid-write leaves no half image
+                log.write(how(image, plane) + "\n")
+                log.flush()
+                done += 1
+                print(f"hires_textures: progress {done}/{total}", flush=True)
+            print(f"hires_textures: {len(todo)} {kind} images with {name} ({device}), {time.time() - start:.0f} s")
+            del model
+            if device == "cuda":
+                torch.cuda.empty_cache()
+    if kept:
+        print(f"hires_textures: {kept} images kept from a run before (out/done.txt)")
+
+
+# An upscaled opacity keeps its texture's coverage: the game draws a cut-out
+# texel where its opacity is at least a half (m2.hlsl, 1x; with MSAA it covers
+# as much as its opacity), and the model can fill a mask's scattered holes
+# (foliage: one texture of 213 drew 3.5 points more of itself, the others 1.1
+# at most). One off by more than CALIBRATE has its opacities remapped so that
+# the share at least a half is the original's (calibrated).
+CALIBRATE = 0.01
+
+
+def calibrated(im, tones):
+    """im (an upscaled opacity, PIL L) remapped to the original mask's coverage (texel 15 transparent)."""
+    original = sum(1 for t in tones if t != TRANSPARENT) / len(tones)
+    hist = im.histogram()
+    total = sum(hist)
+    drawn = sum(hist[128:]) / total
+    if not 0.0 < original < 1.0 or abs(drawn - original) <= CALIBRATE:
+        return im
+    above, cut = 0, 255  # the opacity with the original's share at or above it
+    while cut > 1 and (above + hist[cut]) / total <= original:
+        above += hist[cut]
+        cut -= 1
+    cut += 1
+    return im.point(lambda v: round(v * 128 / cut) if v < cut else 128 + round((v - cut) * 127 / max(1, 255 - cut)))
 
 
 def pack(capture, path):
@@ -236,6 +296,8 @@ def pack(capture, path):
             im = Image.open(p).convert("L")
             if im.size != (w * SCALE, h * SCALE):
                 im = im.resize((w * SCALE, h * SCALE), Image.LANCZOS)
+            if p.endswith("_a.png"):
+                im = calibrated(im, read_pgm(os.path.join(capture, r["file"]))[2])
             data += im.tobytes()
     with open(path, "wb") as f:
         f.write(b"M2HT" + struct.pack("<III", 1, len(entries), SCALE))

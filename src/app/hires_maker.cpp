@@ -371,7 +371,14 @@ void HiresMaker::job(std::string rom_path, bool processor) {
 
     const std::string work = work_dir(), kit = kit_dir();
     std::error_code ec;
-    fs::remove_all(work + "capture", ec);
+    // a run stopped before (a failure, a cancel) leaves its upscaled images
+    // (capture/out, with how each was made): kept, hires_textures.py takes
+    // up the ones done; the capture itself is made again
+    std::vector<fs::path> old;
+    for (const auto &e : fs::directory_iterator(fs::u8path(work + "capture"), ec))
+        if (e.path().filename() != "out") old.push_back(e.path());
+    for (const fs::path &p : old) fs::remove_all(p, ec);
+    ec.clear();
     fs::create_directories(work + "capture", ec);
     fs::create_directories(work + "models", ec);
     fs::remove(work + "hires.m2tex", ec);
