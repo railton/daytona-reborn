@@ -1767,7 +1767,7 @@ int main(int argc, char **argv) {
                 if (!solo || solo_choosing) // the cabinet's own course and gearbox screens (a SLAVE's follow the MASTER's below)
                     selection_steer.apply(game->board(), inputs.steer,
                                           cfg.controls.steering_holds(SDL_GetKeyboardState(nullptr), devices),
-                                          online_game || link != nullptr); // linked: the gearbox at step 5
+                                          online_game); // linked (online): the gearbox at step 5
                 if (online_game) { // one Start and one course for the whole room, and its standings
                     const auto &room = online_link->status();
                     const bool master = room.position == 1;

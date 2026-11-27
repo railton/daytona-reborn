@@ -28,7 +28,7 @@ public:
 
     // steer: this frame's steering (ADC, 0x20..0xe0), replaced on those
     // screens unless wheel_holds (an analogue wheel with no steering key).
-    // linked: cabinets linked together (online, link play), whose gearbox
+    // linked: cabinets linked together (online), whose gearbox
     // screen is step 5 (measured with m2run --relay, M2_TEST_SELECTION_TRACE).
     template <class Board> void apply(Board &board, uint8_t &steer, bool wheel_holds, bool linked = false) {
         const int mode = board.read_byte(mode_address), step = board.read_byte(step_address);

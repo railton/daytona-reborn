@@ -10,6 +10,14 @@ Online version 12: every player of a room needs 0.24.0 (a 0.23.0 game is
 told to update). The relay's update (its own pace) also serves 0.23.0
 games. The server in Brazil already runs it.
 
+### Windows build; the gearbox screen's wheel hold in solo
+
+- The Link play removal left one reference to its link in the game's
+  loop: the Windows build stopped there, and on Linux and macOS the name
+  meant the system's `link()` function, never null, so a solo race's
+  gearbox screen held the wheel at the linked cabinets' step (5) instead
+  of a lone cabinet's (7). It reads the Online mode only now.
+
 ### Relay: the address to give the others on a local network
 
 - Run on a player's own computer, the server prints that computer's
