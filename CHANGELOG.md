@@ -6,6 +6,15 @@ rule 14); each version has its section here.
 
 ## Unreleased
 
+### Relay: the address to give the others on a local network
+
+- Run on a player's own computer, the server prints that computer's
+  addresses on its network when it starts ("players on this computer's
+  network: server 192.168.0.10:7777"): the server the others give. Private
+  IPv4 addresses only, virtual bridges (Docker, VirtualBox, libvirt) left
+  out; nothing inside a container (`/.dockerenv`). Tested on a Linux PC with
+  two networks (both shown); a unit test covers the filter.
+
 ### Link play removed; the Online mode on a local network
 
 - Link play (cabinets joined directly over TCP: Settings' Link play

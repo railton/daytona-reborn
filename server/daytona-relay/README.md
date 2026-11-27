@@ -158,6 +158,18 @@ full again the race starts again on its own.
 Outside the Online mode the player's own settings are unchanged: the room's
 apply only to the online race and are not saved.
 
+## On a local network
+
+Run the server on one of the computers (the `daytona-relay` program, built
+with Go, or Docker): when it starts, it prints this computer's addresses on
+its network, the server the others give in the Online screen:
+
+    players on this computer's network: server 192.168.0.10:7777 (give it to the others)
+
+(not inside a container, where the computer's own addresses are not seen;
+virtual bridges such as Docker's are left out). Allow it through the
+firewall on the private network.
+
 ## Testing headless
 
 The project's `m2run` joins a room as the game does:

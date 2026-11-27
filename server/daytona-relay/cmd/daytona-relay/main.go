@@ -952,6 +952,11 @@ func main() {
 	}
 	log.Printf("daytona-relay listening on port %d (rooms of %d to %d players, password: %v)", *port, proto.MinPlayers, proto.MaxPlayers, *password != "")
 	log.Printf("race settings (defaults): %s", race)
+	if !inContainer() { // a player's own computer: the address to give the others on its network
+		if lan := lanAddresses(localAddresses(), *port); len(lan) > 0 {
+			log.Printf("players on this computer's network: server %s (give it to the others)", strings.Join(lan, " or "))
+		}
+	}
 	if uc, err := net.ListenUDP("udp", &net.UDPAddr{Port: *port}); err == nil {
 		s.udpConn = uc
 		log.Printf("UDP on port %d too (games that ask for it)", *port)

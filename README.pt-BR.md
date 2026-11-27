@@ -296,8 +296,9 @@ Ainda não testado entre redes distantes; veja as limitações conhecidas no
 O modo Online funciona numa rede local também, sem internet: rode o
 servidor relay num dos computadores (`server/daytona-relay`: com Docker, ou o
 programa `daytona-relay`, compilado com Go) e passe aos outros o endereço
-desse computador na rede como servidor, por exemplo `192.168.0.10:7777`
-(`ipconfig` no Windows, `ip addr` no Linux, mostra o endereço). Libere o
+desse computador na rede como servidor, por exemplo `192.168.0.10:7777`: o
+servidor mostra esse endereço ao iniciar ("players on this computer's
+network: server ..."). Libere o
 servidor no firewall desse computador, na rede privada.
 
 ## Plataformas
