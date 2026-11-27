@@ -1184,7 +1184,7 @@ The fork's first numbered version: everything since Daytona Reborn beta
 ### Tools and tests
 
 - Removed the original fork author's private agent tooling (`tools/team_*.py`,
-  `tools/grok-acp-bridge.py`, `tools/schedule-*.ps1`), its tests and its
+  an agent bridge script, `tools/schedule-*.ps1`), its tests and its
   workflow: none of it builds or runs the game.
 
 - `m2run --relay` joins a room headless, as the game does (settings, Start,

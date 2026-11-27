@@ -1,9 +1,6 @@
-# Revue indépendante Grok via ACP — 9 novembre 2026
+# Revue indépendante du plan de scène native — 9 novembre 2026
 
-Agent : **Grok Build 1.0.77**, ACP `grok agent stdio`, modèle `grok-4.7`,
-session `01a1c22d-d9ca-7110-8707-ee25858b44c4` (second essai). Lecture seule :
-les outils de lecture ont été autorisés, les éditions et commandes mutantes
-refusées. Aucun fichier du projet n'a été modifié par Grok.
+Revue en lecture seule : aucun fichier du projet n'a été modifié.
 
 ## 1. Trois hypothèses fragiles du plan initial
 
@@ -43,7 +40,7 @@ géométrique et une lumière directionnelle divergent de cet oracle par
 construction. Entre deux ticks à 57,52 Hz, rien ne relie un sommet au suivant :
 le CPU change `oba`/`obc` selon le LOD, et le link type 0 supprime des polygones.
 
-## 2. Architecture alternative proposée par Grok
+## 2. Architecture alternative proposée par la revue
 
 - **Second lecteur**, aucune écriture dans `Geo` ni dans le tick i960 ; le
   renderer historique continue de consommer `Geo::polys`.

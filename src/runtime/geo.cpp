@@ -1820,7 +1820,7 @@ const std::vector<GeoPoly> *Geo::present_pose_pair(uint64_t now_ns, uint64_t del
 	// that tick, P(k) - P(k-1), fixed once the tick arrives. Two pairs
 	// meeting at a tick share it, so a car keeps its speed across ticks (with
 	// straight steps it changed speed at every tick: a shake seen at 120 Hz
-	// and not in a 60 frames/s recording, Grok Build's reading, 23/11), and
+	// and not in a 60 frames/s recording, an external review's reading, 23/11), and
 	// a new tick does not change the curve already being drawn (a central
 	// difference did: a slight vibration, 23/11). The tick before this
 	// pair's first one: the older pair's first tick when drawing the current
@@ -1860,7 +1860,7 @@ const std::vector<GeoPoly> *Geo::present_pose_pair(uint64_t now_ns, uint64_t del
 	// The camera on the same Hermite steps. The scenery motion d moves it in
 	// straight steps from tick to tick; with the cars smoothed and not the
 	// camera, a car moving with the camera (alongside, ahead) jerked on the
-	// screen at each tick (Grok Build's review, 23/11). Its position, in this
+	// screen at each tick (an external review, 23/11). Its position, in this
 	// pair's latest frame: t_d at the first tick, 0 at the latest, entering
 	// with the previous step (the pair before's motion, carried into this
 	// frame) and leaving with this one. Every smoothed object moves by the
