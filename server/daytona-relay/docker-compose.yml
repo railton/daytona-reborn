@@ -31,7 +31,7 @@ services:
       DAYTONA_STAR_PACE_MS: "${DAYTONA_STAR_PACE_MS:-35}"        # a player's predecessor this late (ms), the server sends the player's blocks itself; 0: off
       # Race settings' defaults: the game shows them when creating a room, its creator may change them:
       DAYTONA_CABINET: "${DAYTONA_CABINET:-twin}"                 # twin | uplight | deluxe
-      DAYTONA_COUNTRY: "${DAYTONA_COUNTRY:-usa}"                  # usa (English) | jpn (Japanese) | export
+      DAYTONA_COUNTRY: "${DAYTONA_COUNTRY:-export}"               # export (English, km/h) | usa (English, mph) | jpn (Japanese)
       DAYTONA_DIFFICULTY: "${DAYTONA_DIFFICULTY:-normal}"         # easy | normal | hard | hardest
       DAYTONA_GAME_MODE: "${DAYTONA_GAME_MODE:-normal}"           # normal | grandprix | endurance
       DAYTONA_RIVAL_ARROW: "${DAYTONA_RIVAL_ARROW:-on}"           # on | off

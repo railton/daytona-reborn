@@ -161,8 +161,8 @@ msgstr "EUA (inglês)"
 msgid "Japan (Japanese)"
 msgstr "Japão (japonês)"
 
-msgid "Export"
-msgstr "Exportação"
+msgid "International (km/h)"
+msgstr "Internacional (km/h)"
 
 msgid "Difficulty"
 msgstr "Dificuldade"
@@ -1702,3 +1702,6 @@ msgstr "O jogo não está lendo os dados recebidos."
 
 msgid "Invalid data from another player: is everyone on the same version of the game?"
 msgstr "Dados inválidos de outro jogador: todos estão com a mesma versão do jogo?"
+
+# Plus utilisés (no longer used):
+#~ msgid "Export"

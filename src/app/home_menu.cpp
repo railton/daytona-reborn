@@ -600,7 +600,7 @@ HomeMenu::Action HomeMenu::draw(bool has_race, bool loading, const char *message
             // the same rows as the Online card's: its invite code, its "or" line, its new room
             const float cy0 = yc + 20 * scale, cy1 = yc + 106 * scale, line = yc + 88 * scale;
             row_label(TX("Country"), cy0, 44 * scale);
-            const char *countries[] = {TX("USA (English)"), TX("Japan (Japanese)"), TX("Export")};
+            const char *countries[] = {TX("USA (English)"), TX("Japan (Japanese)"), TX("International (km/h)")};
             const float third = (fw - 16 * scale) / 3;
             for (int i = 0; i < 3; ++i) {
                 const ImVec2 a = px(fx + i * (third + 8 * scale), cy0), b = {a.x + third, a.y + 44 * scale};

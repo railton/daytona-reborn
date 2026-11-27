@@ -100,9 +100,10 @@ struct Config {
     // The gearbox the player races with (the home screen's choice): solo, and
     // online, where the game answers its gearbox screen with it on its own.
     bool gearbox_manual = false;
-    // Solo races from the PC home: the cabinet's country (0 USA: English, 1
-    // JPN: Japanese, 2 EXPORT) and difficulty (0 easy .. 3 hardest).
-    int solo_country = 0, solo_difficulty = 1;
+    // Solo races from the PC home: the cabinet's country (0 USA: English and
+    // mph, 1 JPN: Japanese and km/h, 2 EXPORT: English and km/h, shown as
+    // "International (km/h)", the default) and difficulty (0 easy .. 3 hardest).
+    int solo_country = 2, solo_difficulty = 1;
     // Logs: what the game prints, kept in the logs folder beside roms/ (the
     // last 5 sessions too: logs_dir(), log_name()), for when something goes wrong.
     bool write_logs = true;

@@ -6,6 +6,15 @@ rule 14); each version has its section here.
 
 ## Unreleased
 
+### Country: International (km/h), the default
+
+- The game shows speeds in mph for the USA and in km/h for Japan and
+  Export (measured: 166 mph, 265 km/h). "Export" is shown as
+  "International (km/h)" (English texts, km/h) and is the default: a new
+  profile's solo races and the relay's rooms (`DAYTONA_COUNTRY=export`).
+  The value is still `export`: rooms and 0.23 games unchanged. A profile
+  that chose before keeps its choice.
+
 ### Online: your own room's code is not pasted back into Join
 
 - The home pastes an invite code found in the clipboard into Join. Copied

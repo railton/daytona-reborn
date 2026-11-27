@@ -5,7 +5,8 @@
 // EEPROM, the test menu's GAME SYSTEM page, mapped on Daytona USA Revision A:
 //
 //	DAYTONA_CABINET          twin | uplight | deluxe        (0x1a: 01 02 00)
-//	DAYTONA_COUNTRY          usa | jpn | export             (0x1b: 00 01 02; the game's texts: usa in English)
+//	DAYTONA_COUNTRY          export | usa | jpn             (0x1b: 02 00 01; export: English and km/h, the
+//	                                                        game's "International"; usa: English and mph)
 //	DAYTONA_DIFFICULTY       easy | normal | hard | hardest (0x20: 00 01 02 03)
 //	DAYTONA_GAME_MODE        normal | grandprix | endurance (0x1c: 00 01 02)
 //	DAYTONA_RIVAL_ARROW      on | off                       (0x1d: 00 01)
@@ -64,8 +65,8 @@ var options = []Option{
 		Values: []Value{{"twin", "Twin"}, {"uplight", "Uplight"}, {"deluxe", "Deluxe"}},
 		bytes:  map[string]byte{"twin": 1, "uplight": 2, "deluxe": 0},
 		field:  func(r *Race) *string { return &r.Cabinet }},
-	{Key: "country", Env: "DAYTONA_COUNTRY", Label: "Country", def: "usa", offset: 0x1b,
-		Values: []Value{{"usa", "USA (English)"}, {"jpn", "Japan (Japanese)"}, {"export", "Export"}},
+	{Key: "country", Env: "DAYTONA_COUNTRY", Label: "Country", def: "export", offset: 0x1b,
+		Values: []Value{{"usa", "USA (English)"}, {"jpn", "Japan (Japanese)"}, {"export", "International (km/h)"}},
 		bytes:  map[string]byte{"usa": 0, "jpn": 1, "export": 2},
 		field:  func(r *Race) *string { return &r.Country }},
 	{Key: "difficulty", Env: "DAYTONA_DIFFICULTY", Label: "Difficulty", def: "normal", offset: 0x20,

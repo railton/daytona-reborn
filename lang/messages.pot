@@ -158,7 +158,7 @@ msgstr ""
 msgid "Japan (Japanese)"
 msgstr ""
 
-msgid "Export"
+msgid "International (km/h)"
 msgstr ""
 
 msgid "Difficulty"

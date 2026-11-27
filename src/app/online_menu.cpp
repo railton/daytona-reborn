@@ -33,7 +33,7 @@ std::vector<RoomOption> room_options() {
     return {
         {"cabinet", TXR("Cabinet"), {{"twin", TXR("Twin")}, {"uplight", TXR("Uplight")}, {"deluxe", TXR("Deluxe")}}},
         {"country", TXR("Country"),
-         {{"usa", TXR("USA (English)")}, {"jpn", TXR("Japan (Japanese)")}, {"export", TXR("Export")}}},
+         {{"usa", TXR("USA (English)")}, {"jpn", TXR("Japan (Japanese)")}, {"export", TXR("International (km/h)")}}},
         {"difficulty", TXR("Difficulty"),
          {{"easy", TXR("Easy")}, {"normal", TXR("Normal")}, {"hard", TXR("Hard")}, {"hardest", TXR("Hardest")}}},
         {"game_mode", TXR("Game mode"),

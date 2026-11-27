@@ -48,7 +48,7 @@ Edit `docker-compose.yml`, or put them in a `.env` file beside it, then
 | `DAYTONA_ROOM_IDLE_MIN` | `120` | minutes a room may go without a race (no game data) before it is closed |
 | `DAYTONA_JOIN_TRIES_PER_MIN` | `20` | failed attempts a minute from one address (a room that does not exist, a wrong password) |
 | `DAYTONA_CABINET` | `twin` | `twin`, `uplight`, `deluxe` |
-| `DAYTONA_COUNTRY` | `usa` | `usa` (the game in English), `jpn` (in Japanese), `export` |
+| `DAYTONA_COUNTRY` | `export` | `export` (the game in English, speeds in km/h: "International" in the game), `usa` (English, mph), `jpn` (Japanese, km/h) |
 | `DAYTONA_DIFFICULTY` | `normal` | `easy`, `normal`, `hard`, `hardest` |
 | `DAYTONA_GAME_MODE` | `normal` | `normal`, `grandprix`, `endurance` |
 | `DAYTONA_RIVAL_ARROW` | `on` | `on`, `off` |

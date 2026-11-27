@@ -14,12 +14,12 @@ func eepromMap(r Race) map[byte]byte {
 }
 
 func TestDefaultsAndEnv(t *testing.T) {
-	env := map[string]string{"DAYTONA_DIFFICULTY": "Hardest"} // country: usa by default
+	env := map[string]string{"DAYTONA_DIFFICULTY": "Hardest"} // country: export by default (English, km/h)
 	r, err := FromEnv(func(k string) string { return env[k] })
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := map[byte]byte{0x19: 0, 0x1a: 1, 0x1b: 0, 0x1c: 0, 0x1d: 0, 0x20: 3, 0x10: 26, 0x14: 1}
+	want := map[byte]byte{0x19: 0, 0x1a: 1, 0x1b: 2, 0x1c: 0, 0x1d: 0, 0x20: 3, 0x10: 26, 0x14: 1}
 	got := eepromMap(r)
 	if len(r.EEPROM()) != len(want) || len(got) != len(want) {
 		t.Fatalf("%d settings", len(r.EEPROM()))
