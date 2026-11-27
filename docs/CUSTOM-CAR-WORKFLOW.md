@@ -15,9 +15,10 @@ model's own licence for the car). The scripts are referred to here by name;
 they live in the local working folder (`planos/carro-foto/ferramentas/`,
 beside the repository): `carro/` (the generic converter: `car.py CONFIG
 OUT_DIR`, the library `carlib/`, one config per car in `cars/`, its
-README), `captura/` (shots.sh, game_car_preview.py, ref.py and the
-inputs); the first three cars' own converters, kept as the reference the generic one
-reproduces: `fusca/`, `camaro/`, `escort/`.
+README), `captura/` (shots.sh, caps.sh, bench.sh, closeview.py, sym.py,
+crops.py, game_car_preview.py, ref.py and the inputs); the first three
+cars' own converters, kept as the reference the generic one reproduces:
+`fusca/`, `camaro/`, `escort/`.
 
 ## The path, in short
 
@@ -30,12 +31,17 @@ reproduces: `fusca/`, `camaro/`, `escort/`.
    interior, a detail) or wishes the pictures do not show (colour, plate,
    badges, flares, tyres): what the pictures leave out is decided by the
    person, not guessed (the Chevette's pictures carried an AI picture's
-   mistakes: a Ford badge, "BRASILL").
+   mistakes: a Ford badge, "BRASILL"). The whole list to go through is
+   "Decisions to settle with the user before stage 1" below.
 2. **Try the look first** with `captura/ref.py GLB OUT_DIR`: the model in
    its own colours at the game's angles (the select screen's frames 1400
    to 1760, the start, chase and high views), before any conversion, and
    the reference to compare the captures with when there are no pictures
-   (the DeLorean). (`fusca/preview.py` does four angles with the Beetle's
+   (the DeLorean). A glTF material's colour factor is linear and `ref.py`
+   reads it as it is: a model coloured by factors alone renders much too
+   dark (the Challenger's chrome 168 for 213) until the factors are turned
+   to sRGB (its copy, `ref_srgb.py`); the palette takes the sRGB values
+   too. (`fusca/preview.py` does four angles with the Beetle's
    recolour rule built in.) Not to be confused with the card's picture
    (`captura/game_car_preview.py`, step 8).
 3. **Decide its size:** at its own size on its own axles (`M2WHEEL2`, the
@@ -59,8 +65,9 @@ reproduces: `fusca/`, `camaro/`, `escort/`.
 6. **Check it** in every standard shot, the select screen's full turn and
    the cockpit, next to the reference; measure the smudges and the frame
    time (the performance protocol below).
-7. **Refine** in rounds until the acceptance criterion holds; a refinement
-   agent can run the loop (the brief below). End every round with a full
+7. **Refine** in rounds until the acceptance criterion holds; the work is
+   split between roles, each with its brief ("The briefs" below). End
+   every round with a full
    review of every planned item against the plan and the previous
    versions: a round can silently remove a part (the Beetle lost its front
    bumper that way).
@@ -77,7 +84,13 @@ reproduces: `fusca/`, `camaro/`, `escort/`.
    card: `M2_CAPTURE_SETTINGS_TAB=7 build-daytona/daytona --profile capture
    --settings --capture-home OUT.bmp` from the repository (every profile
    reads the same `cars/`); a folder left out is named under the cards and
-   in the log (`daytona: cars/NAME left out: ...`).
+   in the log (`daytona: cars/NAME left out: ...`). The capture cannot
+   scroll: at its usual size it shows six cards, so with more cars add
+   `--window 1440x2600` (checked: all seven cards of the Challenger's
+   install; at 1440x1800 the seventh is cut; about 400 px more for every
+   two more cars) and count the cards, one a folder and one for the
+   game's car. Then the cockpit view once more, with the
+   installed folder as the body.
 9. **Clean up** once the car is accepted: keep the downloaded model, the
    converted folder the proof compares with (`modelo/`), the converter's
    code and config, the notes, the final sheet and the card's capture,
@@ -88,6 +101,30 @@ reproduces: `fusca/`, `camaro/`, `escort/`.
    hundreds of megabytes; the photo-to-3D trial left 15 GB. Run every
    `prove.sh` before the clean-up (all must print PROOF OK): the proofs
    rebuild into `trabalho/generico/`, which the clean-up then deletes.
+
+## Decisions to settle with the user before stage 1
+
+The coordinator asks these before any work starts and writes the answers
+into the builder's brief. An answer may be "as the model". A point left
+open is written as open and shown at the stage 5 stop; it is never
+decided on the way. The Challenger's stance was, and cost two rounds and
+a second install.
+
+| Decision | What to ask, and what to say |
+| --- | --- |
+| Reference | pictures or the model itself; more pictures (the rear, the wheels, the interior); what the pictures get wrong or leave out |
+| Paint | the model's colour or another; stripes, a livery, numbers |
+| Wheels | the model's own design or a made one (which); the model's size or bigger |
+| Tyre width and stance | the tyre's outer face \|x\|: the model's (the default) or wider. Say what each gives: under wings that overhang them the tyres do not show from the chase camera (the Challenger's sit 5 cm inside: hidden); to show, they must stand out of the body (14 cm further out there), which changes the side view and raises the arches |
+| Arches | the model's own, cut round bigger wheels, or flares |
+| Ride height | the model's, or lowered by how much |
+| Glass | its tint; see-through with a cabin (the standard) or dark |
+| Cabin and driver | the cabin's colours; a driver or none |
+| Plates | front, rear, both or none; the text and its style (a made-up number), or the model's own |
+| Badges and lettering | the model's, none, or changed; which ones sit on one side only |
+| Bumpers, spoilers, exhaust, lamps | the model's own parts, or made to the pictures |
+| The card | the car's name on it, the folder's name |
+| Limits accepted beforehand | "The game's limits" below, read to the user: what the car cannot have |
 
 ## The finished standard
 
@@ -114,7 +151,12 @@ are in "Problems met" and in the Beetle's history further down.
 | Driver | `piloto.py` (the converter's `DRIVER`): needs the car's steering wheel (centre, facing, radius), the cushion's top and the backrest; the seat may have to slide forward for the arms to reach (reach 0.89); scaled to the car's height (1.52 m in the 1.14 m high DeLorean) | the Beetle's copy finds them in hard-coded Beetle coordinates; at 1.72 m the DeLorean's helmet went through the roof |
 | A dense model (each node a kind of material, hundreds of pieces over a colour atlas) | each face's colour read from the texture (swatches, flat colours: nothing baked); the never-seen test made on the full-detail model, with points by area; reduced piece by piece, the faces shared by seen area, cables kept round (one colour a cable); a fine wire on a panel a decal; pieces under 2 cm and wires under 8 mm left out; meshes with holes (perforated grilles) dropped | a node is not a part there; a test with a fixed number of points a face lets everything show through a wide panel; a mesh drawn without its holes greys what lies behind |
 | Paint colour | a red of (212, 18, 20) rather than (234, 28, 22): a little deeper than the reference's sunlit paint, the game's light shading it | a bright value reads flat and orange in the select screen |
-| Wheels | the model's own, or one built in the converter (revolved profile), on the car's axles; check each profile segment's normal and close every gap; the tread split into strips across its width; a dark band under the bead | a crude or wobbling wheel spoils the close shots; a full-width tread face is drawn over the body (mean depth); the gap between rim lip and bead shows the backdrop |
+| Wheels | the model's own, or one built in the converter (revolved profile), on the car's axles; check each profile segment's normal and close every gap; the tread split into strips across its width; a dark band under the bead, seen from both sides | a crude or wobbling wheel spoils the close shots; a full-width tread face is drawn over the body (mean depth); the gap between rim lip and bead shows the backdrop |
+| The tyre's outline | at least 64 sides (72 on the Challenger), round shoulders in the profile, a smooth tread | at 40 sides the outline reads stepped from the side (select 1400, 1640) and the tread blocky from behind |
+| Tyres under the wings (the model's own stance) | the model's arches and wells kept, not cut; a dark strip where a well stops short of the skin at an arch's ends, never below the body's lower edge; the skin over the tyres split to about 9 cm | the backdrop shows at the arches' ends; a wide skin face over a tyre is drawn under it in specks |
+| Panel lines of a model whose panels are closed shells (a rounded fold at each edge) | each panel's silhouette in its own view (from above, from its side), cut in as bands extruded along that view's axis; a dark backing 1.2 cm under each line, but none over a rolled edge | the contour where the skin stops facing outward zig-zags over the fold; the reduced edges straighten apart and the gap shows the backdrop |
+| A body with no inside (one-sided roof and panels, the cabin a lid at the waist) | made: a floor looking up, a roof lining, the pillars' insides, the sides up to each window's own lower edge; each follows the skin's own section, 6 cm inside it | through the far windows every gap is the backdrop; a lining on a straight line stands out of a leaning pillar as spikes |
+| A picture on a made panel (grille, lamp cluster) | one plane, cut to the outline of what it shows and to the body's | a rectangle stands past a rounded body; strips at several depths fight the skin in specks at grazing angles |
 | Bigger wheels standing out | the size set in the body's converter (written to its JSON, read by `wheel.py`); the arch cut as a circle (tyre radius + 2 cm, 48 sides) through the paint faces only, after the inlays; a dark liner drum inside, its edge 2 cm in from the cut | cut before the inlays, stripes end ragged; cutting every material took the exhausts' faces |
 | Seams, gaps, trim bits left in the textures | painted over: every thin dark texel next to the paint takes the paint's colour, except where a small black part lies | read as dirt |
 
@@ -152,15 +194,47 @@ that worked:
    15 % of the budget.
 
 Rule 1 also covers chrome bumpers standing off a painted valance (the
-band bounded in z, or it shows past the bumper's ends), rule 6 window
+band bounded in z, or it shows past the bumper's ends; it takes every
+facing: a valance's tops behind a bumper look up), rule 6 window
 frames and wipers lying on the skin, and made blocks on a bumper are
-decals.
+decals. A line cut into the skin can still lose where the skin beside it
+is a wide face of another panel (the wing by the A pillar's foot): those
+line pieces as decals worked, splitting the skin did not.
+
+### The game's limits
+
+What no conversion gets round. The builder works inside them, the
+reviewer does not count them as defects once the user has accepted them.
+
+1. **A face has 3 or 4 corners.** One face with more and the game refuses
+   the whole body, saying only `daytona: local player body unavailable,
+   keeping the original car`. The converter writes any count: check after
+   every build, `awk 'NF>6 && ($1<3 || $1>4)' bodies.m2car wheel.m2car |
+   wc -l` prints 0. A round made part is a fan of triangles.
+2. **The file's bounds:** at most 32,768 faces a body, every coordinate
+   within 3 units, surfaces 0 to 19, shade 0 to 2. The budget below is
+   much lower.
+3. **No depth test inside the car** ("The drawing order" above). The
+   consequence the rules do not cure: a gap seen from the side cannot be
+   closed with a flat face behind the skin, which is then drawn over the
+   skin as black wedges. Either the model's own shell round the gap is
+   kept as geometry, or the gap stays and is written down (the
+   Challenger's nose corner at select 1700, three tries undone).
+4. **The cockpit view draws the car's own bonnet:** its top skin ahead of
+   the windscreen, slid and raised to the game's bonnet's rear edge, under
+   the game's dashboard. Nothing below that skin is drawn there. So the
+   bonnet's skin must be whole and clean seen from above; its shape in
+   that view is the car's, and is checked.
+5. **Only the look changes:** the collisions and the checkered shadow stay
+   the game car's.
+
 ### Budget
 
 One number: the body, driver and interior included, **under about 22,000
 faces**, up to about 30,000 for a model whose detail is the point when the
 median stays under 9 ms (the DeLorean, 26,483: below 24,645 its canisters
-turned into spikes); each wheel under about 2,000; game + renderer CPU median under
+turned into spikes); each wheel under about 2,000 (a round tyre takes
+most of it: 1,560 on the Challenger); game + renderer CPU median under
 about 9 ms in the benchmark (the game has 17.4 ms a frame). A face costs
 about 0.3 microseconds a frame (the Escort measured a little less: 5.6 ms
 over the game's car for 21,712 + 4 x 596 faces). Measured, 3440 x 1440,
@@ -175,6 +249,8 @@ everything on:
 | Escort, round 9 | 21,684 | 636 | 6.91 ms |
 | DeLorean time machine (driver, cabin) | 26,483 | 495 | 7.74 ms |
 | Chevette GT (driver, cabin), after the close review | 21,992 | 636 | 6.89 ms |
+| Challenger (driver, cabin), a made wheel | 21,420 | 808 | 7.00 ms |
+| Challenger, the model's stance, a 72-sided tyre | 21,610 | 1,560 | 7.83 ms |
 
 Pay for details by reducing the interior and the paint first.
 
@@ -241,11 +317,61 @@ A car is finished when all hold:
    printed and not read), and every rule that picks pieces by face count
    matched at least one piece (the Chevette's doors' rule matched none,
    silently).
+10. **Judged by someone who did not build it, at normal size first:** the
+    reviewer's "fit to ship: yes". Each defect is rated by where it
+    shows: race (chase, high, rolling start or cockpit, at the frame's own
+    size), select (the select screen at its own size) or close (only in
+    an enlarged crop). The car ships when no race or select defect is
+    left but limits the user accepted by name. The builder's own count
+    does not decide (the Challenger's builder reported 16 of 17 defects
+    fixed; the check found 8).
+
+### The reviewer's fixed checklist
+
+Every line gets an answer and a crop, on every car, whatever the notes
+say. Each was missed once. Lines 1 to 18 are the reviewer's, 19 and 20
+the installer's.
+
+1. The tyre's outline from each side (select 1400, 1640, enlarged): round,
+   no steps; the tread from behind without bands.
+2. Rim against tyre: no arc of backdrop; nuts, slots and cap in shape.
+3. All four arches closed all round, both ends of each (1400, 1480, 1600,
+   1640, 1720); nothing of a liner, well or floor tub outside the body or
+   below the sill; no specks on the skin over a tyre.
+4. The stance as decided: the tyre's outer face and `M2WHEEL2` in the
+   car's JSON against the decisions; the tyres from the chase camera as
+   the decisions say (in view, or hidden).
+5. The cockpit view: the bonnet has the car's own shape (outline, scoop,
+   bulge) and colour; nothing drawn over it; the dashboard in front.
+6. No backdrop inside the outline: through two windows in line only;
+   the cabin's floor from above (chase, high), the roof's inside, the
+   pillars, between panels, the front's recess from the side, slots.
+7. Nothing standing out of the outline: spikes at the pillars, a panel
+   wider than the body, square corners (the chase view, the whole turn).
+8. Every lamp whole at every angle of the turn, its lens drawn.
+9. Plates and badges: readable, the text the decisions give, on the right
+   side, sized by criterion 7's two ratios.
+10. Every panel line: both sides, to both its ends, one width.
+11. Chrome frames and trims continuous, no shards; the bumpers' ends.
+12. Glass, cabin and driver: the tint, the seats, his pose, the helmet
+    under the roof.
+13. The front with the car's right flank (the dimmed car, `closeview.py`:
+    no frame of the chosen car has it).
+14. The dimmed car over the whole turn.
+15. `sym.py`: every cluster named as meant, or a defect.
+16. The outline report and the pick rules (criterion 9).
+17. The numbers: the corner check prints 0; body and wheel faces within
+    the budget; the tyre's sides counted.
+18. Every open point and every "for the reviewer" of the builder's notes
+    answered.
+19. After the install: every card of the Cars tab seen (a taller window
+    when they do not fit), the new one's picture, name and credit line.
+20. After the install: line 5 again, with the installed folder.
 
 ### Refinement rounds with an agent
 
-The Beetle was finished by a refinement agent (a capable model, working
-alone for about 45 minutes), briefed with: the reference pictures; the
+The Beetle was finished by a refinement agent (working alone for about
+45 minutes), briefed with: the reference pictures; the
 converter and this document to read first; the commands to convert, to
 capture the standard shots and the select screen's turn, and to
 benchmark; the acceptance criterion; the budget; and the rules (change only
@@ -265,12 +391,14 @@ that whoever waits knows where it is:
 2. The first config: a plain body that builds and shows in the game.
 3. Parts and colours: the palette, glass, cabin and driver.
 4. The skin's details, lamps and plates (bands, cells, pictures).
-5. Made parts and the wheel (flares, bumpers, spoilers, the stance).
+5. Made parts and the wheel (flares, bumpers, spoilers, the stance). It
+   ends with a stop: a preview sheet for the user's approval.
 6. Refinement rounds against the reference, every standard shot.
 7. The close review: the close views, `sym.py`, the outline report, the
-   table of criterion 6 with a crop for every cell; its fixes; the
-   close-up sheet.
-8. The A/B benchmark, the card's picture, the install and its card.
+   table of criterion 6 with a crop for every cell, the fixed checklist;
+   its fix rounds, each one checked; the close-up sheet.
+8. The A/B benchmark, the card's picture, the install, its card and the
+   cockpit view with the installed car.
 9. The proofs of every car, the notes, the clean-up and the final review.
 
 The brief says it in words: the review is made on close crops, each side
@@ -281,19 +409,407 @@ minutes and missed a dozen defects; the close review that found them took
 
 **Who does which stage.** The one who builds a car is the worst judge of
 it: the Chevette's dozen defects were found by a second agent that had not
-built it. So the stages are split between three agents, each briefed on
-its own:
+built it, and the Challenger's builder counted 16 of its 17 defects fixed
+where the check found 8. So the stages are split between roles, each
+briefed on its own ("The briefs" below):
 
-| Stages | Agent | Its job |
-| --- | --- | --- |
-| 1 to 6 | the builder: a capable model at high effort | reads the model, writes the config and the hook, makes the parts, refines against the reference |
-| 7 | the reviewer: the most capable model, a separate agent that did not build the car | the close review (criteria 6 to 9): the table with a crop in every cell and the list of defects; it fixes nothing |
-| 7, fixes | the builder again | fixes the reviewer's list, item by item |
-| 7, check | the reviewer again | looks again at the fixed items only, from the same crops |
-| 8 and 9 | a small, fast model | the benchmark, the card's picture, the install, the proofs, the clean-up: commands with known outputs |
+| Stages | Role | Its job | Brief |
+| --- | --- | --- | --- |
+| before 1 | the coordinator, with the user | settles the decisions, fills in the briefs, relays the stops, takes every limit and open point to the user | |
+| 1 to 5 | the builder | reads the model, writes the config and the hook, makes the parts; stops with the preview sheet | 1 |
+| stop | the user | approves the sheet or asks for changes: the stance, the wheels, the colour | |
+| 6 | the builder | refines against the reference | 1 |
+| 7 | the reviewer, who did not build the car | the close review (criteria 6 to 10, the fixed checklist): the table with a crop in every cell, the list of defects each with its "done when", fit to ship yes or no; fixes nothing | 2 |
+| 7, fixes | the builder | the reviewer's list, item by item, nothing else | 3 |
+| 7, check | the reviewer | each item against its "done when", new defects at normal size, fit to ship yes or no | 4 |
+| 8 and 9 | the installer | the benchmark, the card's picture, the install, the card and cockpit checks, the proofs, the clean-up: commands with known outputs | 5 |
 
-The reviewer never fixes, so no one passes their own work. Each agent
-writes its stage lines to the same progress file.
+The reviewer never fixes, so no one passes their own work. Each role
+writes its stage lines to the same progress file. Two fix rounds are the
+most: what is left after the second is close-range only, or a limit the
+coordinator takes to the user, not a third try (the Challenger's third
+round spent three tries on a gap that cannot be closed).
+
+### The briefs
+
+Five texts the coordinator pastes into each role's task, the words in
+angle brackets filled in: `<CAR>` the car, `<NAME>` its folder and config
+name, `<WORK>` the local working folder (the one that holds
+`ferramentas/`), `<REPO>` the repository. Each ends with the common
+rules. They refer to this document instead of repeating it: every role
+reads the sections its brief names before anything else.
+
+**Common rules** (the end of every brief):
+
+```
+Rules
+- The repository is read-only for you (the installer: but cars/<NAME>/).
+  No git command that changes anything. Do not change the game's code: a
+  change the game would need is described in the notes, not made.
+- The model and whatever is made from it stay in <WORK>.
+- Nothing is installed on the host. Python tools run in the chevette-h3d
+  Docker image (ferramentas/carro/run.sh does it for the converter; for
+  the others: docker run --rm -u $(id -u):$(id -g) -e HOME=/tmp
+  -v "<WORK>:/w" -w /w chevette-h3d python3 -I -B SCRIPT ARGS, paths
+  relative to <WORK>).
+- carlib/ is changed only when a step two cars need has no other place;
+  then every finished car's prove.sh must still print PROOF OK.
+- One capture at a time on the machine: pgrep -x m2gpushot prints nothing
+  before a capture or a benchmark.
+- shots.sh and caps.sh delete their output folder first: a folder of
+  your own for every round, given as an absolute path.
+- After a capture, its log says "daytona: local player body loaded". If
+  it says "unavailable, keeping the original car", the frames show the
+  game's car: run the corner check ("The game's limits", 1).
+- Progress: one line when a stage or round starts and one when it ends,
+  appended to <WORK>/<NAME>-PROGRESS.md: the time (date +%H:%M:%S),
+  "Stage N of 9", what, "started" or "done (N min)" and what was found.
+- Words: "fixed" is the reviewer's word. Everyone else writes what was
+  tried and what the crop shows. "Not checked" is said in those words.
+- Notes go to <WORK>/<NAME>-NOTES.md, a section a stage or round.
+```
+
+**1. The builder, stages 1 to 6.**
+
+```
+You are the builder of a custom car for the game: <CAR> (name <NAME>).
+You do stages 1 to 6 of <REPO>/docs/CUSTOM-CAR-WORKFLOW.md. Others review
+it (stage 7) and install it (stages 8 and 9): you do neither, and you do
+not benchmark.
+
+Read first, whole
+- CUSTOM-CAR-WORKFLOW.md: "The path, in short", "Decisions to settle",
+  "The finished standard" (every subsection), "1. Finding a model"
+  ("Check before converting"), "5. Checking in the game", "Problems met",
+  the last car's history.
+- <WORK>/ferramentas/carro/README.md: "A new car, step by step", the
+  config's fields, the hooks.
+- The nearest config and its hook: cars/<NEAREST>.py, <NEAREST>_hooks.py.
+- The last car's notes, its lists of gaps: <LAST_NOTES>.
+
+What you are given
+- The model: <MODEL_PATH>. Its author, link and licence: <CREDITS>.
+- The reference: <PICTURES>; or none, and then the model itself rendered
+  at the game's angles (captura/ref.py, colour factors turned to sRGB).
+- The decisions settled with the user. They bind: do not reopen them and
+  do not improve on them.
+  <DECISIONS>
+- A point that is not in that list: do not decide it. Take the model's
+  own, write it under "Open points" in the notes, show it at the stop.
+
+Limits
+- "The game's limits", all five. After every build:
+  awk 'NF>6 && ($1<3 || $1>4)' bodies.m2car wheel.m2car | wc -l
+  prints 0 (run in <WORK>/modelo/jogo_<NAME>).
+- No flat face behind the skin to close a gap. A gap you cannot close
+  with the model's own shell is left open and written down.
+- The body, driver and cabin under 22,000 faces. The wheel under 2,000,
+  its tyre with at least 64 sides and round shoulders.
+- A made panel on one plane, cut to the body's outline. A made lining or
+  side panel follows the skin's own section, 6 cm inside it.
+- Stance, wheel size, tyre width, ride height: the decisions' numbers.
+  If one cannot be met, stop and say so; do not pick another.
+
+Building
+- cd <WORK>/ferramentas/carro && ./run.sh <NAME> modelo/jogo_<NAME>
+- Before a change whose cause you do not know (a hole, a fleck, a part
+  over another): a diagnostic build first, the suspect part in a loud
+  colour, the backdrop magenta (a copy of closeview.py with another
+  backdrop, as trabalho/challenger/tools/cv.py). The game's frames show
+  that there is a hole, not where it comes from.
+- Keep a copy of the config and hook at the end of every stage.
+
+The check after every stage from 2 on, and after every change in stage 6
+- SEL_EVERY=10 <WORK>/ferramentas/captura/caps.sh \
+    <WORK>/modelo/jogo_<NAME> <WORK>/trabalho/<NAME>/shots/<STAGE>
+  The whole select turn (37 frames, the chosen car and the dimmed one),
+  the rolling start, chase, high and cockpit.
+- Look at every frame at its own size, then beside the same frame of the
+  stage before: what the stage added is there, nothing else changed,
+  nothing was lost. A sheet of small frames does not count.
+- A defect that shows at normal size is dealt with before the next
+  stage. A change that brings a new one is undone.
+- Close views of both sides (captura/closeview.py) and
+  captura/sym.py modelo/jogo_<NAME> 0.008 3 at the end of stages 4, 5, 6.
+
+The stop at the end of stage 5
+- Make <WORK>/trabalho/<NAME>/preview_stage5.png: the game's frames, each
+  beside the reference at the same angle: both sides (select 1400, 1640),
+  the rear (1540), the front (1720), chase 2700, high 2900, cockpit 2900.
+- Under it, in the notes: the tyre's outer face |x| against the model's
+  and against the body's width at each axle; the tyre's radius, width
+  and sides; the ride height; body and wheel faces; the open points; what
+  differs from the reference so far and why.
+- Then stop and hand the sheet's path to the coordinator. Stage 6 starts
+  only when the user's approval, or the changes asked, come back.
+
+Stage 6
+- Rounds against the reference until criteria 1 to 5 hold and criteria 6
+  to 9 hold as your own check. The reviewer will look again: this check
+  is to hand over a car you believe in, not to pass it.
+- End with ./prove.sh <NAME> modelo/jogo_<NAME> (PROOF OK).
+
+What you hand over (the notes)
+- The result in numbers; the stage times from the progress file.
+- A table of what was done: part, what was tried, what the crop shows,
+  the crop's path. Never "fixed", never a count of things fixed.
+- "What differs from the reference, and why", "Open points", "For the
+  reviewer" (everything you are not sure of, with the frame to look at).
+- sym.py's list, every cluster named as meant or as not explained; the
+  outline report with every dropped run explained.
+- The gaps found in this document and in the converter.
+- The comparison sheet, and where the round shots are.
+
+<COMMON RULES>
+```
+
+**2. The reviewer, stage 7.**
+
+```
+You are the reviewer of a custom car: <CAR>, built in
+<WORK>/modelo/jogo_<NAME>. You did not build it. You change nothing: not
+the car, its config, its hook, the library or the game. You find,
+describe and judge.
+
+Read first
+- <REPO>/docs/CUSTOM-CAR-WORKFLOW.md: "Acceptance criterion" (6 to 10),
+  "The reviewer's fixed checklist", "The game's limits", "The drawing
+  order inside the car", "5. Checking in the game" (the close views).
+- The decisions settled with the user: <DECISIONS>. They are not defects;
+  a car that departs from one has a defect.
+- The limits the user accepted by name: <ACCEPTED_LIMITS>.
+- The builder's notes: <WORK>/<NAME>-NOTES.md. What they claim is to be
+  checked, not believed.
+
+Your own captures of the current build (write down bodies.m2car's md5)
+  B=<WORK>/modelo/jogo_<NAME>; C=<WORK>/ferramentas/captura
+  O=<WORK>/trabalho/<NAME>/review/shots
+  $C/shots.sh sel $B $C/in_vr2.txt 1400 1761 10 $O
+  $C/shots.sh start $B <REPO>/scripts/inputs/attract_long.txt 2160 2261 10 $O
+  $C/shots.sh chase $B $C/in_vr4.txt 2400 3001 50 $O
+  $C/shots.sh cockpit $B $C/in_vr2.txt 2800 3001 100 $O
+  $C/shots.sh chase2 $B $C/in_chase.txt 2400 2701 100 $O
+  (chase: the chase view to 2750, the high one from 2800)
+  In the image: captura/crops.py for the chosen car of every select
+  frame, captura/closeview.py modelo/jogo_<NAME> OUT (the 20 views and
+  the mirror pairs, more views where a detail needs one),
+  captura/sym.py modelo/jogo_<NAME> 0.008 3.
+  The reference at the same angles and close: the pictures, or the model
+  rendered (the builder's reference tool).
+
+How to look
+1. Normal size first: every frame at its own size, the whole turn, both
+   cars. What shows here is what the player sees: rate it race or select.
+2. Then close: criterion 7's scale (1 cm at least 4 px), the same detail
+   cut from the reference beside it. What shows only here is rated close.
+3. The table of criterion 6: a row for every part and every panel line,
+   left and right from two different crops. A cell without a crop is
+   "not checked".
+4. The fixed checklist, lines 1 to 18: an answer and a crop for each.
+5. sym.py and the outline report (criteria 8 and 9).
+
+Each defect, numbered, most visible first
+- What is wrong, against the reference.
+- Where: the part, the side (the car's own), the frames.
+- Visible: race, select or close.
+- The crop: the game's beside the reference's, its path.
+- Likely cause, and whether you traced it (face numbers, a ray, a
+  diagnostic view) or guess. A guess is marked as a guess.
+- Done when: what a crop must show, at which frames, for this to be
+  done, and what must not change beside it. Written so that someone else
+  can check it without asking you.
+
+Also write
+- What you looked at and judged right, so that it is not looked at again.
+- What is a limit of the game and not a defect of the car, for the user.
+- "Fit to ship: yes" or "Fit to ship: no", plainly, first in the file. No
+  means at least one race or select defect that is not an accepted
+  limit. The blockers by number. The order for the fix round: holes and
+  stray faces seen in every race first, close-only last.
+
+Where: <WORK>/trabalho/<NAME>/review/REVIEW.md, the close-up sheet beside
+it (each defect's pair, numbered), a summary in the notes.
+
+<COMMON RULES>
+```
+
+**3. A fix round.**
+
+```
+You are the builder of <CAR>, in fix round <N>. You fix the list below
+and nothing else.
+
+Read first: the review (<WORK>/trabalho/<NAME>/review/REVIEW.md), "The
+drawing order inside the car" and "The game's limits" in
+<REPO>/docs/CUSTOM-CAR-WORKFLOW.md.
+
+The list, in this order, each with its "done when"
+  <ITEMS>
+An item reads like this:
+  N3. Backdrop at the arches' ends, between skin and liner.
+  Where: right rear at select 1400; left front at 1640; left front and
+  left rear at 1720.
+  Done when: at 1400, 1640 and 1720, the reviewer's boxes enlarged 4
+  times, no backdrop pixel at either end of any arch; nothing dark below
+  the body's lower edge; chase 2550 and 2700 as before.
+
+Before the first item
+- Copy the config and the hook. Capture the car as it is:
+  SEL_EVERY=10 caps.sh <WORK>/modelo/jogo_<NAME> \
+    <WORK>/trabalho/<NAME>/fix<N>/before
+
+For each item, one at a time
+1. Find the cause. The reviewer's "likely cause" is a hint, often a
+   guess: confirm it with a diagnostic build (the suspect part in a loud
+   colour) before changing anything.
+2. Change the config or the hook. Build. Run the corner check.
+3. The full check at normal size: SEL_EVERY=10 caps.sh into a folder of
+   this item's own. Every frame beside the same frame of "before" (and of
+   the item before): the item's place changed as its "done when" says,
+   and nothing else changed anywhere.
+4. If anything else changed for the worse, the fix made a new defect:
+   undo it and try another way. Three tries at most. Then the car goes
+   back to what it was for this item, and the item is written "not done:
+   what each try was, what each showed".
+5. Only then the next item.
+
+Not yours to do
+- Anything that is not in the list. What you notice goes into the notes
+  under "Seen, not touched".
+- A decision of the user or an accepted limit: not reopened.
+- More faces than the budget to buy a small gain.
+
+At the end
+- sym.py again; ./prove.sh <NAME> modelo/jogo_<NAME> (PROOF OK); the
+  body's and wheel's faces.
+- The report: a table, one row an item: what was tried (every try), what
+  the crop shows now at the "done when" frames, the crop's path beside
+  the reviewer's at the same box. No "fixed", no count of fixed items:
+  the reviewer says which are done.
+
+<COMMON RULES>
+```
+
+**4. The check of a fix round.**
+
+```
+You are the reviewer of <CAR>, checking fix round <N>. You change
+nothing. You judge from your own captures, never from the builder's
+report or its crops.
+
+Capture the current build (its md5) with the same commands, at the same
+views, as your review, into review/check<N>/. Cut the same boxes.
+
+1. Item by item against its "done when": done, partly (what is left, and
+   where), not done, or worse. One row an item, the pair before and after
+   at the same box.
+2. New defects: every frame at normal size (the whole turn with both
+   cars, the rolling start, chase, high, cockpit) beside the same frame
+   of your captures before the round. Each new one numbered (N1, N2, ...)
+   and written as a defect: where, race, select or close, the crop, the
+   fix it likely comes from, its "done when".
+3. The fixed checklist's lines the round could have touched, again (a
+   wheel or arch change: lines 1 to 4; the nose or the bonnet: 5, 8, 13;
+   the cabin: 6, 7, 12). sym.py again.
+4. "Fit to ship: yes" or "no", first in the section; the blockers; the
+   list for the next round, each item with its "done when".
+5. An item partly done for the second time: say whether it looks like a
+   limit of the game. Then it goes to the user through the coordinator,
+   not into another round.
+
+Where: a section "Check, round <N>" in REVIEW.md, a summary in the notes.
+
+<COMMON RULES>
+```
+
+**5. The installer, stages 8 and 9.**
+
+```
+You install <CAR> and prove every car. The reviewer has written "fit to
+ship: yes". You run the commands below in order and compare each output
+with what is expected. If one differs: stop and report the output. You
+do not change the car, its config or the game.
+
+  W=<WORK>; R=<REPO>; N=<NAME>
+  B=$W/modelo/jogo_$N; T=$W/trabalho/$N; C=$W/ferramentas/captura
+
+Stage 8
+1. Nothing else running: pgrep -x m2gpushot; pgrep -x m2run
+   Expected: no output.
+2. The files: (cd $B && awk 'NF>6 && ($1<3 || $1>4)' bodies.m2car \
+     wheel.m2car | wc -l; sed -n 2p bodies.m2car; sed -n 2p wheel.m2car)
+   Expected: 0; the body's faces (under about 22,000, or the number the
+   review gives); the wheel's (under about 2,000).
+3. The benchmark, 6 interleaved rounds (about 6 minutes):
+   cd $W && $C/bench.sh 6 $T/bench.txt $N=modelo/jogo_$N \
+     escort=modelo/jogo_escort game=none
+   Expected: 18 lines. Take the median of each car's six medians. The
+   new car under 9 ms. The game's car about 1.2 ms, its p99 about 2.1 ms
+   in every round: a round where it is over 3 ms was disturbed, run the
+   benchmark again. Append the result to the local ledger.
+4. The card's picture:
+   $C/shots.sh card $B $C/in_vr2.txt 1720 1721 1 $T
+   then, in the image, from $W:
+   python3 -I -B ferramentas/captura/game_car_preview.py \
+     trabalho/$N/card/run_01720.png modelo/jogo_$N/preview.png
+   Expected: about 800 px wide. Look at it: the whole car, a transparent
+   ground, no blue edge.
+5. The install:
+   mkdir -p $R/cars/$N
+   for f in bodies.m2car liveries.rgba wheel.m2car car.ini CREDITOS.txt \
+     preview.png; do cp $B/$f $R/cars/$N/ && cmp $B/$f $R/cars/$N/$f \
+     && echo "same $f"; done
+   Expected: six lines "same ...". Nothing else is copied.
+6. The card, every card:
+   ls -d $R/cars/*/ | wc -l          (the folders: F)
+   cd $R && M2_CAPTURE_SETTINGS_TAB=7 build-daytona/daytona \
+     --profile capture --settings --window 1440x2600 \
+     --capture-home $T/cars_tab.bmp 2> $T/cars_tab.log
+   grep "left out" $T/cars_tab.log
+   Expected: no "left out" line. In the picture, F + 1 cards (the game's
+   car first). Fewer in view: a taller window (up to 4320) until all
+   show. The new card: its picture, the name of car.ini, the credits'
+   first line without links. A card you did not see is reported "not
+   checked", by name.
+7. The installed car in the game:
+   SEL_EVERY=40 $C/caps.sh $R/cars/$N $T/installed
+   Expected: each log "local player body loaded". Look at the cockpit
+   frames (2800, 2900, 3000): the bonnet has the car's own shape and
+   colour, as in the review's last cockpit crop, in front of the
+   dashboard, nothing over it. Then one frame of each other view.
+
+Stage 9
+8. The proofs of every finished car (the table in
+   ferramentas/carro/README.md plus the new one):
+   cd $W/ferramentas/carro
+   for p in "escort jogo_escort" "fusca jogo_fusca_tuned" \
+     "camaro79 jogo_camaro_79" "camaro jogo_camaro" \
+     "delorean jogo_delorean" "chevette jogo_chevette" \
+     "challenger jogo_challenger" "$N jogo_$N"; do set -- $p
+     ./prove.sh $1 modelo/$2 | tail -1; done | tee $T/proofs.txt
+   Expected: a line "PROOF OK" for every car. Any "PROOF FAILED": stop.
+9. The new car's row in ferramentas/carro/README.md's table (the
+   builder's notes give it), with its prove.sh line.
+10. The clean-up, only after the proofs ("The path, in short", step 9):
+   du -sh $T
+   rm -rf "${W:?}/trabalho/generico" "${T:?}/card" "${T:?}/installed"
+   find "${T:?}" -type d -name shots -prune -exec rm -rf {} +
+   du -sh $T
+   Kept: the model, modelo/jogo_$N, the config and hook, the notes, the
+   review and its sheets, the final sheet, the card's capture, bench.txt,
+   proofs.txt. Other sheets of single rounds and discarded variants go
+   too, once named in the report.
+11. The new car's proof once more, so that the clean-up took nothing its
+   build reads: ./prove.sh $N modelo/jogo_$N (PROOF OK), then
+   rm -rf "${W:?}/trabalho/generico" again. The stage's section in the
+   notes.
+
+Report: the medians, the faces, the card check ("N of N cards seen"),
+the cockpit check, the proofs ("N of N PROOF OK"), the folder's size
+before and after. Whatever was not checked, in those words.
+
+<COMMON RULES>
+```
 
 ## Tried and dropped: a car generated from photos
 
@@ -494,14 +1010,19 @@ The close views, which the review (criteria 6 to 9) is made in:
 
 | Close view | From | Shows |
 | --- | --- | --- |
-| The front from the car's left | rolling start, 2160..2260 every 10 (2250: the car 900 px wide) | the only frames of the set with the front seen from that side |
-| The front from the car's right | select 1720, 1760, the car cut out, x4 | bonnet lines, lamps, grille, plate |
+| The front, with the car's left flank | rolling start, 2160..2260 every 10 (2250: the car 900 px wide); select 1720, 1760, the car cut out, x4 | bonnet lines, lamps, grille, plate |
+| The front, with the car's right flank | the dimmed car of the select screen (small and dark); `closeview.py` (`noseR`, `frontR`, `bonnetR`) | no frame of the chosen car shows it |
 | The rear, and the rear from each side | select 1540; 1480 (right), 1600 (left), cut out, x4 | lid lines, lamps, plate, badges |
 | Each side | select 1400 (right), 1640 (left), cut out, x4 | door lines, stripe, frames, vents, rivets |
 | Any detail from any angle, both sides | `captura/closeview.py BODY_DIR OUT` | 20 views of the built files in the game's drawing order, 30 s; each left/right pair side by side, one flipped, the difference in red |
 
-The select screen's turn shows the front only from the car's right, the
-rolling start only from its left: a front detail is looked at in both.
+The select screen's turn goes right side (1400), right rear, rear (1540),
+left rear, left side (1640), then the front with the left flank (1720,
+1760); the rolling start shows that same flank. (This table said the
+select screen showed the front from the car's right until the
+Challenger's review.) The front's right corner is judged in the dimmed
+car and in `closeview.py`. `ref.py`'s `s1560` view is the right rear
+(yaw 200); the game's 1560 is the left rear (160).
 `closeview.py` is for finding; the game's frames decide. The final sheet
 has a close-up page: front, rear, each side and each plate, picture and
 game cut to the same detail (`captura/closeups.py`; `captura/crops.py`
@@ -551,6 +1072,15 @@ quality" appears only when a race fell short of full speed.
 | Black teeth beside the bigger tyre | the tread's full-width faces sorted by mean depth, drawn over the wing | the tread split into 4 strips |
 | The backdrop showing between rim and tyre | a gap between the rim's lip and the bead | a dark band under the bead, the rear disc doubled |
 | Stripes ending ragged at the arches; exhaust pipes lost faces | the arch cut made before the inlays, and through every material | cut after the inlays, through the paint only |
+| The game's car shown instead of the new one, the log saying only "local player body unavailable" | one made face with 12 corners (a round lamp panel): the game takes 3 or 4 | a fan of triangles; the corner check after every build ("The game's limits") |
+| The tyre's outline stepped from the side | a made tyre of 40 sides | 72 sides, round shoulders, a smooth tread |
+| The backdrop between bumper and bonnet seen from the side (select 1700) | the model's black panel round that corner is a picture here; no depth test | none: every flat face closing it showed over the wing; accepted as a limit |
+| Black spikes out of the roof at the C pillars; black flecks under the quarter windows | a made lining on a straight line, wider than the leaning pillar; cabin panels right behind the skin | the lining follows the skin's section, 6 cm inside it |
+| The road seen in the rear window from the chase camera | the model's floor tub looks down only | a made floor looking up, in strips of 16 cm |
+| A dark wedge under the sills behind the wheels | the model's floor tub wider than the body (taken for the liners at first) | kept within the sills' \|x\|; inner shells' width checked against the body's |
+| A lamp panel speckled at grazing angles | its strips set each at its own depth, fighting the skin behind | one plane |
+| Fixes that made new defects (5 after one round, 1 after the next) | each fix judged only at its own crop | the full normal-size check after every item, a fix that adds a defect undone (brief 3) |
+| The tyres hidden from the chase camera, or standing far out of the body | wings that overhang the tyres: only 14 cm further out showed them | a decision for the user before stage 1, seen at the stage 5 stop |
 
 ## The second car: a Beetle at its real size (history)
 
@@ -878,10 +1408,50 @@ stage by stage and reported each stage as it went.
   panels, tapered flares); the five earlier cars' proofs stayed
   byte-identical.
 
+## The sixth car: a Dodge Challenger, the roles split (history)
+
+A Dodge Challenger 1970 (Sketchfab, CC BY 4.0, 941,024 triangles, 170
+nodes, plain colour factors, panels as closed shells, no cabin), with no
+pictures: the model itself was the reference. The first car made by a
+builder, a reviewer and an installer, each briefed on its own.
+
+- **Result:** 21,610 faces (driver 1,472), a 1,560-face wheel at the
+  model's own stance (`M2WHEEL2 1.4042 -1.3898 0.6450`), median 7.83 ms.
+  The library was not changed; the six earlier cars' proofs stayed
+  byte-identical.
+- **Time:** 2 h 43 min to the first finished install (the Chevette: 66
+  with its close review): stages 1 to 6 in 62 minutes, stage 7 in 86 (a
+  review of 15, three fix rounds of 34, 17 and 5, three checks), stages 8
+  and 9 in 11. Then 31 minutes more for the wheels and a second install.
+- **The builder's count was not the reviewer's:** 16 of 17 reported
+  fixed, 8 found fixed, 8 partly. Fixes made new defects: 5 in the first
+  round, 1 in the second. Hence the "done when" of each item, the full
+  check after each item and "fixed" as the reviewer's word only.
+- **The stance was decided on the way.** The model's tyres sit 5 cm
+  inside the wings and do not show from the chase camera; the builder
+  moved them out to \|x\| 1.05 and cut the arches, the user agreed in
+  words, saw it in the game after the install and asked for the model's
+  own wheels: two more rounds. Hence the decisions before stage 1 and the
+  stop at stage 5.
+- **Missed by the review:** the tyre's stepped outline (40 sides; noted
+  by the builder, accepted as declared) and the cockpit view's bonnet,
+  which kept the game car's shape (the review looked at its lines only).
+  The user found both; the second needed a change in the game. Hence the
+  fixed checklist.
+- **A wrong cause costs a round:** the "liners outside the body" were the
+  model's floor tub; a diagnostic build in loud colours showed it.
+- **Not solved:** the backdrop in the nose's corner at select 1700 ("The
+  game's limits", 3), accepted by the user. Close-range leftovers: the
+  left door's front line, a sliver on a handle, scraps at the A pillars'
+  feet.
+- **The install:** the card check saw six of seven cards, the seventh
+  below the fold. Hence the taller window and the count.
+
 ## For the next car
 
 1. Follow "The path, in short" and build to "The finished standard" from
-   the first conversion; do not start from the texture-only approach.
+   the first conversion, inside "The game's limits"; do not start from
+   the texture-only approach.
 2. Copy the nearest config in `carro/cars/` (`escort.py`, `fusca.py` or
    `delorean.py`, as in "The path" step 4) and work down it (its
    README's "A new car, step by step"): the axes first, then a one-part
@@ -892,9 +1462,11 @@ stage by stage and reported each stage as it went.
    step two cars need goes into the library, and `prove.sh` for every
    finished car must still print PROOF OK (the rebuilt files
    byte-identical to the installed ones).
-4. Run the shots, the select screen's turn, the cockpit and the benchmark;
-   refine (or brief a refinement agent) until the acceptance criterion
-   holds, the item-by-item review included.
+4. Settle the decisions with the user first ("Decisions to settle with
+   the user before stage 1") and brief each role with its text ("The
+   briefs"): the stop at stage 5, the review by someone who did not
+   build, at most two fix rounds, each checked, until the acceptance
+   criterion holds.
 5. Write its credits file (author, link, licence, what was changed), make
    its `preview.png`, install it into `cars/NAME/`, check its card, and
    add it to the README's table with its `prove.sh` line.
