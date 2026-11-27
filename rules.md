@@ -100,13 +100,15 @@ legal problem, or hours re-deriving something already established.
     a contributor would notice**: what it does, in plain words, under the
     right heading, and any new known limit. A finding that lives only in a
     commit message is lost.
-14. **Every commit that changes code raises the version** in `VERSION`
-    (`MAJOR.MINOR.PATCH`, shown on the home screen and in Settings with the
-    commit): PATCH for a fix or a small change, MINOR for a new feature or
-    any change to the Online mode or the relay's protocol (with rule 17),
-    MAJOR for a milestone. `CHANGELOG.md` gets a section for that version
-    (`## 0.11.1 (date)`) in the same commit. A commit that only touches
-    documentation keeps the version.
+14. **A version is made only when the user asks for one.** Until then,
+    commits are ordinary commits: `VERSION` stays, and `CHANGELOG.md`
+    collects the changes under `## Unreleased`. When a version is asked
+    for, `VERSION` (`MAJOR.MINOR.PATCH`, shown on the home screen and in
+    Settings with the commit) is raised: PATCH for fixes and small changes,
+    MINOR for a new feature or any change to the Online mode or the relay's
+    protocol (with rule 17), MAJOR for a milestone; the `## Unreleased`
+    section becomes that version's (`## 0.11.1 (date)`), and the README's
+    change log gets its line. Tags too are made only when asked (rule 23).
 
 ## Language
 
@@ -129,7 +131,9 @@ legal problem, or hours re-deriving something already established.
 
 17. **Any change to what the game sends or how it behaves online raises
     `app::online::kOnlineVersion`** (`src/app/online.h`): the server keeps a
-    room to one version, so every player of a room behaves the same.
+    room to one version, so every player of a room behaves the same. It is
+    raised with the next version (rule 14); until then the `## Unreleased`
+    section says it is due.
 18. **The relay server answers with error codes**, with English text for its
     log; the game shows its own translated text for each code
     (`server_error` in `src/app/relay_link.cpp`). A new code gets its text

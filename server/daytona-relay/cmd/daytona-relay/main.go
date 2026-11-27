@@ -190,6 +190,9 @@ func (s *server) join(c *client, h proto.Hello) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	r := s.rooms[h.Room]
+	if h.Op != "auto" && h.Game == "" { // the game always says its online version; only the helper's rooms go without
+		return proto.Errf("game_version", "no game online version given (v=): a room of the game's Online mode needs one")
+	}
 	switch {
 	case r == nil && h.Op == "join":
 		return proto.Errf("not_found", "room %q does not exist (is the code right? is its creator still connected?)", h.Room)
@@ -352,6 +355,10 @@ func (s *server) rejoin(c *client, h proto.Hello) error {
 	r := s.rooms[h.Room]
 	if r == nil {
 		return proto.Errf("not_found", "room %q does not exist any more", h.Room)
+	}
+	if h.Game != r.game { // back into the race: the same version as the room, as on joining
+		return proto.ErrDetail("game_version", []string{"room_online=" + r.game},
+			"room %q is for game online version %s, not %s", h.Room, r.game, h.Game)
 	}
 	var old *client
 	for _, m := range r.members {

@@ -4,6 +4,59 @@ Changes in this fork, on top of Daytona Reborn beta 0.10 (`9d0eccc`). The
 fork's version is in `VERSION`, raised with every code change (rules.md
 rule 14); each version has its section here.
 
+## Unreleased
+
+### Online: the log measures every other car
+
+- The game's log now has a line for every other car of the room after an
+  online race, by name, in ring order: its share of smooth frames, frames
+  with no new data and skips, and its longest stall in milliseconds, and
+  the worst car named (`daytona: online race, each other car: ...; the
+  worst: NAME, 98.1%`). The line before measured only the car just ahead
+  in the ring, which the relay never composes: a room's worst pair did not
+  show in any player's log. `m2run`'s line has the longest stall too.
+
+### Online: the reserve learns from the race only; the version always checked
+
+- The link's adaptive reserve no longer counts the frames of the start's
+  wait (the game held at the barrier, the link alone: the game reads no
+  block then, so every such frame counted as one without data and could
+  raise the reserve before the race; `CommBoard::vblank(idle)`).
+- The relay refuses a game's room without its online version (`v=`; the
+  daytona-link helper's `op=auto` rooms go without) and checks it on
+  `op=rejoin` too, as on joining (a game coming back into a race with
+  another version is refused, with `room_online=`). Test `TestVersionAlways`.
+- When these changes get a version, the online version goes to 12
+  (`kOnlineVersion`): the reserve's behaviour changed.
+
+### Online: measured in rooms of 4 and 6
+
+Headless, on the relay as deployed (each car's data at most 2 behind),
+every player in their own container with their own line both ways, one
+race of 7,000 frames (about 2 minutes) per scenario; "worst" is the worst
+car seen by any player, out of every frame:
+
+| Scenario | 4 players | 6 players |
+| --- | --- | --- |
+| all at 10 ms (±2) | 99.5 % | 99.4 % |
+| one far (60 ms ±6 each way), first in the ring | 99.1 % | 99.0 % |
+| one far, in the middle of the ring | 99.2 % | 99.1 % |
+| two with a 1 s spike of +60 ms, 10 s apart | 98.8 % | 98.6 % |
+| one with burst loss (1 % to start a burst, ~4 packets), relay UDP repeat 2 | 93.4 % | 92.1 % |
+| the same, relay repeat 0 / 4 | | 88.8 % / 93.4 % |
+
+- A far line or spikes cost under 1 %. Burst loss is the weak point, and it
+  costs two players: everyone sees the lossy car stop (longest stall 260 to
+  350 ms, the TCP retransmission), and the player after it in the ring sees
+  every car stop with it, because the relay composes that player's data
+  when the lossy one's arrives. More UDP repeats from the relay help a
+  little (longest stall 278 ms at 4); the lossy player's own repeats and
+  the compose timing are the next things to change.
+- The standings a cabinet knew at the end differed in two races: each
+  cabinet ranks from its own view, a few frames behind the others', so two
+  cars side by side can each be second for a moment. The races are cut at
+  7,000 frames, mid-race.
+
 ## 0.23.0 (2026-11-26)
 
 Online: the fix is the relay's (`server/daytona-relay`): a game of 0.22.0

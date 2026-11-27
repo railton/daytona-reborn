@@ -149,12 +149,12 @@ void CommBoard::write_block(const Block &b) {
     for (size_t j = 0; j < b.data.size(); j++) shared_[(b.offset + j) & 0x3fff] = b.data[j];
 }
 
-void CommBoard::vblank() {
+void CommBoard::vblank(bool idle) {
     // adaptive reserve: every 300 frames, more blocks held back if frames went
     // without one, fewer (one block dropped) if there was always one to spare;
     // steady (Online's): not below 1, and fewer only after three such windows
     // in a row (15 s: each change shows as a hold or a skip of the other cars)
-    if (paced_ && adaptive_ && primed_) {
+    if (paced_ && adaptive_ && primed_ && !idle) {
         if (!zfg_shown_) ++starved_;
         if (++window_ >= 300) {
             const bool calm = starved_ == 0 && min_depth_ >= 1;

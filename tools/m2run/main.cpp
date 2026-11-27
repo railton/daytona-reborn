@@ -499,6 +499,7 @@ int main(int argc, char **argv) {
         // (k + 1 places behind) as steps 0, 1, 2, 3+ between race frames
         uint64_t car_steps[7][4] = {};
         int car_previous[7] = {-1, -1, -1, -1, -1, -1, -1};
+        int car_stall[7] = {}, car_longest[7] = {}; // race frames without new data in a row: now, the longest
         // M2_TEST_AGE_LOG=FILE: in the race, each frame: wall ms (steady), this
         // cabinet's tick counter and the 8 received slots' (comm RAM 0x200a and
         // 0x21c0 + k * 0x1c0 + 0x0a), to work out each other car's data age
@@ -623,7 +624,12 @@ int main(int argc, char **argv) {
                     rx_previous = rx;
                     for (int k = 0; k < 7; ++k) {
                         const int tick = game.board().comm_ram()[0x21c0 + k * 0x1c0 + 0x0a];
-                        if (car_previous[k] >= 0) ++car_steps[k][std::min(3, (tick - car_previous[k]) & 0xff)];
+                        if (car_previous[k] >= 0) {
+                            const int step = (tick - car_previous[k]) & 0xff;
+                            ++car_steps[k][std::min(3, step)];
+                            car_stall[k] = step ? 0 : car_stall[k] + 1;
+                            car_longest[k] = std::max(car_longest[k], car_stall[k]);
+                        }
                         car_previous[k] = tick;
                     }
                 } else {
@@ -809,8 +815,9 @@ int main(int argc, char **argv) {
                     const uint64_t n = car_steps[k][0] + car_steps[k][1] + car_steps[k][2] + car_steps[k][3];
                     const double one = n ? 100.0 * car_steps[k][1] / n : 0.0;
                     worst = std::min(worst, one);
-                    std::printf(" %d: %.1f%% (%.1f%% none, %.1f%% skips)", k + 1, one, n ? 100.0 * car_steps[k][0] / n : 0.0,
-                                n ? 100.0 * (car_steps[k][2] + car_steps[k][3]) / n : 0.0);
+                    std::printf(" %d: %.1f%% (%.1f%% none, %.1f%% skips, longest stall %d ms)", k + 1, one,
+                                n ? 100.0 * car_steps[k][0] / n : 0.0, n ? 100.0 * (car_steps[k][2] + car_steps[k][3]) / n : 0.0,
+                                int(car_longest[k] * 1000.0 / 57.524 + 0.5));
                 }
                 std::printf("; worst %.1f%%\n", worst);
             }

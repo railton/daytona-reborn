@@ -104,14 +104,14 @@ func lastStatus(t *testing.T, c *client) (proto.Status, uint32) {
 func TestBeginQueueAndOwner(t *testing.T) {
 	s := newTestServer(t)
 	a, b, c := fakeClient("A"), fakeClient("B"), fakeClient("C")
-	if err := s.join(a, proto.Hello{Op: "create", Room: "r"}); err != nil {
+	if err := s.join(a, proto.Hello{Op: "create", Game: "9", Room: "r"}); err != nil {
 		t.Fatal(err)
 	}
 	s.begin(a) // alone: nothing
 	if st, _ := lastStatus(t, a); st.Racing || !st.Owner {
 		t.Fatalf("alone %+v", st)
 	}
-	s.join(b, proto.Hello{Op: "join", Room: "r"})
+	s.join(b, proto.Hello{Op: "join", Game: "9", Room: "r"})
 	s.begin(b) // not the owner: nothing
 	if st, _ := lastStatus(t, b); st.Racing {
 		t.Fatal("a non-owner started a race")
@@ -123,7 +123,7 @@ func TestBeginQueueAndOwner(t *testing.T) {
 		t.Fatalf("race of 2: %+v %+v", sa, sb)
 	}
 	// C joins during the race: waits; the racers' ring (epoch) is unchanged
-	s.join(c, proto.Hello{Op: "join", Room: "r"})
+	s.join(c, proto.Hello{Op: "join", Game: "9", Room: "r"})
 	sc, _ := lastStatus(t, c)
 	sa, ea2 := lastStatus(t, a)
 	if sc.Ready || sc.Position != 0 || !sc.Racing || ea2 != ea || !sa.Ready ||
@@ -253,7 +253,7 @@ func TestInfo(t *testing.T) {
 func TestCreateRules(t *testing.T) {
 	s := newServer(envRace(t, nil), "", 2, 1000, 16)
 	var e *proto.Error
-	if err := s.join(fakeClient("A"), proto.Hello{Op: "create", Room: "bad", Settings: "difficulty:insane"}); !errors.As(err, &e) || e.Code != "settings" {
+	if err := s.join(fakeClient("A"), proto.Hello{Op: "create", Game: "9", Room: "bad", Settings: "difficulty:insane"}); !errors.As(err, &e) || e.Code != "settings" {
 		t.Errorf("invalid setting: %v", err)
 	}
 	if len(s.rooms) != 0 {
@@ -277,10 +277,10 @@ func TestCreateRules(t *testing.T) {
 	if err := s.join(fakeClient("I"), proto.Hello{Op: "join", Room: "one", Game: "3"}); !errors.As(err, &e) || e.Code != "full" {
 		t.Errorf("ninth in a room: %v", err)
 	}
-	if err := s.join(fakeClient("C"), proto.Hello{Op: "create", Room: "two"}); err != nil {
+	if err := s.join(fakeClient("C"), proto.Hello{Op: "create", Game: "9", Room: "two"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.join(fakeClient("D"), proto.Hello{Op: "create", Room: "three"}); !errors.As(err, &e) || e.Code != "server_full" {
+	if err := s.join(fakeClient("D"), proto.Hello{Op: "create", Game: "9", Room: "three"}); !errors.As(err, &e) || e.Code != "server_full" {
 		t.Errorf("third room with DAYTONA_MAX_ROOMS=2: %v", err)
 	}
 }
@@ -429,11 +429,11 @@ func TestRejoin(t *testing.T) {
 		t.Fatalf("dropped racer not kept: place %d away %v", inRing, b.away)
 	}
 	var e *proto.Error
-	if err := s.rejoin(fakeClient("X"), proto.Hello{Op: "rejoin", Room: "rj", Key: "wrong"}); !errors.As(err, &e) || e.Code != "not_found" {
+	if err := s.rejoin(fakeClient("X"), proto.Hello{Op: "rejoin", Game: "9", Room: "rj", Key: "wrong"}); !errors.As(err, &e) || e.Code != "not_found" {
 		t.Errorf("rejoin with a wrong key: %v", err)
 	}
 	b2 := fakeClient("?")
-	if err := s.rejoin(b2, proto.Hello{Op: "rejoin", Room: "rj", Key: st.Key}); err != nil {
+	if err := s.rejoin(b2, proto.Hello{Op: "rejoin", Game: "9", Room: "rj", Key: st.Key}); err != nil {
 		t.Fatal(err)
 	}
 	st2, epoch2 := lastStatus(t, b2)
@@ -597,5 +597,30 @@ func TestStarHistory(t *testing.T) {
 	sendB(11)
 	if got := sendC(); got != 11 {
 		t.Fatalf("history off: %d, want the latest, 11", got)
+	}
+}
+
+// The game's rooms need the game's online version, on joining and on coming
+// back into a race (op=rejoin), as the helper's (op=auto) do not.
+func TestVersionAlways(t *testing.T) {
+	s := newTestServer(t)
+	s.star = true
+	var e *proto.Error
+	if err := s.join(fakeClient("A"), proto.Hello{Op: "create", Room: "nov"}); !errors.As(err, &e) || e.Code != "game_version" {
+		t.Errorf("create without v: %v", err)
+	}
+	a, b := fakeClient("A"), fakeClient("B")
+	s.join(a, proto.Hello{Op: "create", Room: "rv", Game: "11"})
+	s.join(b, proto.Hello{Op: "join", Room: "rv", Game: "11"})
+	s.begin(a)
+	lastStatus(t, a)
+	st, _ := lastStatus(t, b)
+	s.leave(b)
+	if err := s.rejoin(fakeClient("B"), proto.Hello{Op: "rejoin", Room: "rv", Key: st.Key, Game: "10"}); !errors.As(err, &e) ||
+		e.Code != "game_version" || !strings.HasSuffix(string(proto.ErrorPayload(err)), "\nroom_online=11") {
+		t.Errorf("rejoin with another version: %v", err)
+	}
+	if err := s.rejoin(fakeClient("B"), proto.Hello{Op: "rejoin", Room: "rv", Key: st.Key, Game: "11"}); err != nil {
+		t.Errorf("rejoin with the room's version: %v", err)
 	}
 }

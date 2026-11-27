@@ -159,7 +159,7 @@ public:
     // comm board still reads, answers with the game's last state and passes the
     // tokens on, so the other games are not starved while this one waits.
     void link_idle_tick() {
-        if (comm_board_) comm_board_->vblank();
+        if (comm_board_) comm_board_->vblank(true); // not counted by the adaptive reserve
     }
     // Block flips held for the game's own wait (CommBoard::set_paced). After set_link.
     void set_link_paced(bool on, int reserve = 0, bool flag_only = false) {

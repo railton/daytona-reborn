@@ -79,7 +79,9 @@ public:
     void cn_w(uint8_t data);
     uint8_t fg_r();
     void fg_w(uint8_t data) { fg_ = data & 1; }
-    void vblank(); // MAME check_vint_irq: once per frame
+    // idle: a frame of the link alone, the game held at the start's barrier (M2Board::link_idle_tick):
+    // the game reads nothing then, so the adaptive reserve does not count it (it learnt from the wait)
+    void vblank(bool idle = false); // MAME check_vint_irq: once per frame
 
     // For the host's status line.
     enum class Link { Off, Waiting, Up, Lost };

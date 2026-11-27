@@ -92,14 +92,14 @@ func TestRoomsPerIP(t *testing.T) {
 	for i, want := range []string{"", "", "too_many_rooms"} {
 		c := fakeClient("A")
 		c.ip = "203.0.113.7"
-		err := s.join(c, proto.Hello{Op: "create", Room: string(rune('a' + i))})
+		err := s.join(c, proto.Hello{Op: "create", Game: "9", Room: string(rune('a' + i))})
 		if got := code(err); got != want {
 			t.Fatalf("room %d: %q, want %q", i+1, got, want)
 		}
 	}
 	other := fakeClient("B")
 	other.ip = "203.0.113.8"
-	if err := s.join(other, proto.Hello{Op: "create", Room: "z"}); err != nil {
+	if err := s.join(other, proto.Hello{Op: "create", Game: "9", Room: "z"}); err != nil {
 		t.Fatalf("another address: %v", err)
 	}
 }
@@ -111,11 +111,11 @@ func TestIdleRooms(t *testing.T) {
 	clk := &clock{t: time.Unix(1000, 0)}
 	s.now = clk.now
 	alone, pairA, pairB, racerA, racerB := fakeClient("alone"), fakeClient("A"), fakeClient("B"), fakeClient("C"), fakeClient("D")
-	s.join(alone, proto.Hello{Op: "create", Room: "alone"})
-	s.join(pairA, proto.Hello{Op: "create", Room: "pair"})
-	s.join(pairB, proto.Hello{Op: "join", Room: "pair"})
-	s.join(racerA, proto.Hello{Op: "create", Room: "race"})
-	s.join(racerB, proto.Hello{Op: "join", Room: "race"})
+	s.join(alone, proto.Hello{Op: "create", Game: "9", Room: "alone"})
+	s.join(pairA, proto.Hello{Op: "create", Game: "9", Room: "pair"})
+	s.join(pairB, proto.Hello{Op: "join", Game: "9", Room: "pair"})
+	s.join(racerA, proto.Hello{Op: "create", Game: "9", Room: "race"})
+	s.join(racerB, proto.Hello{Op: "join", Game: "9", Room: "race"})
 	s.begin(racerA)
 	_, epoch := lastStatus(t, racerA)
 	data := func() {
@@ -192,8 +192,8 @@ func TestUDPHelloOwnAddress(t *testing.T) {
 	a.udp, a.ip = true, "127.0.0.2" // its TCP connection came from another address
 	b := fakeClient("B")
 	b.udp, b.ip = true, "127.0.0.1"
-	s.join(a, proto.Hello{Op: "create", Room: "u", UDP: true})
-	s.join(b, proto.Hello{Op: "join", Room: "u", UDP: true})
+	s.join(a, proto.Hello{Op: "create", Game: "9", Room: "u", UDP: true})
+	s.join(b, proto.Hello{Op: "join", Game: "9", Room: "u", UDP: true})
 	send := func(key string) {
 		c, err := net.DialUDP("udp", nil, uc.LocalAddr().(*net.UDPAddr))
 		if err != nil {
@@ -248,9 +248,9 @@ func gotError(c *client, code string) bool {
 func TestMasterOnlyControls(t *testing.T) {
 	s := newTestServer(t)
 	a, b, c := fakeClient("A"), fakeClient("B"), fakeClient("C")
-	s.join(a, proto.Hello{Op: "create", Room: "m"})
-	s.join(b, proto.Hello{Op: "join", Room: "m"})
-	s.join(c, proto.Hello{Op: "join", Room: "m"})
+	s.join(a, proto.Hello{Op: "create", Game: "9", Room: "m"})
+	s.join(b, proto.Hello{Op: "join", Game: "9", Room: "m"})
+	s.join(c, proto.Hello{Op: "join", Game: "9", Room: "m"})
 	s.begin(a)
 	_, epoch := lastStatus(t, a)
 	lastStatus(t, b)
