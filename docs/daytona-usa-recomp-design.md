@@ -91,7 +91,7 @@ The recompiler turns the program ROM into one C++ function per i960 procedure, p
 **Pipeline**
 
 1. Load and de-interleave the program ROMs into a flat image using MAME's ROM map for `daytona`.
-2. Seed entry points: reset vector, the interrupt table, the fault table, the system procedure table (for `calls`), and any addresses from a hand-maintained `seeds.toml`.
+2. Seed entry points: reset vector, the interrupt table, the fault table, the system procedure table (for `calls`), and any addresses from the hand-maintained seeds (`seeds/daytona.txt`, `seeds/daytona93.txt`; hooks in their `_hooks.txt`).
 3. Recursive-descent disassembly over the four formats (REG, COBR, CTRL, MEM). Follow `call`, `callx`, `bal`, `balx`, branches and compare-and-branch.
 4. Resolve indirect targets: pattern-match jump tables (`ld` from a scaled index then `bx`/`callx`), and merge in targets observed by the MAME tracer (see Reference & validation).
 5. Build a CFG per procedure, then emit C++ with one label per basic block and `goto` edges.
@@ -115,7 +115,7 @@ The recompiler turns the program ROM into one C++ function per i960 procedure, p
 
 - Load the de-interleaved program image into Ghidra with its i960 processor module. It becomes the shared, annotated map of the game code.
 - Use it to name functions, mark jump tables, label MMIO accesses (TGP FIFO, sound UART, I/O dual-port RAM, comm RAM) and document data structures such as car state and course tables.
-- A Ghidra script exports function starts, names and jump-table targets into `seeds.toml`, so every name reaches the generated C++ and trace logs read as `update_car_physics`, not `sub_0001A3F0`.
+- A Ghidra script exports function starts, names and jump-table targets into the seeds (`seeds/`), so every name reaches the generated C++ and trace logs read as `update_car_physics`, not `sub_0001A3F0`.
 - Cross-check our disassembler against Ghidra's SLEIGH decode: any mismatch in instruction length, operand or branch target is a bug in one of them. Confirm which i960 variant the module models, since KB FP instructions matter here.
 - Findings from MAME traces (indirect targets, code executed from RAM) are imported back into the Ghidra project so the map stays complete.
 

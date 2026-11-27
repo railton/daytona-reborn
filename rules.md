@@ -11,10 +11,12 @@ legal problem, or hours re-deriving something already established.
    name only, with no attribution of any kind to an assistant or tool. This
    overrides any default attribution a harness or tool suggests, every time,
    without exception.
-2. **Never mention Claude, AI, or an assistant** in a commit message, branch
-   name, PR body, tag, or any committed file. `CLAUDE.md` is git-ignored and
-   its line in `.gitignore` is the only such reference in the repository.
-   `rules.md` is the committed copy of the rules.
+2. **No work is attributed to an assistant**: no assistant or tool is named
+   as an author or helper in a commit message, branch name, PR body, tag or
+   committed file. `CLAUDE.md` is git-ignored and its line in `.gitignore`
+   is the only such reference in the repository; `rules.md` is the
+   committed copy of the rules. A feature of the game that uses AI models
+   (the AI textures) is named as what it is.
 3. **Commit messages are short and plain.** Subject under ~70 characters. A few
    lines of body: what changed, the measurement that justifies it, anything
    that would bite the next person. No user's name, no quotes of the user, no
@@ -23,10 +25,10 @@ legal problem, or hours re-deriving something already established.
 4. **Vendored git repositories are git-ignored.** `extern/`, `third_party/`,
    `vendor/` — MAME, SDL3, SoftFloat, Musashi, Dear ImGui and anything else
    from upstream. They have their own history and licences; they are fetched
-   and pinned, never committed into this tree. When one is cloned, add it to
-   `git.ignoredRepositories` in `.vscode/settings.json` in the same change, or
-   VS Code's Source Control silently switches repository and a commit lands in
-   the wrong place.
+   and pinned, never committed into this tree. `.vscode/settings.json` lists
+   each one in `git.ignoredRepositories` (a new one is added in the same
+   change), or VS Code's Source Control silently switches repository and a
+   commit lands in the wrong place.
 5. **Build output is git-ignored** — `build/`, generated C++, CMake/Ninja
    state, shader caches, object files.
 
@@ -38,8 +40,8 @@ legal problem, or hours re-deriving something already established.
    importer checks it against the CRC/SHA1 manifest and refuses anything else.
    This is the rule that keeps the project distributable.
 7. **Analysis evidence is committed; game-derived output is not.** Addresses,
-   sizes, function names, jump-table targets, hashes, run logs and
-   `seeds.toml` are our own work and are committed. Decompiled pseudo-C,
+   sizes, function names, jump-table targets, hashes, run logs and the
+   seeds (`seeds/`) are our own work and are committed. Decompiled pseudo-C,
    Ghidra projects, MAME trace files and display-list dumps contain or
    reproduce game data and are not — tests refer to them by hash.
 8. **Never use leaked source.** No leaked Sega source, SDK or internal
@@ -56,6 +58,12 @@ legal problem, or hours re-deriving something already established.
    Supermodel) is read for reference only, never copied.
 
 ## The design document governs
+
+Rules 10 to 12 apply to the recompilers, the generated code's runtime and
+the native board (the i960, the TGP, the sound, the video). The application
+layer (menus, settings, renderer options, custom cars, the Online mode, the
+emulated comm board's pacing and the relay) is held to its own tests
+instead: rules 19 and 20.
 
 10. **`docs/daytona-usa-recomp-design.md` is binding for the recompilers and
     the native board, and it is checked before work, not after.** Read the
@@ -81,18 +89,19 @@ legal problem, or hours re-deriving something already established.
     When MAME and the PCB disagree, the finding is also logged as an upstream
     MAME note.
 
-11. **Figures marked "from memory" are not facts.** Clock rates, refresh rate,
-    resolution, part numbers and IRQ ordering in the design document must be
-    confirmed against MAME's `sega/model2.cpp` before code depends on them, and
-    the document corrected when they differ. Never treat a MAME cycle count as
-    a hardware fact.
+11. **A hardware figure is confirmed before code depends on it.** Clock
+    rates, refresh rate, resolution, part numbers and IRQ ordering are
+    checked against MAME's `sega/model2.cpp` and written into the design
+    document with their source. Never treat a MAME cycle count as a
+    hardware fact.
 
 12. **Parity is kept.** The desktop game is playable; any change to a
     recompiler, the generated code's runtime or the native board must keep it
     matching MAME: **no such change is done until a recorded input replay
     matches MAME for a full race** (or it is stated as untested). i960 parity
-    comes first, then TGP parity. Changes to the application layer alone
-    (interface, Online mode, server) are held to their own tests instead.
+    comes first, then TGP parity. MAME is not kept checked out: it is fetched
+    at its pinned commit when needed (`scripts/fetch_mame.sh`,
+    `scripts/build_mame.sh`, into `extern/mame`).
 
 ## Every commit updates the record
 
@@ -147,18 +156,17 @@ legal problem, or hours re-deriving something already established.
 20. **Every commit builds and passes the tests**: `ctest` in the build folder
     and `go test ./...` in `server/daytona-relay`.
 21. **Docker is the reference Linux build** (`scripts/docker-build.sh`,
-    `docker/linux-build`); nothing else needs installing on the host. The
-    recommended Windows build is `Build Daytona.bat`
-    (`scripts/windows-build.ps1`): portable tools pinned by URL and SHA-256,
-    no administrator; a tool update changes both together. The same
-    compiler cross-builds Windows on Linux (`scripts/docker-build-windows.sh`,
-    `docker/windows-cross`). `setup.ps1` (Visual Studio) remains;
-    `zig-setup.ps1` is not recommended to players (it runs as administrator
-    and downloads without checksums).
-22. **Game builds are never shared.** A build, its `build*` folders and its
-    generated code hold code derived from the ROM (rule 6): every player
-    builds from their own ROM set, and only the source and the guide
-    (`docs/BUILDING.md`) are passed on.
+    `docker/linux-build`): nothing else is installed on the host, for
+    building, testing or the relay. How to build on each system, Windows
+    included, is in `docs/BUILDING.md`.
+22. **Game builds never go to GitHub or anywhere public.** A build, its
+    `build*` folders and its generated code hold code derived from the ROM
+    (rule 6): the repository, its releases and any public link carry only
+    the source and the guide (`docs/BUILDING.md`), and every player builds
+    from their own ROM set. The only exception is internal: test packages
+    for testing on several platforms (`../tests/windows`, `linux`,
+    `macos`), kept outside the repository and passed only to the project's
+    own testers.
 23. **A release is done in one go, when it is asked for**: `main` pushed to
     `origin`, an annotated tag `vMAJOR.MINOR.PATCH` (the version in
     `VERSION`) created on it and pushed, and the release notes shown in
@@ -185,14 +193,16 @@ legal problem, or hours re-deriving something already established.
   recompile's seeds.
 - **TGP results returned to the i960 must be bit-identical to MAME's.** Game
   logic depends on them.
-- **Enhancements are off by default, and may change game logic when on.**
-  Widescreen or a longer draw distance can need the game's own culling
-  changed. With every enhancement off the build is the game as MAME runs it,
-  and all parity and lockstep checks run that way. Logic runs at native rate;
+- **Enhancements that change game logic are off by default**, and may
+  change it when on: widescreen or a longer draw distance can need the
+  game's own culling changed. Enhancements that only change the picture
+  (the high-resolution textures, the render resolution) may be on by
+  default. With every enhancement off the build is the game as MAME runs
+  it, and all parity and lockstep checks run that way. Logic runs at native rate;
   hardware sort order is reproduced first, z-buffering is a toggle.
 - **One shader path.** No per-platform shader forks.
 - **Ghidra output is for humans.** Names and jump-table targets go into
-  `seeds.toml`; decompiled pseudo-C is never compiled in and never committed.
+  the seeds (`seeds/`); decompiled pseudo-C is never compiled in and never committed.
 - **Sweep test parameters well past the value you believe**, or the test
   confirms the setting instead of testing it.
 
