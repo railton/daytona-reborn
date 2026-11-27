@@ -6,6 +6,15 @@ rule 14); each version has its section here.
 
 ## Unreleased
 
+### macOS: the build stopped at the game's start options
+
+- The macOS build stopped in `src/app/main.cpp` ("call to deleted function
+  'from_chars'"): `--hdr10-paper-white` read its value with
+  `std::from_chars` for a float, which Apple's C++ library has for integers
+  only (Linux and Windows have it). It is read with `strtof` now. Seen on
+  an M1 Pro with Xcode's command line tools; the GitHub macOS job builds
+  the tools without the game, so it did not see it.
+
 ### Online: the server keeps the other cars going when one player's data is late
 
 - In star mode a player's block is composed when their predecessor in the

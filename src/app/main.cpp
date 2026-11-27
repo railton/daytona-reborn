@@ -645,12 +645,13 @@ int main(int argc, char **argv) {
                 std::fprintf(stderr, "daytona: --hdr10-paper-white expects one value in (0, 10000] cd/m2\n");
                 return 1;
             }
+            // strtof, not std::from_chars: Apple's C++ library has it for
+            // integers only (the macOS build stopped here). The game never sets
+            // a locale, so the decimal point is '.'.
             const char *first = argv[++i];
-            const char *end = first + std::strlen(first);
-            float nits = 0.f;
-            const auto parsed = std::from_chars(first, end, nits);
-            if (parsed.ec != std::errc{} || parsed.ptr != end ||
-                !(nits > 0.f && nits <= app::kHdr10PeakNits)) {
+            char *end = nullptr;
+            const float nits = std::strtof(first, &end);
+            if (end == first || *end != '\0' || !(nits > 0.f && nits <= app::kHdr10PeakNits)) {
                 std::fprintf(stderr, "daytona: --hdr10-paper-white expects a value in (0, 10000] cd/m2\n");
                 return 1;
             }
