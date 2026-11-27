@@ -134,6 +134,11 @@ to download the tools again).
 
 ## Windows with Visual Studio (setup.ps1)
 
+`zig-setup.ps1` at the top of the tree came with the fork this project
+started from and is not kept up here: it restarts itself as Administrator,
+runs `git pull` and downloads its tools without checking them. Use
+`Build Daytona.bat` (above) or `setup.ps1` (below) instead.
+
 The original Windows path, Windows 10 or 11, if you prefer Microsoft's
 build tools.
 

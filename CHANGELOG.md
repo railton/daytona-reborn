@@ -6,6 +6,13 @@ rule 14); each version has its section here.
 
 ## Unreleased
 
+### Building: a word on zig-setup.ps1
+
+- `docs/BUILDING.md` says that `zig-setup.ps1`, which came with the fork
+  this project started from, is not kept up: it restarts itself as
+  Administrator, runs `git pull` and downloads its tools without checking
+  them. `Build Daytona.bat` or `setup.ps1` instead.
+
 ### macOS: the build stopped at the game's start options
 
 - The macOS build stopped in `src/app/main.cpp` ("call to deleted function
