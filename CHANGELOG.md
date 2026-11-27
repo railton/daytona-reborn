@@ -6,6 +6,14 @@ rule 14); each version has its section here.
 
 ## Unreleased
 
+### Online: your own room's code is not pasted back into Join
+
+- The home pastes an invite code found in the clipboard into Join. Copied
+  from the Online screen to send to friends, the owner's own code came back
+  there. The codes of the rooms this player made are remembered (from the
+  home and the Online screen) and never pasted on their own; a friend's
+  code still is.
+
 ### Online: Settings from the room's screen
 
 - Esc in an online race shows the room's screen; it had no way to the

@@ -2414,6 +2414,9 @@ int main(int argc, char **argv) {
                 launcher.draw_rom_gate();
             } else if (draw_home && online_screen) {
                 online_menu.set_fonts(home_menu.display_font(), home_menu.body_font());
+                // a room this player made: its code (Copy here) not pasted back into the home's Join
+                if (online_link && online_link->status().owner && !online_link->room().empty())
+                    home_menu.own_code(app::online::encode_invite({online_link->server(), online_link->room(), online_menu.room_password()}));
                 switch (online_menu.draw(cfg, online_link.get(), online_game && game, home_message)) {
                 case app::OnlineMenu::Back: online_screen = false; home_menu.show_online(); break;
                 case app::OnlineMenu::Resume: in_launcher = false; break;
@@ -2500,6 +2503,7 @@ int main(int argc, char **argv) {
                         home_online.names = st.names;
                         home_online.code =
                             app::online::encode_invite({online_link->server(), online_link->room(), online_menu.room_password()});
+                        if (st.owner) home_menu.own_code(home_online.code); // copied to send, not pasted back into Join
                         if (st.me >= 1 && size_t(st.me) <= st.latency.size()) home_online.latency_ms = st.latency[size_t(st.me - 1)];
                     }
                 }

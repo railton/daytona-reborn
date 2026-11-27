@@ -247,6 +247,7 @@ void HomeMenu::paste_invite(const std::string &code) {
 }
 
 HomeMenu::Action HomeMenu::draw(bool has_race, bool loading, const char *message, float opacity, const HomeOnline &online) {
+    if (online.owner) own_code(online.code);
     const auto *view = ImGui::GetMainViewport();
     const float w = view->Size.x, h = view->Size.y;
     const float scale = std::max(0.13f, std::min(h / 900.f, w / 980.f));
@@ -725,7 +726,8 @@ HomeMenu::Action HomeMenu::draw(bool has_race, bool loading, const char *message
                 const std::string c = trim(clip);
                 if (c != seen_clip_) {
                     seen_clip_ = c;
-                    if (c.size() < sizeof invite_ && online::decode_invite(c)) paste_invite(c);
+                    const bool own = std::find(own_codes_.begin(), own_codes_.end(), c) != own_codes_.end();
+                    if (!own && c.size() < sizeof invite_ && online::decode_invite(c)) paste_invite(c);
                 }
             }
         }

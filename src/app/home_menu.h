@@ -2,6 +2,7 @@
 
 #include "runtime/race_request.h"
 
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -71,6 +72,10 @@ public:
     void set_slow(const std::string &text) { slow_ = text; }
     // Diagnostics (a capture): an invite as if pasted.
     void paste_invite(const std::string &code);
+    // A room this player made: its code is never pasted into Join on its own.
+    void own_code(const std::string &code) {
+        if (!code.empty() && std::find(own_codes_.begin(), own_codes_.end(), code) == own_codes_.end()) own_codes_.push_back(code);
+    }
 
 private:
     enum class Screen { Ready, Loading, Paused };
@@ -84,6 +89,10 @@ private:
     ImFont *display_ = nullptr, *body_ = nullptr;
     char invite_[256] = {}, name_[64] = {}, ask_[64] = {};
     std::string invite_text_, name_text_, seen_clip_;
+    // the invite codes of the rooms this player made: copied to send to
+    // friends (from the Online screen's Copy too), never pasted back into
+    // the Join field on their own
+    std::vector<std::string> own_codes_;
     std::string update_; // the new version's notice, "" for none
     std::string slow_;   // the slow race's notice, "" for none
     bool online_update_dismissed_ = false; // the Online mode's update notice, closed until the game restarts
