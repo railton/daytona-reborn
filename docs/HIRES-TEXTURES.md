@@ -129,7 +129,7 @@ scale, the version of the script; one made another way is made again).
   pack of 406 textures (87 MB): 294 in use, 15 to 24 % of each frame's
   pixels changed, the renderer's CPU time per frame 0.16 -> 0.30 ms.
 - The race only: the menus, the HUD and the results are the 2D layers (see
-  Settings > Enhancements > Smooth menus and HUD for those).
+  Settings > Advanced > Enhancements > Smooth menus and HUD for those).
 
 ## The models
 

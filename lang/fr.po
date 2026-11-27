@@ -431,8 +431,8 @@ msgstr "Test de la qualité moyenne..."
 msgid "Recommended: %s"
 msgstr "Recommandé : %s"
 
-msgid "Pick a level, or keep your settings. Settings > Enhancements change each option later."
-msgstr "Choisissez un niveau ou gardez vos réglages. Réglages > Améliorations modifient ensuite chaque option."
+msgid "Pick a level, or keep your settings. Settings > Advanced > Enhancements change each option later."
+msgstr "Choisissez un niveau ou gardez vos réglages. Réglages > Avancé > Améliorations modifient ensuite chaque option."
 
 msgid "The game's original image, without the enhancements."
 msgstr "L'image d'origine du jeu, sans les améliorations."
@@ -440,11 +440,11 @@ msgstr "L'image d'origine du jeu, sans les améliorations."
 msgid "Twice the arcade's resolution, antialiasing 2x, anisotropic filtering 4x, smooth car shading and paint reflections."
 msgstr "Deux fois la résolution de la borne, anticrénelage 2x, filtrage anisotrope 4x, ombrage lissé et reflets sur la peinture des voitures."
 
-msgid "Up to 4 times the arcade's resolution (never past the screen's), antialiasing 4x, anisotropic filtering 16x and every car option."
-msgstr "Jusqu'à 4 fois la résolution de la borne (jamais au-delà de celle de l'écran), anticrénelage 4x, filtrage anisotrope 16x et toutes les options de voiture."
+msgid "Up to 4 times the arcade's resolution (never past the screen's), antialiasing 4x, anisotropic filtering 16x, every car option and smooth menus."
+msgstr "Jusqu'à 4 fois la résolution de la borne (jamais au-delà de celle de l'écran), anticrénelage 4x, filtrage anisotrope 16x, toutes les options de voiture et menus lissés."
 
-msgid "The screen's own resolution, antialiasing 4x, anisotropic filtering 16x and every car option."
-msgstr "La résolution de l'écran, anticrénelage 4x, filtrage anisotrope 16x et toutes les options des voitures."
+msgid "The screen's own resolution, antialiasing 4x, anisotropic filtering 16x, every car option, smooth menus, 3D scenery and always-detailed opponents."
+msgstr "La résolution de l'écran, anticrénelage 4x, filtrage anisotrope 16x, toutes les options des voitures, menus lissés, décor en 3D et adversaires toujours détaillés."
 
 msgid " (recommended)"
 msgstr " (recommandé)"
@@ -485,8 +485,8 @@ msgstr "Terminé"
 msgid "Pick the car you drive. It changes at once, also during a race; only its look changes (the game's handling stays), and other players online see the game's car."
 msgstr "Choisissez la voiture que vous conduisez. Elle change aussitôt, même pendant une course ; seul son aspect change (la conduite reste celle du jeu), et les autres joueurs en ligne voient la voiture du jeu."
 
-msgid "These need the Hardware renderer (Display tab)."
-msgstr "Ces options demandent le rendu Matériel (onglet Affichage)."
+msgid "These need the Hardware renderer (Advanced, Display)."
+msgstr "Ces options demandent le rendu Matériel (Avancé, Affichage)."
 
 msgid "M2_PLAYER_BODY is set: it chooses the car instead."
 msgstr "M2_PLAYER_BODY est définie : c'est elle qui choisit la voiture."
@@ -593,8 +593,8 @@ msgstr "Annulé."
 msgid "This system cannot make the pack yet."
 msgstr "Ce système ne peut pas encore créer le pack."
 
-msgid "The ROM set was not found (Game tab)."
-msgstr "Le jeu de ROM est introuvable (onglet Jeu)."
+msgid "The ROM set was not found (Advanced, Game)."
+msgstr "Le jeu de ROM est introuvable (Avancé, Jeu)."
 
 msgid "Docker is not installed."
 msgstr "Docker n'est pas installé."
@@ -641,17 +641,14 @@ msgstr "%.0f Mo, sur cet ordinateur"
 msgid "Use the high-resolution textures"
 msgstr "Utiliser les textures en haute résolution"
 
-msgid "Needs the Hardware renderer (Display tab). Textures the pack does not have are drawn as before."
-msgstr "Nécessite le rendu matériel (onglet Affichage). Les textures absentes du pack sont dessinées comme avant."
+msgid "Needs the Hardware renderer (Advanced, Display). Textures the pack does not have are drawn as before."
+msgstr "Nécessite le rendu matériel (Avancé, Affichage). Les textures absentes du pack sont dessinées comme avant."
 
 msgid "Delete the pack"
 msgstr "Supprimer le pack"
 
 msgid "static recompilation, native engine"
 msgstr "recompilation statique, moteur natif"
-
-msgid "Game"
-msgstr "Jeu"
 
 msgid "ROM set"
 msgstr "Jeu de ROM"
@@ -733,9 +730,6 @@ msgstr "Image, son, commandes, voitures, le nom et le serveur en ligne : tout re
 
 msgid "Erase and restart"
 msgstr "Effacer et redémarrer"
-
-msgid "Display"
-msgstr "Affichage"
 
 msgid "Picture"
 msgstr "Image"
@@ -904,9 +898,6 @@ msgstr ""
 
 msgid "Currently: %s."
 msgstr "Actuellement : %s."
-
-msgid "Enhancements"
-msgstr "Améliorations"
 
 msgid "Scenery"
 msgstr "Décor"
@@ -1167,12 +1158,6 @@ msgstr ""
 "puis rejoint la place que le jeu lui donne. L'image seulement : la course elle-même ne change pas.\n"
 "Nécessite le rendu Matériel et le double tampon."
 
-msgid "Cars"
-msgstr "Voitures"
-
-msgid "Link play (advanced)"
-msgstr "Jeu en réseau (avancé)"
-
 msgid "To race friends over the Internet, use Online in the home menu: no port to open, player names, standings, the room's settings for everyone. Link play joins cabinets directly, on a local network, or through the daytona-link helper."
 msgstr "Pour courir avec des amis sur Internet, utilisez En ligne dans le menu d'accueil : aucun port à ouvrir, noms des joueurs, classement, les réglages de la salle pour tous. Le jeu en réseau relie les bornes directement, sur un réseau local, ou via l'utilitaire daytona-link."
 
@@ -1199,9 +1184,6 @@ msgstr "Réseau : %s"
 
 msgid "The cabinets link in a ring over the network (Wi-Fi or cable): each listens on its port and connects to the next one; with two, each has the other as next. All the computers can take the same port, for example 15112, and Next cabinet = the other computer's address:15112. In test mode (F2) > GAME SYSTEM, set LINK ID (one MASTER, the others SLAVE) and a different CAR NUMBER on each. The 1994 game (revision A) supports link play."
 msgstr "Les bornes se relient en anneau par le réseau (Wi-Fi ou câble) : chacune écoute sur son port et se connecte à la suivante ; à deux, chacune a l'autre pour suivante. Tous les ordinateurs peuvent prendre le même port, par exemple 15112, et Borne suivante = adresse de l'autre ordinateur:15112. En mode test (F2) > GAME SYSTEM, régler LINK ID (une MASTER, les autres SLAVE) et un CAR NUMBER différent sur chacune. Le jeu de 1994 (révision A) permet le jeu en réseau."
-
-msgid "Controls"
-msgstr "Commandes"
 
 msgid "Devices"
 msgstr "Appareils"
@@ -1342,12 +1324,6 @@ msgstr "Échap annule une affectation ; Retour arrière efface une touche."
 msgid "Reset the default settings"
 msgstr "Remettre les réglages par défaut"
 
-msgid "AI textures"
-msgstr "Textures IA"
-
-msgid "Sound"
-msgstr "Son"
-
 msgid "Volume"
 msgstr "Volume"
 
@@ -1375,6 +1351,42 @@ msgstr "Son natif (expérimental, réinitialiser)"
 
 msgid "Native sequencer and mixer; the reference sound stays available for comparison."
 msgstr "Séquenceur et mixeur natifs ; le son de référence reste disponible pour comparer."
+
+msgid "Each option on its own: Advanced, Enhancements."
+msgstr "Chaque option à part : Avancé, Améliorations."
+
+msgid "Cars"
+msgstr "Voitures"
+
+msgid "Needs the Hardware renderer (Advanced, Display)."
+msgstr "Nécessite le rendu Matériel (Avancé, Affichage)."
+
+msgid "Sound"
+msgstr "Son"
+
+msgid "Main"
+msgstr "Principal"
+
+msgid "Controls"
+msgstr "Commandes"
+
+msgid "Advanced"
+msgstr "Avancé"
+
+msgid "Game"
+msgstr "Jeu"
+
+msgid "Display"
+msgstr "Affichage"
+
+msgid "Enhancements"
+msgstr "Améliorations"
+
+msgid "AI textures"
+msgstr "Textures IA"
+
+msgid "Link play (advanced)"
+msgstr "Jeu en réseau (avancé)"
 
 msgid "off"
 msgstr "coupé"
@@ -1704,4 +1716,9 @@ msgid "Invalid data from another player: is everyone on the same version of the 
 msgstr "Données invalides d'un autre joueur : tout le monde a-t-il la même version du jeu ?"
 
 # Plus utilisés (no longer used):
-#~ msgid "Export"
+#~ msgid "Pick a level, or keep your settings. Settings > Enhancements change each option later."
+#~ msgid "Up to 4 times the arcade's resolution (never past the screen's), antialiasing 4x, anisotropic filtering 16x and every car option."
+#~ msgid "The screen's own resolution, antialiasing 4x, anisotropic filtering 16x and every car option."
+#~ msgid "These need the Hardware renderer (Display tab)."
+#~ msgid "The ROM set was not found (Game tab)."
+#~ msgid "Needs the Hardware renderer (Display tab). Textures the pack does not have are drawn as before."

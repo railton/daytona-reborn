@@ -428,7 +428,7 @@ msgstr ""
 msgid "Recommended: %s"
 msgstr ""
 
-msgid "Pick a level, or keep your settings. Settings > Enhancements change each option later."
+msgid "Pick a level, or keep your settings. Settings > Advanced > Enhancements change each option later."
 msgstr ""
 
 msgid "The game's original image, without the enhancements."
@@ -437,10 +437,10 @@ msgstr ""
 msgid "Twice the arcade's resolution, antialiasing 2x, anisotropic filtering 4x, smooth car shading and paint reflections."
 msgstr ""
 
-msgid "Up to 4 times the arcade's resolution (never past the screen's), antialiasing 4x, anisotropic filtering 16x and every car option."
+msgid "Up to 4 times the arcade's resolution (never past the screen's), antialiasing 4x, anisotropic filtering 16x, every car option and smooth menus."
 msgstr ""
 
-msgid "The screen's own resolution, antialiasing 4x, anisotropic filtering 16x and every car option."
+msgid "The screen's own resolution, antialiasing 4x, anisotropic filtering 16x, every car option, smooth menus, 3D scenery and always-detailed opponents."
 msgstr ""
 
 msgid " (recommended)"
@@ -482,7 +482,7 @@ msgstr ""
 msgid "Pick the car you drive. It changes at once, also during a race; only its look changes (the game's handling stays), and other players online see the game's car."
 msgstr ""
 
-msgid "These need the Hardware renderer (Display tab)."
+msgid "These need the Hardware renderer (Advanced, Display)."
 msgstr ""
 
 msgid "M2_PLAYER_BODY is set: it chooses the car instead."
@@ -590,7 +590,7 @@ msgstr ""
 msgid "This system cannot make the pack yet."
 msgstr ""
 
-msgid "The ROM set was not found (Game tab)."
+msgid "The ROM set was not found (Advanced, Game)."
 msgstr ""
 
 msgid "Docker is not installed."
@@ -638,16 +638,13 @@ msgstr ""
 msgid "Use the high-resolution textures"
 msgstr ""
 
-msgid "Needs the Hardware renderer (Display tab). Textures the pack does not have are drawn as before."
+msgid "Needs the Hardware renderer (Advanced, Display). Textures the pack does not have are drawn as before."
 msgstr ""
 
 msgid "Delete the pack"
 msgstr ""
 
 msgid "static recompilation, native engine"
-msgstr ""
-
-msgid "Game"
 msgstr ""
 
 msgid "ROM set"
@@ -726,9 +723,6 @@ msgid "Image, sound, controls, cars, the online name and server: all back to the
 msgstr ""
 
 msgid "Erase and restart"
-msgstr ""
-
-msgid "Display"
 msgstr ""
 
 msgid "Picture"
@@ -873,9 +867,6 @@ msgid ""
 msgstr ""
 
 msgid "Currently: %s."
-msgstr ""
-
-msgid "Enhancements"
 msgstr ""
 
 msgid "Scenery"
@@ -1120,12 +1111,6 @@ msgid ""
 "Needs the Hardware renderer and the double buffer."
 msgstr ""
 
-msgid "Cars"
-msgstr ""
-
-msgid "Link play (advanced)"
-msgstr ""
-
 msgid "To race friends over the Internet, use Online in the home menu: no port to open, player names, standings, the room's settings for everyone. Link play joins cabinets directly, on a local network, or through the daytona-link helper."
 msgstr ""
 
@@ -1151,9 +1136,6 @@ msgid "Network: %s"
 msgstr ""
 
 msgid "The cabinets link in a ring over the network (Wi-Fi or cable): each listens on its port and connects to the next one; with two, each has the other as next. All the computers can take the same port, for example 15112, and Next cabinet = the other computer's address:15112. In test mode (F2) > GAME SYSTEM, set LINK ID (one MASTER, the others SLAVE) and a different CAR NUMBER on each. The 1994 game (revision A) supports link play."
-msgstr ""
-
-msgid "Controls"
 msgstr ""
 
 msgid "Devices"
@@ -1284,12 +1266,6 @@ msgstr ""
 msgid "Reset the default settings"
 msgstr ""
 
-msgid "AI textures"
-msgstr ""
-
-msgid "Sound"
-msgstr ""
-
 msgid "Volume"
 msgstr ""
 
@@ -1314,6 +1290,42 @@ msgid "Native sound (experimental, reset)"
 msgstr ""
 
 msgid "Native sequencer and mixer; the reference sound stays available for comparison."
+msgstr ""
+
+msgid "Each option on its own: Advanced, Enhancements."
+msgstr ""
+
+msgid "Cars"
+msgstr ""
+
+msgid "Needs the Hardware renderer (Advanced, Display)."
+msgstr ""
+
+msgid "Sound"
+msgstr ""
+
+msgid "Main"
+msgstr ""
+
+msgid "Controls"
+msgstr ""
+
+msgid "Advanced"
+msgstr ""
+
+msgid "Game"
+msgstr ""
+
+msgid "Display"
+msgstr ""
+
+msgid "Enhancements"
+msgstr ""
+
+msgid "AI textures"
+msgstr ""
+
+msgid "Link play (advanced)"
 msgstr ""
 
 msgid "off"

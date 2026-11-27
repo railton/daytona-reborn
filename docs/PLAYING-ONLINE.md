@@ -110,7 +110,7 @@ When everyone is in, the owner presses **Start the race**.
 ## When something goes wrong
 
 Every game keeps a log in the **logs** folder beside **roms** and **cars**
-(Settings > Game > Logs, on by default; **Open the logs folder** shows it):
+(Settings > Advanced > Game > Logs, on by default; **Open the logs folder** shows it):
 **daytona-pc-solo.log** for the PC home, with the five sessions before it as
 daytona-pc-solo.1.log .. .5.log. Its online lines carry the time in
 UTC, and each online race ends with a line of measurements. Send it with a

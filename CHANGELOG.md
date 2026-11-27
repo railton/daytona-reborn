@@ -6,6 +6,28 @@ rule 14); each version has its section here.
 
 ## Unreleased
 
+### Settings: four tabs, and the defaults set by the graphics card
+
+- Settings has four tabs instead of eight: **Main** (what is changed most,
+  also from a race: picture format, fullscreen, the automatic or maximum
+  quality, car shadows and reflections, the online cars' smoothing, the AI
+  textures, volume), **Cars**, **Controls**, and **Advanced**, every
+  former tab as a section that opens and closes (Game, Display,
+  Enhancements, Sound, AI textures, Link play). The texts that named the
+  old tabs, the README and the guides point at the new places.
+- Defaults for a new profile: fullscreen (borderless at the desktop's
+  mode), the mouse hidden during play, the smooth pacing on (it acts only
+  on a 57.52 or 115.05 Hz display). Lock to the display (4 % fast, out of
+  step online) and VRR (SDL cannot tell a VRR display) stay off.
+- The quality check (first start, or Detect automatically) also sets the
+  smooth menus and HUD on High and Maximum, and on Maximum the 3D scenery
+  and the always-detailed opponents (next start); the Maximum buttons do
+  the same. Measured, 1920 x 1080, MSAA 4x, 39 opponents, 6 interleaved
+  runs each: game and renderer CPU at the 99th percentile 1.65 -> 1.80 ms
+  (3D scenery), 1.65 -> 2.03 ms (detailed opponents), the GPU wait 0.00.
+  The log lists what the check applied. The 120 frames/s smoothing stays
+  out of it until seen on a fast display.
+
 ### Country: International (km/h), the default
 
 - The game shows speeds in mph for the USA and in km/h for Japan and

@@ -2785,8 +2785,8 @@ int main(int argc, char **argv) {
                                               game != nullptr)) {
                 case app::Launcher::QualityChoice::Apply:
                     app::apply_quality(cfg, app::QualityLevel(launcher.quality_pick()), native_modes);
-                    std::printf("daytona: image quality applied: level %d of 3 (recommended %d)\n", launcher.quality_pick(),
-                                int(quality_probe.level()));
+                    std::printf("daytona: image quality applied: level %d of 3 (recommended %d): %s\n", launcher.quality_pick(),
+                                int(quality_probe.level()), app::quality_summary(cfg).c_str());
                     [[fallthrough]];
                 case app::Launcher::QualityChoice::Keep:
                     cfg.quality_checked = true;

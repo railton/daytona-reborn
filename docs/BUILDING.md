@@ -289,7 +289,7 @@ compiler `Build Daytona.bat` uses (llvm-mingw, `docker/windows-cross`).
    of llvm-mingw, checked against its SHA-256).
 3. Copy `build-windows/daytona.exe` and the `build-windows/lang/` folder to
    the Windows PC, with your ROM set beside them, start `daytona.exe` and
-   choose the ROM set in **Settings > Game > Browse...**.
+   choose the ROM set in **Settings > Advanced > Game > Browse...**.
 
 The `.exe` needs nothing else: the C++ runtime is linked in, it only uses
 Windows' own DLLs. It is still a build from your ROM set: for your own PC
@@ -314,7 +314,7 @@ game mode and gearbox, **Settings**, **Quit** and **Online**.
    (the game copied elsewhere) it opens on **Your ROM set**: click **Choose
    the ROM set...** (or type its full path and press Enter). Nothing else
    opens until the set is verified; a refused set lists the files that are
-   missing or wrong. Later, **Settings > Game > Change...** chooses another. **Language**, at the top right, switches the interface between
+   missing or wrong. Later, **Settings > Advanced > Game > Change...** chooses another. **Language**, at the top right, switches the interface between
    English, French and Portuguese (Português). **Back** returns to the home
    menu. The choice is remembered.
 2. **Play** starts a solo race. In the game, **Esc** brings the menu back.

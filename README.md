@@ -90,7 +90,7 @@ From Daytona Reborn beta 0.10, kept in this repository:
 - **High-resolution textures (experimental):** the game's textures upscaled
   4x by AI models on your own computer, from your own ROM set, each by the
   model best at its kind (lettering, natural surfaces, the road); cut-out
-  textures keep crisp outlines. Made from Settings > AI textures (Linux with
+  textures keep crisp outlines. Made from Settings > Advanced > AI textures (Linux with
   Docker for now); what it needs: [docs/HIRES-TEXTURES.md](docs/HIRES-TEXTURES.md).
 - **A custom body for your car (experimental):** a body you made (or
   converted from a model you may use) in place of your car's, lit by the
@@ -170,22 +170,24 @@ builds:** they contain code generated from the ROM.
 
 ## Playing
 
-The Revision A game opens on its home menu. **Settings** has eight tabs:
+The Revision A game opens on its home menu. **Settings** has four tabs:
 
 | Tab | What it holds |
 | --- | --- |
-| Game | the ROM set (Browse, Check); logs (Generate logs, on by default; Open the logs folder); updates (check for new versions) |
-| Display | picture format, graphics API, renderer, render resolution, draw mode, fullscreen, display pacing |
-| Enhancements | draw distance, 3D scenery, opponents' detail, polygon budget, widescreen options, image quality (automatic or each option), smooth menus and HUD, screen effects, screen colours, smoothing |
+| Main | what is changed most, also from a race (Esc): picture format, fullscreen, the automatic image quality (or the maximum at once), car shadows and paint reflections, the other players' cars drawn smoothly online, the high-resolution textures, volume |
 | Cars | experimental, shown when the project's `cars/` folder holds a car: the car you drive, a card with a picture for each (the game's own, or a body made from a 3D model in the format of [cars/README.md](cars/README.md)); it changes at once |
-| Link play | linking cabinets on a local network |
 | Controls | devices, steering, force feedback, every control's key, gamepad and wheel assignment |
-| AI textures | experimental: what this computer has for the high-resolution texture pack, making it, using or deleting it; the pack lives in the project's `textures/` folder, where a `.zip` holding one is checked and used ([docs/HIRES-TEXTURES.md](docs/HIRES-TEXTURES.md)) |
-| Sound | volume, music and effects balance, native sound |
+| Advanced | everything, in sections that open and close: **Game** (the ROM set; logs, on by default, and Open the logs folder; updates; start over), **Display** (graphics API, renderer, render resolution, draw mode, window, display pacing), **Enhancements** (draw distance, 3D scenery, opponents' detail, polygon budget, widescreen options, each image quality option, screen effects, screen colours, smoothing), **Sound** (volume, music and effects balance, native sound), **AI textures** (experimental: what this computer has for the high-resolution texture pack, making it, using or deleting it; the pack lives in the project's `textures/` folder, where a `.zip` holding one is checked and used: [docs/HIRES-TEXTURES.md](docs/HIRES-TEXTURES.md)), **Link play** (linking cabinets on a local network) |
+
+At the first start the game measures the graphics card and sets the image
+quality to match (Original, Medium, High or Maximum; High and Maximum also
+smooth the menus, Maximum adds the 3D scenery and always-detailed
+opponents); it opens fullscreen, hides the mouse during play and keeps the
+smooth pacing on (it acts only on a 57.52 or 115.05 Hz display).
 
 When something goes wrong, the game's log tells what happened: send
 **daytona-pc-solo.log**, in the **logs** folder beside **roms** and **cars**
-(Settings > Game > **Open the logs folder**; the five sessions before it are
+(Settings > Advanced > Game > **Open the logs folder**; the five sessions before it are
 kept too).
 
 The language is chosen at the top right. Settings are saved as they change,
@@ -222,7 +224,7 @@ frame is shown.
 | **Online**: the invite code is pasted on its own; or create a room. | **In a room**: its places in the cars' colours, what it waits for. |
 | ![The room's settings: name, server, and the race settings as choices](docs/images/room-settings.jpg) | ![Settings: seven tabs, the Enhancements tab open](docs/images/settings.jpg) |
 | **Room settings**: name, server, and the race for every player. | **Settings**: display, enhancements, controls, AI textures, sound. |
-| ![Settings > AI textures: what this computer has, making the pack, using it](docs/images/ai-textures.jpg) | |
+| ![Settings > Advanced > AI textures: what this computer has, making the pack, using it](docs/images/ai-textures.jpg) | |
 | **AI textures** (experimental): make the high-resolution texture pack on this computer. | |
 
 ## New versions
@@ -230,7 +232,7 @@ frame is shown.
 Once a day the home screen asks GitHub whether a newer release is out and,
 if so, says which. Games are never distributed: to update, pull the source
 (`git pull`, or download it again) and build again with your own ROM set.
-The check sends nothing about you; turn it off in Settings > Game > Updates.
+The check sends nothing about you; turn it off in Settings > Advanced > Game > Updates.
 
 ## Online play
 
@@ -267,7 +269,7 @@ the network jitters, and a player whose connection drops comes back to the
 race on their own within 10 s. 4 players from Brazil through a server in
 Europe: the farthest car about 0.4 s old instead of 1 s; with 1% packet
 loss on a test line the other cars move smoothly in 99% of the frames. When a player's line stalls, their car is drawn carrying on along its way and back to its place
-(Settings > Enhancements > Smoothing, "the other players' cars smooth", on by default).
+(Settings > Main, "the other players' cars smooth", on by default).
 How it works, with diagrams: [docs/ONLINE-PROTOCOL.md](docs/ONLINE-PROTOCOL.md).
 The server's settings and byte formats:
 [server/daytona-relay/README.md](server/daytona-relay/README.md).

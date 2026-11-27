@@ -581,7 +581,7 @@ and some stutter. Pick a server close to every player.
 
 ## Logs
 
-Each game writes `daytona.log` (Settings > Game > Logs), with UTC times on
+Each game writes `daytona.log` (Settings > Advanced > Game > Logs), with UTC times on
 its online lines and one line per race: game speed, how smoothly the other
 cars moved, the reserve, messages a second, what UDP brought first. The
 relay logs each race's players every minute and at its end: messages in and

@@ -27,15 +27,18 @@ int main() {
     cfg.bloom = cfg.crt_filter = true;
     app::apply_quality(cfg, QualityLevel::Maximum, true);
     check(cfg.renderer == "hardware" && cfg.supersampling == app::Config::kNativeResolution && cfg.msaa == 4 &&
-              cfg.aniso == 16 && cfg.smooth_cars && cfg.car_reflections && cfg.sharp_car_textures && cfg.car_shadows,
-          "maximum: native, MSAA 4x, 16x, every car option");
+              cfg.aniso == 16 && cfg.smooth_cars && cfg.car_reflections && cfg.sharp_car_textures && cfg.car_shadows &&
+              cfg.smooth_2d && cfg.scenery_3d && cfg.cars_near_model && cfg.pace_smooth,
+          "maximum: native, MSAA 4x, 16x, every car option, smooth menus, 3D scenery, detailed opponents");
     check(cfg.bloom && cfg.crt_filter, "the screen effects are left as they were");
     app::apply_quality(cfg, QualityLevel::Maximum, false);
     check(cfg.supersampling == 4, "maximum without the native modes: 4 times");
     app::apply_quality(cfg, QualityLevel::Medium, true);
     check(cfg.supersampling == 2 && cfg.msaa == 2 && cfg.aniso == 4 && cfg.smooth_cars && !cfg.car_shadows &&
-              !cfg.sharp_car_textures,
+              !cfg.sharp_car_textures && !cfg.smooth_2d && !cfg.scenery_3d && !cfg.cars_near_model,
           "medium: 2x, MSAA 2x, 4x, the light cars' options");
+    app::apply_quality(cfg, QualityLevel::High, true);
+    check(cfg.smooth_2d && cfg.car_shadows && !cfg.scenery_3d && !cfg.cars_near_model, "high: smooth menus, not the processor's options");
     app::apply_quality(cfg, QualityLevel::Original, true);
     check(cfg.renderer == "hardware" && cfg.supersampling == 1 && cfg.msaa == 1 && cfg.aniso == 1 && !cfg.smooth_cars &&
               !cfg.car_reflections,

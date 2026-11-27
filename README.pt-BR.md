@@ -99,7 +99,7 @@ Do Daytona Reborn beta 0.10, mantida neste repositório:
   ampliadas 4 vezes por modelos de IA no seu computador, a partir da sua
   ROM, cada uma pelo modelo melhor no seu tipo (letreiros, superfícies
   naturais, a pista); as texturas recortadas mantêm contornos nítidos.
-  Geradas em Configurações > Texturas IA (por enquanto Linux com Docker); o
+  Geradas em Configurações > Avançado > Texturas IA (por enquanto Linux com Docker); o
   que é necessário: [docs/HIRES-TEXTURES.md](docs/HIRES-TEXTURES.md).
 - **Uma carroceria própria para o seu carro (experimental):** uma
   carroceria feita por você (ou convertida de um modelo que você pode usar)
@@ -181,22 +181,24 @@ código gerado a partir da ROM.
 
 ## Jogando
 
-O jogo Revision A abre na tela inicial. As **Configurações** têm oito abas:
+O jogo Revision A abre na tela inicial. As **Configurações** têm quatro abas:
 
 | Aba | O que contém |
 | --- | --- |
-| Jogo | a ROM (Procurar, Verificar); logs (Gerar logs, ligado por padrão; Abrir a pasta de logs); atualizações (procurar novas versões) |
-| Vídeo | formato da imagem, API gráfica, renderizador, resolução de renderização, modo de desenho, tela cheia, ritmo de exibição |
-| Melhorias | distância de visão, cenário em 3D, detalhe dos adversários, orçamento de polígonos, opções de widescreen, qualidade de imagem (automática ou cada opção), menus e HUD suaves, efeitos de tela, cores da tela, suavização |
+| Principal | o que mais se muda, também durante a corrida (Esc): formato da imagem, tela cheia, a qualidade de imagem automática (ou a máxima de uma vez), sombras e reflexos dos carros, os carros dos outros jogadores suaves no online, as texturas em alta resolução, volume |
 | Carros | experimental, aparece quando a pasta `cars/` do projeto tem um carro: o carro que você dirige, um cartão com a imagem de cada um (o do próprio jogo, ou uma carroceria feita de um modelo 3D no formato de [cars/README.md](cars/README.md)); troca na hora |
-| Link play | ligar gabinetes numa rede local |
 | Controles | dispositivos, direção, force feedback, a tecla, o botão do controle e do volante de cada comando |
-| Texturas IA | experimental: o que este computador tem para o pacote de texturas em alta resolução, gerar, usar ou apagar o pacote; o pacote fica na pasta `textures/` do projeto, onde um `.zip` com um pacote dentro é conferido e usado ([docs/HIRES-TEXTURES.md](docs/HIRES-TEXTURES.md)) |
-| Som | volume, equilíbrio entre música e efeitos, som nativo |
+| Avançado | tudo, em seções que abrem e fecham: **Jogo** (a ROM; logs, ligados por padrão, e Abrir a pasta de logs; atualizações; recomeçar do zero), **Vídeo** (API gráfica, renderizador, resolução de renderização, modo de desenho, janela, ritmo de exibição), **Melhorias** (distância de visão, cenário em 3D, detalhe dos adversários, orçamento de polígonos, opções de widescreen, cada opção de qualidade de imagem, efeitos de tela, cores da tela, suavização), **Som** (volume, equilíbrio entre música e efeitos, som nativo), **Texturas IA** (experimental: o que este computador tem para o pacote de texturas em alta resolução, gerar, usar ou apagar o pacote; o pacote fica na pasta `textures/` do projeto, onde um `.zip` com um pacote dentro é conferido e usado: [docs/HIRES-TEXTURES.md](docs/HIRES-TEXTURES.md)), **Link play** (ligar gabinetes numa rede local) |
+
+Na primeira abertura o jogo mede a placa de vídeo e ajusta a qualidade de
+imagem a ela (Original, Média, Alta ou Máxima; Alta e Máxima também
+suavizam os menus, a Máxima acrescenta o cenário em 3D e os adversários
+sempre detalhados); abre em tela cheia, esconde o mouse durante o jogo e
+deixa o ritmo suave ligado (ele só age numa tela de 57,52 ou 115,05 Hz).
 
 Quando algo dá errado, o log do jogo conta o que aconteceu: envie o
 **daytona-pc-solo.log**, na pasta **logs**, ao lado de **roms** e **cars**
-(Configurações > Jogo > **Abrir a pasta de logs**; as cinco sessões
+(Configurações > Avançado > Jogo > **Abrir a pasta de logs**; as cinco sessões
 anteriores também ficam guardadas).
 
 O idioma é escolhido no canto superior direito. As configurações são
@@ -234,7 +236,7 @@ do próprio aplicativo e o seu autódromo em 3D, capturados com
 | **Online**: o código de convite é colado sozinho; ou crie uma sala. | **Numa sala**: as vagas nas cores dos carros, o que ela aguarda. |
 | ![As configurações da sala: nome, servidor e as configurações da corrida como opções](docs/images/room-settings.jpg) | ![Configurações: sete abas, a aba Melhorias aberta](docs/images/settings.jpg) |
 | **Configurações da sala**: nome, servidor e a corrida para todos os jogadores. | **Configurações**: vídeo, melhorias, controles, texturas IA, som. |
-| ![Configurações > Texturas IA: o que este computador tem, gerar o pacote, usá-lo](docs/images/ai-textures.jpg) | |
+| ![Configurações > Avançado > Texturas IA: o que este computador tem, gerar o pacote, usá-lo](docs/images/ai-textures.jpg) | |
 | **Texturas IA** (experimental): gere o pacote de texturas em alta resolução neste computador. | |
 
 ## Novas versões
@@ -243,7 +245,7 @@ Uma vez por dia a tela inicial pergunta ao GitHub se saiu uma versão mais
 nova e, se saiu, diz qual. Os jogos nunca são distribuídos: para atualizar,
 baixe o código (`git pull`, ou baixe de novo) e compile outra vez com a sua
 própria ROM. A verificação não envia nada sobre você; desligue em
-Configurações > Jogo > Atualizações.
+Configurações > Avançado > Jogo > Atualizações.
 
 ## Jogando online
 
@@ -282,7 +284,7 @@ um jogador cuja conexão cai volta à corrida sozinho em até 10 s. 4
 jogadores do Brasil por um servidor na Europa: o carro mais distante com
 cerca de 0,4 s de atraso em vez de 1 s; com 1% de perda de pacotes numa
 linha de teste, os outros carros se movem suavemente em 99% dos quadros. Quando a linha de um jogador trava, o carro dele é desenhado seguindo o caminho e voltando ao lugar
-(Configurações > Melhorias > Suavização, "os carros dos outros jogadores suaves", ligado por padrão).
+(Configurações > Principal, "os carros dos outros jogadores suaves", ligado por padrão).
 Como funciona, com diagramas: [docs/ONLINE-PROTOCOL.md](docs/ONLINE-PROTOCOL.md).
 As configurações do servidor e os formatos dos bytes:
 [server/daytona-relay/README.md](server/daytona-relay/README.md).

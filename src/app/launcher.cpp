@@ -398,15 +398,15 @@ Launcher::QualityChoice Launcher::draw_quality(const QualityProbe &probe, float 
             ImGui::PushFont(nullptr, 25.f * scale);
             ImGui::TextColored({0.48f, 0.98f, 0.79f, 1}, "%s", line);
             ImGui::PopFont();
-            ImGui::TextUnformatted(TX("Pick a level, or keep your settings. Settings > Enhancements change each option later."));
+            ImGui::TextUnformatted(TX("Pick a level, or keep your settings. Settings > Advanced > Enhancements change each option later."));
             ImGui::PopTextWrapPos();
             ImGui::Spacing();
             const QualityTimes &t = probe.times();
             const char *what[] = {
                 TX("The game's original image, without the enhancements."),
                 TX("Twice the arcade's resolution, antialiasing 2x, anisotropic filtering 4x, smooth car shading and paint reflections."),
-                TX("Up to 4 times the arcade's resolution (never past the screen's), antialiasing 4x, anisotropic filtering 16x and every car option."),
-                TX("The screen's own resolution, antialiasing 4x, anisotropic filtering 16x and every car option.")};
+                TX("Up to 4 times the arcade's resolution (never past the screen's), antialiasing 4x, anisotropic filtering 16x, every car option and smooth menus."),
+                TX("The screen's own resolution, antialiasing 4x, anisotropic filtering 16x, every car option, smooth menus, 3D scenery and always-detailed opponents.")};
             const double ms[] = {-1, t.medium, t.high, t.maximum};
             const Stage stages[] = {Stage::Idle, Stage::Medium, Stage::High, Stage::Maximum};
             for (int k = 3; k >= 0; --k) {
@@ -620,7 +620,7 @@ void Launcher::draw_cars_tab(float scale) {
     const bool hardware = cfg_.renderer == "hardware";
     ImGui::TextWrapped("%s", TX("Pick the car you drive. It changes at once, also during a race; only its look changes "
                                 "(the game's handling stays), and other players online see the game's car."));
-    if (!hardware) ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.3f, 1.0f), "%s", TX("These need the Hardware renderer (Display tab)."));
+    if (!hardware) ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.3f, 1.0f), "%s", TX("These need the Hardware renderer (Advanced, Display)."));
     if (const char *env = std::getenv("M2_PLAYER_BODY"); env && *env)
         ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.3f, 1.0f), "%s", TX("M2_PLAYER_BODY is set: it chooses the car instead."));
     ImGui::Spacing();
@@ -770,7 +770,7 @@ void Launcher::draw_hires_tab(float scale) {
         const char *why = "";
         switch (st.problem) {
         case Problem::Unsupported: why = TX("This system cannot make the pack yet."); break;
-        case Problem::Rom: why = TX("The ROM set was not found (Game tab)."); break;
+        case Problem::Rom: why = TX("The ROM set was not found (Advanced, Game)."); break;
         case Problem::Kit: why = TX("The maker's files are missing next to the game: build the game again."); break;
         case Problem::DockerMissing: why = TX("Docker is not installed."); break;
         case Problem::DockerAccess: why = TX("This user cannot use Docker (add it to the docker group)."); break;
@@ -809,7 +809,7 @@ void Launcher::draw_hires_tab(float scale) {
         std::snprintf(info, sizeof info, TX("%.0f MB, on this computer"), double(size) / 1e6);
         ImGui::TextUnformatted(info);
         if (ImGui::Checkbox(TX("Use the high-resolution textures"), &cfg_.hires_textures)) cfg_.save();
-        hint(TX("Needs the Hardware renderer (Display tab). Textures the pack does not have are drawn as before."));
+        hint(TX("Needs the Hardware renderer (Advanced, Display). Textures the pack does not have are drawn as before."));
         ImGui::BeginDisabled(busy);
         if (ImGui::Button(TX("Delete the pack"))) {
             hires_.delete_pack();
@@ -972,7 +972,7 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
     const auto tab_flags = [&](int tab) { return tab == open_tab ? ImGuiTabItemFlags_SetSelected : ImGuiTabItemFlags_None; };
     if (ImGui::BeginTabBar("tabs")) {
         // ---- Game: the ROM set; starting, resuming, quitting (the cabinet launcher)
-        if (ImGui::BeginTabItem(TX("Game"), nullptr, tab_flags(0))) {
+        const auto section_game = [&] {
             ImGui::Spacing();
             ImGui::SeparatorText(TX("ROM set"));
             const float small = 140.f * scale, gap = ImGui::GetStyle().ItemSpacing.x;
@@ -1098,11 +1098,10 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
                 ImGui::EndPopup();
             }
 #endif
-            ImGui::EndTabItem();
-        }
+        };
 
         // ---- Display: the picture and the window, the frame pacing
-        if (ImGui::BeginTabItem(TX("Display"), nullptr, tab_flags(1))) {
+        const auto section_display = [&] {
             ImGui::Spacing();
             columns("##display", wide, [&] {
                 ImGui::SeparatorText(TX("Picture"));
@@ -1232,11 +1231,10 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
                                          "rate display, the result looks like the default setting."));
                 hint(TX("Currently: %s."), pacing_status_.c_str());
             });
-            ImGui::EndTabItem();
-        }
+        };
 
         // ---- Enhancements: off by default (rules.md); the scenery, widescreen, colours, smoothing
-        if (ImGui::BeginTabItem(TX("Enhancements"), nullptr, tab_flags(2))) {
+        const auto section_enhancements = [&] {
             ImGui::Spacing();
             columns("##enhancements", wide, [&] {
                 ImGui::SeparatorText(TX("Scenery"));
@@ -1295,6 +1293,7 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
                     cfg_.msaa = 4;
                     cfg_.aniso = 16;
                     cfg_.smooth_cars = cfg_.car_reflections = cfg_.sharp_car_textures = cfg_.car_shadows = true;
+                    cfg_.smooth_2d = cfg_.scenery_3d = cfg_.cars_near_model = true; // as the Maximum level (app/quality.h)
                     cfg_.save();
                 }
                 hint(TX("The Hardware renderer at the screen's resolution and every option below, for a recent graphics card. "
@@ -1336,7 +1335,7 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
                 ImGui::Unindent();
                 hint(TX("The game's simple shadow under the car (a checkered patch) is left out while the cars' shadows are drawn."));
                 ImGui::EndDisabled();
-                hint(TX("These need the Hardware renderer (Display tab)."));
+                hint(TX("These need the Hardware renderer (Advanced, Display)."));
 
                 ImGui::Spacing();
                 ImGui::SeparatorText(TX("Screen effects"));
@@ -1399,19 +1398,11 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
                         "joins the game's place for it. The picture only: the race itself is the same.\n"
                         "Needs the Hardware renderer and the double buffer."));
             });
-            ImGui::EndTabItem();
-        }
+        };
 
         // ---- Link play: cabinets linked directly, without the relay (advanced: the
         // Online mode in the home menu covers racing over the Internet)
-#ifndef M2_MOBILE
-        // only when the project's cars/ folder holds a car that loads
-        if (!custom_cars_now().cars.empty() && ImGui::BeginTabItem(TX("Cars"), nullptr, tab_flags(7))) {
-            draw_cars_tab(scale);
-            ImGui::EndTabItem();
-        }
-#endif
-        if (ImGui::BeginTabItem(TX("Link play (advanced)"), nullptr, tab_flags(3))) {
+        const auto section_link = [&] {
             ImGui::Spacing();
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 0.74f, 0.45f, 1));
             ImGui::TextWrapped("%s", TX("To race friends over the Internet, use Online in the home menu: no port to open, "
@@ -1444,11 +1435,10 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
             ImGui::TextWrapped(TX("Network: %s"), link_status_.c_str());
             ImGui::Spacing();
             hint(TX("The cabinets link in a ring over the network (Wi-Fi or cable): each listens on its port and connects to the next one; with two, each has the other as next. All the computers can take the same port, for example 15112, and Next cabinet = the other computer's address:15112. In test mode (F2) > GAME SYSTEM, set LINK ID (one MASTER, the others SLAVE) and a different CAR NUMBER on each. The 1994 game (revision A) supports link play."));
-            ImGui::EndTabItem();
-        }
+        };
 
         // ---- Controls: devices, steering, force feedback, the assignments
-        if (ImGui::BeginTabItem(TX("Controls"), nullptr, tab_flags(4))) {
+        const auto section_controls = [&] {
             Controls &c = cfg_.controls;
             ImGui::Spacing();
             columns("##controls", wide, [&] {
@@ -1588,17 +1578,10 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
                 c.set_defaults();
                 cfg_.save();
             }
-            ImGui::EndTabItem();
-        }
+        };
 
         // ---- Sound
-#ifndef M2_MOBILE
-        if (ImGui::BeginTabItem(TX("AI textures"), nullptr, tab_flags(6))) {
-            draw_hires_tab(scale);
-            ImGui::EndTabItem();
-        }
-#endif
-        if (ImGui::BeginTabItem(TX("Sound"), nullptr, tab_flags(5))) {
+        const auto section_sound = [&] {
             ImGui::Spacing();
             auto percent = [&](const char *label, const char *id, float &value) { // a 0..1 setting as 0-100%
                 int v = int(value * 100.0f + 0.5f);
@@ -1621,6 +1604,115 @@ Launcher::Result Launcher::draw(bool game_running, const Devices &devices, bool 
                 if (ImGui::Checkbox(TX("Native sound (experimental, reset)"), &cfg_.native_audio)) cfg_.save();
                 hint(TX("Native sequencer and mixer; the reference sound stays available for comparison."));
             });
+        };
+
+        // ---- Main: what is changed most (also from the race, Esc): the
+        // picture's format and quality, the cars' look, the AI textures, the
+        // volume. Everything, these included, is under Advanced.
+        const auto section_main = [&] {
+            ImGui::Spacing();
+            columns("##main", wide, [&] {
+                ImGui::SeparatorText(TX("Picture"));
+                const char *aspects[] = {TX("Arcade 4:3 (the original cabinet)"), TX("Automatic"), "16:10", "16:9",
+                                         TX("21:9 (ultrawide)")};
+                static const char *aspect_ids[] = {"4:3", "", "16:10", "16:9", "21:9"};
+                int aspect = 1;
+                for (int i = 0; i < 5; i++)
+                    if (cfg_.aspect == aspect_ids[i]) aspect = i;
+                if (combo(TX("Picture format"), "##main_aspect", &aspect, aspects, 5)) {
+                    cfg_.aspect = aspect_ids[aspect];
+                    cfg_.save();
+                }
+                if (ImGui::Checkbox(TX("Fullscreen"), &cfg_.fullscreen)) {
+                    SDL_SetWindowFullscreen(window_, cfg_.fullscreen);
+                    cfg_.save();
+                }
+                ImGui::Spacing();
+                ImGui::SeparatorText(TX("Image quality"));
+                if (ImGui::Button(TX("Detect automatically"), ImVec2(-FLT_MIN, 0))) quality_request_ = true;
+                hint(TX("Measures what the graphics card can draw, in a few seconds, and recommends a level."));
+                if (ImGui::Button(TX("Maximum quality (graphics card)"), ImVec2(-FLT_MIN, 0))) {
+                    cfg_.renderer = "hardware";
+#ifdef __APPLE__
+                    cfg_.supersampling = 4;
+#else
+                    cfg_.supersampling = app::Config::kNativeResolution;
+#endif
+                    cfg_.msaa = 4;
+                    cfg_.aniso = 16;
+                    cfg_.smooth_cars = cfg_.car_reflections = cfg_.sharp_car_textures = cfg_.car_shadows = true;
+                    cfg_.smooth_2d = cfg_.scenery_3d = cfg_.cars_near_model = true; // as the Maximum level (app/quality.h)
+                    cfg_.save();
+                }
+                hint(TX("Each option on its own: Advanced, Enhancements."));
+            }, [&] {
+                ImGui::SeparatorText(TX("Cars"));
+                ImGui::BeginDisabled(cfg_.renderer != "hardware");
+                if (ImGui::Checkbox(TX("Car shadows"), &cfg_.car_shadows)) cfg_.save();
+                if (ImGui::Checkbox(TX("Paint reflections"), &cfg_.car_reflections)) cfg_.save();
+                ImGui::BeginDisabled(cfg_.draw_mode != 0);
+                if (ImGui::Checkbox(TX("Online: the other players' cars smooth"), &cfg_.smooth_online_cars)) cfg_.save();
+                ImGui::EndDisabled();
+#ifndef M2_MOBILE
+                {
+                    std::error_code ec;
+                    if (std::filesystem::exists(std::filesystem::u8path(HiresMaker::pack_path()), ec) &&
+                        ImGui::Checkbox(TX("Use the high-resolution textures"), &cfg_.hires_textures))
+                        cfg_.save();
+                }
+#endif
+                ImGui::EndDisabled();
+                if (cfg_.renderer != "hardware") hint(TX("Needs the Hardware renderer (Advanced, Display)."));
+                ImGui::Spacing();
+                ImGui::SeparatorText(TX("Sound"));
+                int v = int(cfg_.volume * 100.0f + 0.5f);
+                if (slider(TX("Volume"), "##main_volume", &v, 0, 100, "%d%%")) {
+                    cfg_.volume = float(v) / 100.0f;
+                    cfg_.save();
+                }
+                if (ImGui::Checkbox(TX("Mute"), &cfg_.mute)) cfg_.save();
+            });
+        };
+        // an Advanced section, closed at first (M2_CAPTURE_SETTINGS_SECTION=N opens section N, for a capture)
+        static int open_section = [] {
+            const char *v = std::getenv("M2_CAPTURE_SETTINGS_SECTION");
+            return v && *v ? std::atoi(v) : -1;
+        }();
+        int section_index = 0;
+        const auto section = [&](const char *title, const auto &body) {
+            if (section_index++ == open_section) ImGui::SetNextItemOpen(true), open_section = -1;
+            if (ImGui::CollapsingHeader(title)) {
+                ImGui::Indent(8.f * scale);
+                body();
+                ImGui::Unindent(8.f * scale);
+                ImGui::Spacing();
+            }
+        };
+        if (ImGui::BeginTabItem(TX("Main"), nullptr, tab_flags(0))) {
+            section_main();
+            ImGui::EndTabItem();
+        }
+#ifndef M2_MOBILE
+        // only when the project's cars/ folder holds a car that loads
+        if (!custom_cars_now().cars.empty() && ImGui::BeginTabItem(TX("Cars"), nullptr, tab_flags(7))) {
+            draw_cars_tab(scale);
+            ImGui::EndTabItem();
+        }
+#endif
+        if (ImGui::BeginTabItem(TX("Controls"), nullptr, tab_flags(4))) {
+            section_controls();
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem(TX("Advanced"), nullptr, tab_flags(8))) {
+            ImGui::Spacing();
+            section(TX("Game"), section_game);
+            section(TX("Display"), section_display);
+            section(TX("Enhancements"), section_enhancements);
+            section(TX("Sound"), section_sound);
+#ifndef M2_MOBILE
+            section(TX("AI textures"), [&] { draw_hires_tab(scale); });
+#endif
+            section(TX("Link play (advanced)"), section_link);
             ImGui::EndTabItem();
         }
 

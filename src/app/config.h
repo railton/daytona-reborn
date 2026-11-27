@@ -15,13 +15,14 @@ struct Config {
     std::string rom_path;
     std::string gpu;          // "" (automatic), vulkan, direct3d12, metal
     std::string renderer = "software"; // the 3D: software (CPU, exact) or hardware (SDL_GPU)
-    bool fullscreen = false;
-    bool hide_cursor = false; // no mouse cursor while the game plays; it shows again in the launcher
+    bool fullscreen = true;  // a game's expected start (borderless at the desktop's mode below); F11 toggles
+    bool hide_cursor = true; // no mouse cursor while the game plays; it shows again in the launcher
     // Exclusive fullscreen in this mode ("WxH@Hz", with "*density" when not
     // 1), or "" for borderless at the desktop's mode.
     std::string fullscreen_mode;
-    // Frame pacing (#7, app/pacing.h); all off: the arcade's speed on any display.
-    bool pace_smooth = false;       // a display at a multiple of 57.52 Hz: one frame per refresh(es)
+    // Frame pacing (#7, app/pacing.h): the arcade's speed on any display; the
+    // smooth pacing, on, acts only on a display at 57.52 or 115.05 Hz.
+    bool pace_smooth = true;        // a display at a multiple of 57.52 Hz: one frame per refresh(es)
     bool pace_sync_display = false; // the game at a rate dividing the refresh (60 on 60/120/240 Hz: 4% fast)
     bool pace_vrr = false;          // each frame held to 1/57.52 s, for a variable-refresh display
     bool skip_launcher = false; // start the game straight away (as --autostart); Esc still opens the launcher

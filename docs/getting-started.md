@@ -362,7 +362,7 @@ It is waiting for a second, linked cabinet. Set a single cabinet in test
 mode (F2), as under [Play](#4-play).
 
 **Starting again from scratch**
-To reset only the settings: Settings > Game > **Start over** > **Erase the
+To reset only the settings: Settings > Advanced > Game > **Start over** > **Erase the
 settings...**; the game restarts and checks the ROM set and the graphics card
 again (records kept). For the build too:
 delete the `build` folder (and `build-daytona`) and run setup again. Your

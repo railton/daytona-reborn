@@ -5,6 +5,9 @@
 
 #include "app/config.h"
 
+#include <string>
+#include <utility>
+
 namespace app {
 
 enum class QualityLevel { Original, Medium, High, Maximum };
@@ -44,7 +47,12 @@ constexpr QualityLevel pick_quality(const QualityTimes &t) {
 // (Direct3D 12, Vulkan); else Maximum draws at 4 times the arcade's. The
 // arcade multiples are drawn at most at the screen's size (arcade_scale_for).
 // Original turns the image enhancements off; the renderer stays as it is.
-// The screen effects (bloom, CRT) are a matter of taste: never touched.
+// High and Maximum add the smooth menus and HUD (0.03 ms measured), Maximum
+// the 3D scenery and the always-detailed opponents (a recent processor:
+// +0.15 and +0.38 ms at the 99th percentile measured, 27/11; they apply at
+// the next start). The display's smooth pacing is set (it acts only on a
+// 57.52 or 115.05 Hz display). The screen effects (bloom, CRT) are a matter
+// of taste: never touched.
 inline void apply_quality(Config &cfg, QualityLevel level, bool native_modes) {
     const bool on = level != QualityLevel::Original;
     if (on) cfg.renderer = "hardware";
@@ -63,8 +71,25 @@ inline void apply_quality(Config &cfg, QualityLevel level, bool native_modes) {
         cfg.supersampling = 1, cfg.msaa = 1, cfg.aniso = 1;
         break;
     }
+    const bool high = level == QualityLevel::High || level == QualityLevel::Maximum;
     cfg.smooth_cars = cfg.car_reflections = on;
-    cfg.sharp_car_textures = cfg.car_shadows = level == QualityLevel::High || level == QualityLevel::Maximum;
+    cfg.sharp_car_textures = cfg.car_shadows = cfg.smooth_2d = high;
+    cfg.scenery_3d = cfg.cars_near_model = level == QualityLevel::Maximum;
+    cfg.pace_smooth = true;
+}
+
+// What a level set, for the log.
+inline std::string quality_summary(const Config &cfg) {
+    std::string s = "renderer " + cfg.renderer + ", resolution " +
+                    (cfg.uses_native_resolution() ? std::string("native") : std::to_string(cfg.supersampling) + "x") + ", MSAA " +
+                    std::to_string(cfg.msaa) + "x, anisotropic " + std::to_string(cfg.aniso) + "x";
+    const std::pair<bool, const char *> options[] = {
+        {cfg.smooth_cars, "smooth car shading"}, {cfg.car_reflections, "paint reflections"},
+        {cfg.sharp_car_textures, "sharp car textures"}, {cfg.car_shadows, "car shadows"}, {cfg.smooth_2d, "smooth menus and HUD"},
+        {cfg.scenery_3d, "3D scenery"}, {cfg.cars_near_model, "detailed opponents"}, {cfg.pace_smooth, "smooth pacing"}};
+    for (const auto &[on, name] : options)
+        if (on) s += std::string(", ") + name;
+    return s;
 }
 
 } // namespace app

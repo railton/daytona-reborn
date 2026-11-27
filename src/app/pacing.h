@@ -1,7 +1,8 @@
 // Frame pacing (issue #7): how many game frames each pass of the main loop
-// runs, and when. Every setting is off by default, and then the game runs at
-// the arcade's own rate on the wall clock, whatever the display's refresh:
-// a faster display shows frames more often, never a faster game.
+// runs, and when. By default the game runs at the arcade's own rate on the
+// wall clock, whatever the display's refresh (a faster display shows frames
+// more often, never a faster game), and the smooth pacing (on by default)
+// locks a display at a multiple of that rate to it.
 //
 //   Clock    (default) game frames as the wall clock passes 1/57.52 s; the
 //            display's vsync paces the passes.
